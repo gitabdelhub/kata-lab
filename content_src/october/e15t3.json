@@ -1,0 +1,624 @@
+{
+"ID": "e15t3",
+"NAME": "Day-1 and Day-7 Retention by Signup Cohort",
+"LANG": "sql",
+"PARAMS": [],
+"ENTRY": null,
+"ORDERED": true,
+"DESC": "<p>The growth team tracks how many new users come back to the mobile app during their first week. Users are grouped into cohorts by signup date.</p>\n<h3>Tables</h3>\n<p><code>users</code></p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>column</th>\n<th>type</th>\n<th>description</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>user_id</td>\n<td>INT</td>\n<td>primary key</td>\n</tr>\n<tr>\n<td>signup_ts</td>\n<td>TIMESTAMP</td>\n<td>not null, date and time of signup</td>\n</tr>\n<tr>\n<td>channel</td>\n<td>VARCHAR(20)</td>\n<td>not null, acquisition channel (not needed for this task)</td>\n</tr>\n</tbody>\n</table>\n<p><code>events</code></p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>column</th>\n<th>type</th>\n<th>description</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>event_id</td>\n<td>INT</td>\n<td>primary key</td>\n</tr>\n<tr>\n<td>user_id</td>\n<td>INT</td>\n<td>not null; may reference a user that does not exist in <code>users</code></td>\n</tr>\n<tr>\n<td>event_ts</td>\n<td>TIMESTAMP</td>\n<td>not null</td>\n</tr>\n<tr>\n<td>event_type</td>\n<td>VARCHAR(20)</td>\n<td>not null, e.g. <code>'app_open'</code>, <code>'purchase'</code>, <code>'push_received'</code></td>\n</tr>\n</tbody>\n</table>\n<h3>Rules</h3>\n<ol>\n<li>The cohort of a user is <code>cohort_date</code>, the calendar date of <code>signup_ts</code>.</li>\n<li>Only events of type <code>'app_open'</code> count as activity. Events of users that are not in <code>users</code> are ignored.</li>\n<li>The day number of an activity is the number of calendar days between <code>cohort_date</code> and the calendar date of <code>event_ts</code> (day 0 is the signup date; time of day does not matter).</li>\n<li>A user is day-1 active if they have at least one activity on day 1. A user is day-7 retained if they have at least one activity on any day from day 1 to day 7, both inclusive.</li>\n<li>The data was extracted at the end of <code>2024-03-31</code>. Only cohorts whose 7-day window is complete are reported: <code>cohort_date + 7 days &lt;= 2024-03-31</code>.</li>\n<li>For each reported cohort: <code>cohort_size</code> is the number of users of the cohort, <code>d1_users</code> the number of day-1 active users, <code>d7_users</code> the number of day-7 retained users, and <code>d7_retention_pct = 100 * d7_users / cohort_size</code>, rounded to 2 decimals.</li>\n<li>Report every cohort that has at least one user, even if nobody came back.</li>\n</ol>\n<h3>Output</h3>\n<p>Exactly these columns, in this order:</p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>column</th>\n<th>type</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>cohort_date</td>\n<td>DATE</td>\n</tr>\n<tr>\n<td>cohort_size</td>\n<td>INT (or BIGINT)</td>\n</tr>\n<tr>\n<td>d1_users</td>\n<td>INT (or BIGINT)</td>\n</tr>\n<tr>\n<td>d7_users</td>\n<td>INT (or BIGINT)</td>\n</tr>\n<tr>\n<td>d7_retention_pct</td>\n<td>DECIMAL, 2 decimals</td>\n</tr>\n</tbody>\n</table>\n<p>Rows are sorted by <code>cohort_date</code> ascending.</p>\n<h3>Example</h3>\n<p><code>users</code></p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>user_id</th>\n<th>signup_ts</th>\n<th>channel</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>1</td>\n<td>2024-03-01 09:00:00</td>\n<td>ads</td>\n</tr>\n<tr>\n<td>2</td>\n<td>2024-03-01 23:30:00</td>\n<td>organic</td>\n</tr>\n<tr>\n<td>3</td>\n<td>2024-03-01 12:00:00</td>\n<td>ads</td>\n</tr>\n<tr>\n<td>7</td>\n<td>2024-03-01 18:00:00</td>\n<td>organic</td>\n</tr>\n<tr>\n<td>4</td>\n<td>2024-03-02 08:00:00</td>\n<td>organic</td>\n</tr>\n<tr>\n<td>5</td>\n<td>2024-03-25 10:00:00</td>\n<td>ads</td>\n</tr>\n<tr>\n<td>6</td>\n<td>2024-03-24 10:00:00</td>\n<td>ads</td>\n</tr>\n</tbody>\n</table>\n<p><code>events</code></p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>event_id</th>\n<th>user_id</th>\n<th>event_ts</th>\n<th>event_type</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>101</td>\n<td>1</td>\n<td>2024-03-01 09:05:00</td>\n<td>app_open</td>\n</tr>\n<tr>\n<td>102</td>\n<td>1</td>\n<td>2024-03-02 08:00:00</td>\n<td>app_open</td>\n</tr>\n<tr>\n<td>103</td>\n<td>1</td>\n<td>2024-03-02 09:00:00</td>\n<td>app_open</td>\n</tr>\n<tr>\n<td>104</td>\n<td>2</td>\n<td>2024-03-02 00:10:00</td>\n<td>app_open</td>\n</tr>\n<tr>\n<td>105</td>\n<td>3</td>\n<td>2024-03-08 23:59:00</td>\n<td>app_open</td>\n</tr>\n<tr>\n<td>106</td>\n<td>3</td>\n<td>2024-03-02 10:00:00</td>\n<td>push_received</td>\n</tr>\n<tr>\n<td>107</td>\n<td>4</td>\n<td>2024-03-10 10:00:00</td>\n<td>app_open</td>\n</tr>\n<tr>\n<td>108</td>\n<td>6</td>\n<td>2024-03-31 22:00:00</td>\n<td>app_open</td>\n</tr>\n<tr>\n<td>109</td>\n<td>5</td>\n<td>2024-03-26 10:00:00</td>\n<td>app_open</td>\n</tr>\n</tbody>\n</table>\n<p>Expected output</p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>cohort_date</th>\n<th>cohort_size</th>\n<th>d1_users</th>\n<th>d7_users</th>\n<th>d7_retention_pct</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>2024-03-01</td>\n<td>4</td>\n<td>2</td>\n<td>3</td>\n<td>75.00</td>\n</tr>\n<tr>\n<td>2024-03-02</td>\n<td>1</td>\n<td>0</td>\n<td>0</td>\n<td>0.00</td>\n</tr>\n<tr>\n<td>2024-03-24</td>\n<td>1</td>\n<td>0</td>\n<td>1</td>\n<td>100.00</td>\n</tr>\n</tbody>\n</table>\n<h3>Constraints</h3>\n<ul>\n<li>Dialect: PostgreSQL.</li>\n<li>Write a single <code>SELECT</code> statement (CTEs allowed). Do not create tables or views.</li>\n<li><code>users</code> has up to 10^6 rows, <code>events</code> up to 10^8 rows.</li>\n</ul><p class=\"muted\">Write a PostgreSQL query.</p>",
+"STARTER": "/* Write your PostgreSQL query here */\n",
+"SOLUTION": "WITH cohorts AS (\n    SELECT user_id,\n           CAST(signup_ts AS DATE) AS cohort_date\n    FROM users\n    WHERE CAST(signup_ts AS DATE) + 7 <= DATE '2024-03-31'\n),\nactivity AS (\n    SELECT DISTINCT\n           c.user_id,\n           CAST(e.event_ts AS DATE) - c.cohort_date AS day_n\n    FROM events e\n    JOIN cohorts c\n      ON c.user_id = e.user_id\n    WHERE e.event_type = 'app_open'\n),\nper_user AS (\n    SELECT c.cohort_date,\n           c.user_id,\n           MAX(CASE WHEN a.day_n = 1 THEN 1 ELSE 0 END) AS is_d1,\n           MAX(CASE WHEN a.day_n BETWEEN 1 AND 7 THEN 1 ELSE 0 END) AS is_d7\n    FROM cohorts c\n    LEFT JOIN activity a\n           ON a.user_id = c.user_id\n    GROUP BY c.cohort_date, c.user_id\n)\nSELECT cohort_date,\n       COUNT(*) AS cohort_size,\n       SUM(is_d1) AS d1_users,\n       SUM(is_d7) AS d7_users,\n       ROUND(100.0 * SUM(is_d7) / COUNT(*), 2) AS d7_retention_pct\nFROM per_user\nGROUP BY cohort_date\nORDER BY cohort_date;\n",
+"WRAPPER": "",
+"MINUTES": 22,
+"SOURCE": "Examen d'entraînement d'octobre n°7, question 3",
+"TAGS": [],
+"VISIBLE": 1,
+"tests": [
+{
+"tables": {
+"users": {
+"columns": [
+[
+"user_id",
+"INT"
+],
+[
+"signup_ts",
+"TIMESTAMP"
+],
+[
+"channel",
+"VARCHAR(20)"
+]
+],
+"rows": [
+[
+1,
+"2024-03-01 09:00:00",
+"ads"
+],
+[
+2,
+"2024-03-01 23:30:00",
+"organic"
+],
+[
+3,
+"2024-03-01 12:00:00",
+"ads"
+],
+[
+7,
+"2024-03-01 18:00:00",
+"organic"
+],
+[
+4,
+"2024-03-02 08:00:00",
+"organic"
+],
+[
+5,
+"2024-03-25 10:00:00",
+"ads"
+],
+[
+6,
+"2024-03-24 10:00:00",
+"ads"
+]
+]
+},
+"events": {
+"columns": [
+[
+"event_id",
+"INT"
+],
+[
+"user_id",
+"INT"
+],
+[
+"event_ts",
+"TIMESTAMP"
+],
+[
+"event_type",
+"VARCHAR(20)"
+]
+],
+"rows": [
+[
+101,
+1,
+"2024-03-01 09:05:00",
+"app_open"
+],
+[
+102,
+1,
+"2024-03-02 08:00:00",
+"app_open"
+],
+[
+103,
+1,
+"2024-03-02 09:00:00",
+"app_open"
+],
+[
+104,
+2,
+"2024-03-02 00:10:00",
+"app_open"
+],
+[
+105,
+3,
+"2024-03-08 23:59:00",
+"app_open"
+],
+[
+106,
+3,
+"2024-03-02 10:00:00",
+"push_received"
+],
+[
+107,
+4,
+"2024-03-10 10:00:00",
+"app_open"
+],
+[
+108,
+6,
+"2024-03-31 22:00:00",
+"app_open"
+],
+[
+109,
+5,
+"2024-03-26 10:00:00",
+"app_open"
+]
+]
+}
+}
+},
+{
+"tables": {
+"users": {
+"columns": [
+[
+"user_id",
+"INT"
+],
+[
+"signup_ts",
+"TIMESTAMP"
+],
+[
+"channel",
+"VARCHAR(20)"
+]
+],
+"rows": [
+[
+10,
+"2024-03-10 08:00:00",
+"ads"
+],
+[
+11,
+"2024-03-10 22:00:00",
+"ads"
+],
+[
+12,
+"2024-03-10 12:00:00",
+"organic"
+]
+]
+},
+"events": {
+"columns": [
+[
+"event_id",
+"INT"
+],
+[
+"user_id",
+"INT"
+],
+[
+"event_ts",
+"TIMESTAMP"
+],
+[
+"event_type",
+"VARCHAR(20)"
+]
+],
+"rows": [
+[
+201,
+10,
+"2024-03-17 23:00:00",
+"app_open"
+],
+[
+202,
+11,
+"2024-03-18 00:00:00",
+"app_open"
+],
+[
+203,
+12,
+"2024-03-10 23:00:00",
+"app_open"
+]
+]
+}
+}
+},
+{
+"tables": {
+"users": {
+"columns": [
+[
+"user_id",
+"INT"
+],
+[
+"signup_ts",
+"TIMESTAMP"
+],
+[
+"channel",
+"VARCHAR(20)"
+]
+],
+"rows": [
+[
+20,
+"2024-03-24 23:59:59",
+"ads"
+],
+[
+21,
+"2024-03-25 00:00:00",
+"ads"
+],
+[
+22,
+"2024-03-24 00:00:00",
+"organic"
+]
+]
+},
+"events": {
+"columns": [
+[
+"event_id",
+"INT"
+],
+[
+"user_id",
+"INT"
+],
+[
+"event_ts",
+"TIMESTAMP"
+],
+[
+"event_type",
+"VARCHAR(20)"
+]
+],
+"rows": [
+[
+301,
+20,
+"2024-03-31 23:59:59",
+"app_open"
+],
+[
+302,
+20,
+"2024-03-25 00:00:01",
+"app_open"
+],
+[
+303,
+20,
+"2024-03-25 05:00:00",
+"app_open"
+],
+[
+304,
+21,
+"2024-03-26 10:00:00",
+"app_open"
+],
+[
+305,
+99,
+"2024-03-25 10:00:00",
+"app_open"
+],
+[
+306,
+22,
+"2024-03-25 10:00:00",
+"purchase"
+]
+]
+}
+}
+},
+{
+"tables": {
+"users": {
+"columns": [
+[
+"user_id",
+"INT"
+],
+[
+"signup_ts",
+"TIMESTAMP"
+],
+[
+"channel",
+"VARCHAR(20)"
+]
+],
+"rows": [
+[
+30,
+"2024-02-27 10:00:00",
+"ads"
+],
+[
+31,
+"2024-02-27 11:00:00",
+"ads"
+],
+[
+32,
+"2024-02-27 12:00:00",
+"organic"
+],
+[
+33,
+"2024-03-05 09:00:00",
+"ads"
+],
+[
+34,
+"2024-03-05 09:30:00",
+"ads"
+],
+[
+35,
+"2024-03-05 10:00:00",
+"organic"
+],
+[
+36,
+"2024-03-05 11:00:00",
+"organic"
+],
+[
+37,
+"2024-03-05 12:00:00",
+"ads"
+],
+[
+38,
+"2024-03-05 13:00:00",
+"ads"
+],
+[
+39,
+"2024-03-03 08:00:00",
+"organic"
+]
+]
+},
+"events": {
+"columns": [
+[
+"event_id",
+"INT"
+],
+[
+"user_id",
+"INT"
+],
+[
+"event_ts",
+"TIMESTAMP"
+],
+[
+"event_type",
+"VARCHAR(20)"
+]
+],
+"rows": [
+[
+401,
+30,
+"2024-02-29 10:00:00",
+"app_open"
+],
+[
+402,
+31,
+"2024-03-05 10:00:00",
+"app_open"
+],
+[
+403,
+32,
+"2024-03-06 10:00:00",
+"app_open"
+],
+[
+404,
+33,
+"2024-03-06 07:00:00",
+"app_open"
+],
+[
+405,
+34,
+"2024-03-04 10:00:00",
+"app_open"
+]
+]
+}
+}
+},
+{
+"tables": {
+"users": {
+"columns": [
+[
+"user_id",
+"INT"
+],
+[
+"signup_ts",
+"TIMESTAMP"
+],
+[
+"channel",
+"VARCHAR(20)"
+]
+],
+"rows": [
+[
+40,
+"2024-03-28 10:00:00",
+"ads"
+]
+]
+},
+"events": {
+"columns": [
+[
+"event_id",
+"INT"
+],
+[
+"user_id",
+"INT"
+],
+[
+"event_ts",
+"TIMESTAMP"
+],
+[
+"event_type",
+"VARCHAR(20)"
+]
+],
+"rows": [
+[
+501,
+40,
+"2024-03-29 10:00:00",
+"app_open"
+]
+]
+}
+}
+}
+],
+"bank": [
+{
+"__table__": {
+"columns": [
+"cohort_date",
+"cohort_size",
+"d1_users",
+"d7_users",
+"d7_retention_pct"
+],
+"rows": [
+[
+"2024-03-01",
+4,
+2,
+3,
+75.0
+],
+[
+"2024-03-02",
+1,
+0,
+0,
+0.0
+],
+[
+"2024-03-24",
+1,
+0,
+1,
+100.0
+]
+]
+}
+},
+{
+"__table__": {
+"columns": [
+"cohort_date",
+"cohort_size",
+"d1_users",
+"d7_users",
+"d7_retention_pct"
+],
+"rows": [
+[
+"2024-03-10",
+3,
+0,
+1,
+33.33
+]
+]
+}
+},
+{
+"__table__": {
+"columns": [
+"cohort_date",
+"cohort_size",
+"d1_users",
+"d7_users",
+"d7_retention_pct"
+],
+"rows": [
+[
+"2024-03-24",
+2,
+1,
+1,
+50.0
+]
+]
+}
+},
+{
+"__table__": {
+"columns": [
+"cohort_date",
+"cohort_size",
+"d1_users",
+"d7_users",
+"d7_retention_pct"
+],
+"rows": [
+[
+"2024-02-27",
+3,
+0,
+2,
+66.67
+],
+[
+"2024-03-03",
+1,
+0,
+0,
+0.0
+],
+[
+"2024-03-05",
+6,
+1,
+1,
+16.67
+]
+]
+}
+},
+{
+"__table__": {
+"columns": [
+"cohort_date",
+"cohort_size",
+"d1_users",
+"d7_users",
+"d7_retention_pct"
+],
+"rows": []
+}
+}
+]
+}

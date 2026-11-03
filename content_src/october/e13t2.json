@@ -1,0 +1,515 @@
+{
+"ID": "e13t2",
+"NAME": "Top Products per Category",
+"LANG": "pyspark",
+"PARAMS": [
+"sales_df",
+"n"
+],
+"ENTRY": "solve",
+"ORDERED": true,
+"DESC": "<p>The merchandising team wants, for each product category, the best-selling products by net units sold. Returns are recorded as sales with a negative quantity. The ingestion job sometimes loads the same sale twice.</p>\n<p>Implement <code>solve</code> so that it returns the top <code>n</code> ranks of products in each category.</p>\n<h3>Input</h3>\n<p><code>sales_df</code></p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>column</th>\n<th>type</th>\n<th>description</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>sale_id</td>\n<td>string</td>\n<td>identifies a sale; rows with the same <code>sale_id</code> are identical copies</td>\n</tr>\n<tr>\n<td>category</td>\n<td>string</td>\n<td>free text with inconsistent case and spaces; may be null</td>\n</tr>\n<tr>\n<td>product_id</td>\n<td>string</td>\n<td>may be null</td>\n</tr>\n<tr>\n<td>quantity</td>\n<td>int</td>\n<td>negative for a return; may be null</td>\n</tr>\n<tr>\n<td>sale_date</td>\n<td>string</td>\n<td>format <code>yyyy-MM-dd</code> (not needed for this task)</td>\n</tr>\n</tbody>\n</table>\n<p><code>n</code> is a positive integer.</p>\n<h3>Rules</h3>\n<ol>\n<li>Each <code>sale_id</code> is counted once.</li>\n<li><code>category</code> is normalized by trimming spaces and converting to lowercase.</li>\n<li>Rows whose normalized <code>category</code> is null or empty, whose <code>product_id</code> is null, or whose <code>quantity</code> is null are ignored.</li>\n<li><code>total_units</code> of a product in a category is the sum of the quantities of its sales in that category (returns included). The same <code>product_id</code> in two categories is ranked separately in each category.</li>\n<li>Products whose <code>total_units</code> is 0 or negative are excluded.</li>\n<li>Within each category, products are ranked by <code>total_units</code> descending. Products with the same <code>total_units</code> share the same rank, and ranks have no gaps: totals 9, 9, 7 get ranks 1, 1, 2.</li>\n<li>Return every product whose rank is less than or equal to <code>n</code>.</li>\n</ol>\n<h3>Output</h3>\n<p>A DataFrame with exactly these columns, in this order:</p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>column</th>\n<th>type</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>category</td>\n<td>string</td>\n</tr>\n<tr>\n<td>product_id</td>\n<td>string</td>\n</tr>\n<tr>\n<td>total_units</td>\n<td>long</td>\n</tr>\n<tr>\n<td>product_rank</td>\n<td>integer</td>\n</tr>\n</tbody>\n</table>\n<p>Rows are sorted by <code>category</code> ascending, then <code>product_rank</code> ascending, then <code>product_id</code> ascending.</p>\n<h3>Example</h3>\n<p><code>n = 2</code></p>\n<p><code>sales_df</code></p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>sale_id</th>\n<th>category</th>\n<th>product_id</th>\n<th>quantity</th>\n<th>sale_date</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>S1</td>\n<td>\"electronics\"</td>\n<td>P1</td>\n<td>5</td>\n<td>2024-03-01</td>\n</tr>\n<tr>\n<td>S2</td>\n<td>\" Electronics\"</td>\n<td>P2</td>\n<td>3</td>\n<td>2024-03-01</td>\n</tr>\n<tr>\n<td>S3</td>\n<td>\"electronics\"</td>\n<td>P3</td>\n<td>5</td>\n<td>2024-03-02</td>\n</tr>\n<tr>\n<td>S4</td>\n<td>\"ELECTRONICS\"</td>\n<td>P4</td>\n<td>2</td>\n<td>2024-03-02</td>\n</tr>\n<tr>\n<td>S5</td>\n<td>\"electronics\"</td>\n<td>P2</td>\n<td>-1</td>\n<td>2024-03-03</td>\n</tr>\n<tr>\n<td>S6</td>\n<td>\"books\"</td>\n<td>B1</td>\n<td>4</td>\n<td>2024-03-01</td>\n</tr>\n<tr>\n<td>S6</td>\n<td>\"books\"</td>\n<td>B1</td>\n<td>4</td>\n<td>2024-03-01</td>\n</tr>\n<tr>\n<td>S7</td>\n<td>\"books\"</td>\n<td>B2</td>\n<td>null</td>\n<td>2024-03-02</td>\n</tr>\n<tr>\n<td>S8</td>\n<td>\"books\"</td>\n<td>B3</td>\n<td>-2</td>\n<td>2024-03-03</td>\n</tr>\n<tr>\n<td>S9</td>\n<td>null</td>\n<td>P9</td>\n<td>10</td>\n<td>2024-03-03</td>\n</tr>\n</tbody>\n</table>\n<p>Expected output</p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>category</th>\n<th>product_id</th>\n<th>total_units</th>\n<th>product_rank</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>books</td>\n<td>B1</td>\n<td>4</td>\n<td>1</td>\n</tr>\n<tr>\n<td>electronics</td>\n<td>P1</td>\n<td>5</td>\n<td>1</td>\n</tr>\n<tr>\n<td>electronics</td>\n<td>P3</td>\n<td>5</td>\n<td>1</td>\n</tr>\n<tr>\n<td>electronics</td>\n<td>P2</td>\n<td>2</td>\n<td>2</td>\n</tr>\n<tr>\n<td>electronics</td>\n<td>P4</td>\n<td>2</td>\n<td>2</td>\n</tr>\n</tbody>\n</table>\n<h3>Function signature</h3>\n<pre><code class=\"language-python\">from pyspark.sql import DataFrame\n\ndef solve(sales_df: DataFrame, n: int) -&gt; DataFrame:\n    ...\n</code></pre>\n<h3>Constraints</h3>\n<ul>\n<li>Use the PySpark DataFrame API. Do not convert to pandas and do not call <code>collect()</code> or <code>toPandas()</code> inside <code>solve</code>.</li>\n<li><code>sales_df</code> has up to 10^7 rows; <code>1 &lt;= n &lt;= 100</code>.</li>\n<li>The returned DataFrame may be empty; its columns and types must still match the specification.</li>\n</ul>",
+"STARTER": "from pyspark.sql import DataFrame, Window\nfrom pyspark.sql import functions as F\n\n\ndef solve(sales_df: DataFrame, n: int) -> DataFrame:\n    # write your code here\n    return sales_df\n",
+"SOLUTION": "from pyspark.sql import DataFrame, Window\nfrom pyspark.sql import functions as F\n\n\ndef solve(sales_df: DataFrame, n: int) -> DataFrame:\n    # 1. Doublons de ré-ingestion : même sale_id = même vente, comptée une fois.\n    #    Puis normalisation de la catégorie et rejet des lignes inutilisables.\n    category = F.lower(F.trim(F.col(\"category\")))\n    clean = (\n        sales_df\n        .dropDuplicates([\"sale_id\"])\n        .withColumn(\"category\", category)\n        .filter(\n            F.col(\"category\").isNotNull() & (F.col(\"category\") != \"\")\n            & F.col(\"product_id\").isNotNull()\n            & F.col(\"quantity\").isNotNull()\n        )\n    )\n\n    # 2. Unités nettes par (catégorie, produit), retours inclus ; total <= 0 exclu AVANT le classement.\n    totals = (\n        clean.groupBy(\"category\", \"product_id\")\n        .agg(F.sum(\"quantity\").alias(\"total_units\"))\n        .filter(F.col(\"total_units\") > 0)\n    )\n\n    # 3. dense_rank : ex aequo au même rang, pas de trou.\n    w = Window.partitionBy(\"category\").orderBy(F.col(\"total_units\").desc())\n    ranked = (\n        totals\n        .withColumn(\"product_rank\", F.dense_rank().over(w))\n        .filter(F.col(\"product_rank\") <= n)\n    )\n\n    return (\n        ranked\n        .select(\"category\", \"product_id\", \"total_units\", \"product_rank\")\n        .orderBy(\"category\", \"product_rank\", \"product_id\")\n    )\n",
+"WRAPPER": "",
+"MINUTES": 22,
+"SOURCE": "Examen d'entraînement d'octobre n°5, question 2",
+"TAGS": [],
+"VISIBLE": 1,
+"tests": [
+{
+"sales_df": {
+"__df__": {
+"schema": "sale_id string, category string, product_id string, quantity int, sale_date string",
+"rows": [
+[
+"S1",
+"electronics",
+"P1",
+5,
+"2024-03-01"
+],
+[
+"S2",
+" Electronics",
+"P2",
+3,
+"2024-03-01"
+],
+[
+"S3",
+"electronics",
+"P3",
+5,
+"2024-03-02"
+],
+[
+"S4",
+"ELECTRONICS",
+"P4",
+2,
+"2024-03-02"
+],
+[
+"S5",
+"electronics",
+"P2",
+-1,
+"2024-03-03"
+],
+[
+"S6",
+"books",
+"B1",
+4,
+"2024-03-01"
+],
+[
+"S6",
+"books",
+"B1",
+4,
+"2024-03-01"
+],
+[
+"S7",
+"books",
+"B2",
+null,
+"2024-03-02"
+],
+[
+"S8",
+"books",
+"B3",
+-2,
+"2024-03-03"
+],
+[
+"S9",
+null,
+"P9",
+10,
+"2024-03-03"
+]
+]
+}
+},
+"n": 2
+},
+{
+"sales_df": {
+"__df__": {
+"schema": "sale_id string, category string, product_id string, quantity int, sale_date string",
+"rows": [
+[
+"A1",
+"toys",
+"T1",
+3,
+"2024-04-01"
+],
+[
+"A1",
+"toys",
+"T1",
+3,
+"2024-04-01"
+],
+[
+"A2",
+"toys",
+"T2",
+3,
+"2024-04-01"
+],
+[
+"A3",
+"toys",
+"T3",
+1,
+"2024-04-02"
+],
+[
+"A4",
+"garden",
+"G1",
+7,
+"2024-04-02"
+],
+[
+"A5",
+"garden",
+"G2",
+2,
+"2024-04-03"
+],
+[
+"A5",
+"garden",
+"G2",
+2,
+"2024-04-03"
+],
+[
+"A5",
+"garden",
+"G2",
+2,
+"2024-04-03"
+],
+[
+"A6",
+"garden",
+"G2",
+4,
+"2024-04-04"
+]
+]
+}
+},
+"n": 1
+},
+{
+"sales_df": {
+"__df__": {
+"schema": "sale_id string, category string, product_id string, quantity int, sale_date string",
+"rows": [
+[
+"F01",
+"food",
+"F1",
+9,
+"2024-05-01"
+],
+[
+"F02",
+"Food ",
+"F2",
+4,
+"2024-05-01"
+],
+[
+"F03",
+"food",
+"F2",
+5,
+"2024-05-02"
+],
+[
+"F04",
+"food",
+"F3",
+7,
+"2024-05-02"
+],
+[
+"F05",
+"FOOD",
+"F4",
+7,
+"2024-05-03"
+],
+[
+"F06",
+"food",
+"F5",
+3,
+"2024-05-03"
+],
+[
+"F07",
+"food",
+"F6",
+5,
+"2024-05-04"
+],
+[
+"F08",
+"food",
+"F6",
+-5,
+"2024-05-05"
+],
+[
+"F09",
+"food",
+"F7",
+-1,
+"2024-05-05"
+]
+]
+}
+},
+"n": 4
+},
+{
+"sales_df": {
+"__df__": {
+"schema": "sale_id string, category string, product_id string, quantity int, sale_date string",
+"rows": [
+[
+"B1",
+"Beauty ",
+"K1",
+2,
+"2024-06-01"
+],
+[
+"B2",
+"beauty",
+"K2",
+5,
+"2024-06-01"
+],
+[
+"B3",
+" BEAUTY",
+"K1",
+2,
+"2024-06-02"
+],
+[
+"B4",
+"beauty",
+"K3",
+1,
+"2024-06-02"
+],
+[
+"B5",
+"beauty",
+null,
+50,
+"2024-06-03"
+],
+[
+"B6",
+"   ",
+"K9",
+40,
+"2024-06-03"
+],
+[
+"B7",
+"sports",
+"K1",
+1,
+"2024-06-04"
+],
+[
+"B8",
+"sports",
+"K4",
+null,
+"2024-06-04"
+],
+[
+"B9",
+"beauty",
+"K3",
+null,
+"2024-06-05"
+]
+]
+}
+},
+"n": 2
+},
+{
+"sales_df": {
+"__df__": {
+"schema": "sale_id string, category string, product_id string, quantity int, sale_date string",
+"rows": [
+[
+"Z1",
+"misc",
+"M1",
+-3,
+"2024-07-01"
+],
+[
+"Z2",
+"misc",
+"M1",
+3,
+"2024-07-01"
+],
+[
+"Z3",
+"misc",
+"M2",
+null,
+"2024-07-02"
+],
+[
+"Z4",
+null,
+"M3",
+5,
+"2024-07-02"
+]
+]
+}
+},
+"n": 2
+}
+],
+"bank": [
+{
+"__table__": {
+"columns": [
+"category",
+"product_id",
+"total_units",
+"product_rank"
+],
+"rows": [
+[
+"books",
+"B1",
+4,
+1
+],
+[
+"electronics",
+"P1",
+5,
+1
+],
+[
+"electronics",
+"P3",
+5,
+1
+],
+[
+"electronics",
+"P2",
+2,
+2
+],
+[
+"electronics",
+"P4",
+2,
+2
+]
+]
+}
+},
+{
+"__table__": {
+"columns": [
+"category",
+"product_id",
+"total_units",
+"product_rank"
+],
+"rows": [
+[
+"garden",
+"G1",
+7,
+1
+],
+[
+"toys",
+"T1",
+3,
+1
+],
+[
+"toys",
+"T2",
+3,
+1
+]
+]
+}
+},
+{
+"__table__": {
+"columns": [
+"category",
+"product_id",
+"total_units",
+"product_rank"
+],
+"rows": [
+[
+"food",
+"F1",
+9,
+1
+],
+[
+"food",
+"F2",
+9,
+1
+],
+[
+"food",
+"F3",
+7,
+2
+],
+[
+"food",
+"F4",
+7,
+2
+],
+[
+"food",
+"F5",
+3,
+3
+]
+]
+}
+},
+{
+"__table__": {
+"columns": [
+"category",
+"product_id",
+"total_units",
+"product_rank"
+],
+"rows": [
+[
+"beauty",
+"K2",
+5,
+1
+],
+[
+"beauty",
+"K1",
+4,
+2
+],
+[
+"sports",
+"K1",
+1,
+1
+]
+]
+}
+},
+{
+"__table__": {
+"columns": [
+"category",
+"product_id",
+"total_units",
+"product_rank"
+],
+"rows": []
+}
+}
+]
+}

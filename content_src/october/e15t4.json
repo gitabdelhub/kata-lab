@@ -1,0 +1,396 @@
+{
+"ID": "e15t4",
+"NAME": "Event Batch Validator",
+"LANG": "python",
+"PARAMS": [
+"case"
+],
+"ENTRY": "__kata_entry__",
+"ORDERED": true,
+"DESC": "<p>A partner sends purchase events in batches through an API. Before loading a batch into the warehouse, your job validates every record against the expected schema, normalizes the valid ones and produces a load report. You do not make real HTTP calls: the API is given to you as a function.</p>\n<h3>API</h3>\n<p><code>fetch_batch()</code> takes no argument and returns a dict such as:</p>\n<pre><code class=\"language-python\">{\n    &quot;batch_id&quot;: &quot;b-001&quot;,\n    &quot;records&quot;: [\n        {&quot;event_id&quot;: &quot;e1&quot;, &quot;user_id&quot;: 42, &quot;amount&quot;: 19.99, &quot;currency&quot;: &quot;mad&quot;, &quot;ts&quot;: &quot;2024-03-05T10:00:00Z&quot;},\n        ...\n    ]\n}\n</code></pre>\n<p><code>records</code> may be null or empty, and an element of <code>records</code> is not guaranteed to be a JSON object. <code>fetch_batch</code> can raise an exception. Call <code>fetch_batch</code> exactly once.</p>\n<h3>Schema and rules</h3>\n<p>Records are validated one by one, in order. For each record, the checks below are applied in this order, and the first failed check gives the rejection reason. A field is missing if its key is absent or its value is null. Keys that are not in the schema are ignored.</p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>order</th>\n<th>field</th>\n<th>rule</th>\n<th>reason if missing</th>\n<th>reason if invalid</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>0</td>\n<td>(record)</td>\n<td>must be a JSON object (a dict)</td>\n<td></td>\n<td><code>not_an_object</code></td>\n</tr>\n<tr>\n<td>1</td>\n<td>event_id</td>\n<td>required; a string that is not empty after trimming; stored trimmed</td>\n<td><code>missing_event_id</code></td>\n<td><code>invalid_event_id</code></td>\n</tr>\n<tr>\n<td>2</td>\n<td>user_id</td>\n<td>required; an integer (a boolean is not an integer) or a string of digits (after trimming), converted to int; must be &gt; 0</td>\n<td><code>missing_user_id</code></td>\n<td><code>invalid_user_id</code></td>\n</tr>\n<tr>\n<td>3</td>\n<td>amount</td>\n<td>required; a number (not a boolean) or a numeric string (after trimming), converted to float; must be finite and &gt;= 0; stored rounded to 2 decimals</td>\n<td><code>missing_amount</code></td>\n<td><code>invalid_amount</code></td>\n</tr>\n<tr>\n<td>4</td>\n<td>currency</td>\n<td>optional: if missing, <code>\"EUR\"</code>; otherwise a string that is exactly 3 letters A-Z after trimming and converting to uppercase; stored normalized</td>\n<td></td>\n<td><code>invalid_currency</code></td>\n</tr>\n<tr>\n<td>5</td>\n<td>ts</td>\n<td>required; a string in the exact format <code>YYYY-MM-DDTHH:MM:SSZ</code> (UTC, <code>T</code> and <code>Z</code> literal) that represents a real date and time; stored unchanged</td>\n<td><code>missing_ts</code></td>\n<td><code>invalid_ts</code></td>\n</tr>\n<tr>\n<td>6</td>\n<td>event_id</td>\n<td>must not be equal to the <code>event_id</code> of a record already loaded from this batch</td>\n<td></td>\n<td><code>duplicate_event_id</code></td>\n</tr>\n</tbody>\n</table>\n<p>A record that passes all checks is loaded.</p>\n<h3>Output</h3>\n<p>A dict with exactly these keys:</p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>key</th>\n<th>type</th>\n<th>description</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>status</td>\n<td>str</td>\n<td><code>\"ok\"</code>, or <code>\"error\"</code> if <code>fetch_batch</code> raised an exception</td>\n</tr>\n<tr>\n<td>error</td>\n<td>str or None</td>\n<td>name of the exception class (e.g. <code>\"TimeoutError\"</code>), None when status is ok</td>\n</tr>\n<tr>\n<td>batch_id</td>\n<td>str or None</td>\n<td><code>batch_id</code> of the response, None on error</td>\n</tr>\n<tr>\n<td>read</td>\n<td>int</td>\n<td>number of elements in <code>records</code></td>\n</tr>\n<tr>\n<td>loaded</td>\n<td>int</td>\n<td>number of loaded records</td>\n</tr>\n<tr>\n<td>rejected</td>\n<td>int</td>\n<td>number of rejected records</td>\n</tr>\n<tr>\n<td>rejections</td>\n<td>dict[str, int]</td>\n<td>number of rejected records per reason; reasons with no rejected record do not appear</td>\n</tr>\n<tr>\n<td>records</td>\n<td>list[dict]</td>\n<td>loaded records in input order, each with exactly the keys <code>event_id</code>, <code>user_id</code>, <code>amount</code>, <code>currency</code>, <code>ts</code></td>\n</tr>\n</tbody>\n</table>\n<p>On error, the counters are 0, <code>rejections</code> is <code>{}</code> and <code>records</code> is <code>[]</code>.</p>\n<h3>Example</h3>\n<p><code>fetch_batch()</code> returns:</p>\n<pre><code class=\"language-python\">{\n    &quot;batch_id&quot;: &quot;b-001&quot;,\n    &quot;records&quot;: [\n        {&quot;event_id&quot;: &quot;e1&quot;, &quot;user_id&quot;: 42, &quot;amount&quot;: 19.99, &quot;currency&quot;: &quot;mad&quot;, &quot;ts&quot;: &quot;2024-03-05T10:00:00Z&quot;},\n        {&quot;event_id&quot;: &quot;e2&quot;, &quot;user_id&quot;: &quot;43&quot;, &quot;amount&quot;: &quot;5&quot;, &quot;ts&quot;: &quot;2024-03-05T10:01:00Z&quot;},\n        {&quot;event_id&quot;: &quot;e3&quot;, &quot;user_id&quot;: True, &quot;amount&quot;: 1, &quot;ts&quot;: &quot;2024-03-05T10:02:00Z&quot;},\n        {&quot;event_id&quot;: &quot;e1&quot;, &quot;user_id&quot;: 44, &quot;amount&quot;: 2.5, &quot;currency&quot;: &quot;EUR&quot;, &quot;ts&quot;: &quot;2024-03-05T10:03:00Z&quot;},\n        {&quot;user_id&quot;: 45, &quot;amount&quot;: 3, &quot;ts&quot;: &quot;2024-03-05T10:04:00Z&quot;},\n        {&quot;event_id&quot;: &quot;e6&quot;, &quot;user_id&quot;: 46, &quot;amount&quot;: -1, &quot;ts&quot;: &quot;2024-03-05T10:05:00Z&quot;},\n        &quot;e7,47,9.5&quot;,\n        {&quot;event_id&quot;: &quot;e8&quot;, &quot;user_id&quot;: 48, &quot;amount&quot;: 7.5, &quot;currency&quot;: &quot;euro&quot;, &quot;ts&quot;: &quot;2024-03-05 10:06:00&quot;},\n        {&quot;event_id&quot;: &quot;e9&quot;, &quot;user_id&quot;: 49, &quot;amount&quot;: 0, &quot;currency&quot;: None, &quot;ts&quot;: &quot;2024-02-30T10:00:00Z&quot;, &quot;extra&quot;: &quot;x&quot;},\n    ],\n}\n</code></pre>\n<p>Expected output</p>\n<pre><code class=\"language-python\">{\n    &quot;status&quot;: &quot;ok&quot;,\n    &quot;error&quot;: None,\n    &quot;batch_id&quot;: &quot;b-001&quot;,\n    &quot;read&quot;: 9,\n    &quot;loaded&quot;: 2,\n    &quot;rejected&quot;: 7,\n    &quot;rejections&quot;: {\n        &quot;invalid_user_id&quot;: 1, &quot;duplicate_event_id&quot;: 1, &quot;missing_event_id&quot;: 1, &quot;invalid_amount&quot;: 1,\n        &quot;not_an_object&quot;: 1, &quot;invalid_currency&quot;: 1, &quot;invalid_ts&quot;: 1,\n    },\n    &quot;records&quot;: [\n        {&quot;event_id&quot;: &quot;e1&quot;, &quot;user_id&quot;: 42, &quot;amount&quot;: 19.99, &quot;currency&quot;: &quot;MAD&quot;, &quot;ts&quot;: &quot;2024-03-05T10:00:00Z&quot;},\n        {&quot;event_id&quot;: &quot;e2&quot;, &quot;user_id&quot;: 43, &quot;amount&quot;: 5.0, &quot;currency&quot;: &quot;EUR&quot;, &quot;ts&quot;: &quot;2024-03-05T10:01:00Z&quot;},\n    ],\n}\n</code></pre>\n<h3>Function signature</h3>\n<pre><code class=\"language-python\">def ingest_events(fetch_batch) -&gt; dict:\n    ...\n</code></pre>\n<h3>Constraints</h3>\n<ul>\n<li>Standard library only (<code>json</code>, <code>math</code>, <code>re</code>, <code>datetime</code>, ... are available).</li>\n<li>A batch contains up to 10^5 records.</li>\n</ul><p class=\"muted\">The functions described in the task (the API) are provided by the tests: you only write your function.</p>",
+"STARTER": "def ingest_events(fetch_batch) -> dict:\n    # write your code here\n    return None\n",
+"SOLUTION": "import math\nimport re\nfrom datetime import datetime\n\nCURRENCY_RE = re.compile(r\"[A-Z]{3}\")\n\n\ndef _validate(record, loaded_ids):\n    \"\"\"Renvoie (raison_du_rejet, None) ou (None, enregistrement_normalisé).\"\"\"\n    if not isinstance(record, dict):\n        return \"not_an_object\", None\n\n    # event_id : obligatoire, chaîne non vide après strip\n    value = record.get(\"event_id\")\n    if value is None:\n        return \"missing_event_id\", None\n    if not isinstance(value, str) or not value.strip():\n        return \"invalid_event_id\", None\n    event_id = value.strip()\n\n    # user_id : obligatoire, entier (pas bool) ou chaîne de chiffres, > 0\n    value = record.get(\"user_id\")\n    if value is None:\n        return \"missing_user_id\", None\n    if isinstance(value, bool):                       # True est un int en Python\n        return \"invalid_user_id\", None\n    if isinstance(value, int):\n        user_id = value\n    elif isinstance(value, str) and value.strip().isdigit():\n        user_id = int(value.strip())\n    else:\n        return \"invalid_user_id\", None\n    if user_id <= 0:\n        return \"invalid_user_id\", None\n\n    # amount : obligatoire, nombre (pas bool) ou chaîne numérique, fini et >= 0\n    value = record.get(\"amount\")\n    if value is None:\n        return \"missing_amount\", None\n    if isinstance(value, bool):\n        return \"invalid_amount\", None\n    if isinstance(value, (int, float)):\n        amount = float(value)\n    elif isinstance(value, str):\n        try:\n            amount = float(value.strip())\n        except ValueError:\n            return \"invalid_amount\", None\n    else:\n        return \"invalid_amount\", None\n    if not math.isfinite(amount) or amount < 0:      # float(\"nan\") et float(\"inf\") passent sinon\n        return \"invalid_amount\", None\n\n    # currency : facultative (absente ou null => EUR), sinon 3 lettres après strip/upper\n    value = record.get(\"currency\")\n    if value is None:\n        currency = \"EUR\"\n    elif isinstance(value, str) and CURRENCY_RE.fullmatch(value.strip().upper()):\n        currency = value.strip().upper()\n    else:\n        return \"invalid_currency\", None\n\n    # ts : obligatoire, chaîne au format exact YYYY-MM-DDTHH:MM:SSZ, date réelle\n    value = record.get(\"ts\")\n    if value is None:\n        return \"missing_ts\", None\n    if not isinstance(value, str):\n        return \"invalid_ts\", None\n    try:\n        datetime.strptime(value, \"%Y-%m-%dT%H:%M:%SZ\")\n    except ValueError:\n        return \"invalid_ts\", None\n\n    # doublon : seulement parmi les enregistrements déjà CHARGÉS\n    if event_id in loaded_ids:\n        return \"duplicate_event_id\", None\n\n    return None, {\"event_id\": event_id, \"user_id\": user_id, \"amount\": round(amount, 2),\n                  \"currency\": currency, \"ts\": value}\n\n\ndef ingest_events(fetch_batch) -> dict:\n    try:\n        response = fetch_batch()\n    except Exception as exc:\n        return {\"status\": \"error\", \"error\": type(exc).__name__, \"batch_id\": None,\n                \"read\": 0, \"loaded\": 0, \"rejected\": 0, \"rejections\": {}, \"records\": []}\n\n    records = response.get(\"records\") or []\n    loaded = []\n    loaded_ids = set()\n    rejections = {}\n    for record in records:\n        reason, clean = _validate(record, loaded_ids)\n        if reason is None:\n            loaded.append(clean)\n            loaded_ids.add(clean[\"event_id\"])\n        else:\n            rejections[reason] = rejections.get(reason, 0) + 1\n\n    return {\n        \"status\": \"ok\",\n        \"error\": None,\n        \"batch_id\": response.get(\"batch_id\"),\n        \"read\": len(records),\n        \"loaded\": len(loaded),\n        \"rejected\": len(records) - len(loaded),\n        \"rejections\": rejections,\n        \"records\": loaded,\n    }\n",
+"WRAPPER": "\nimport copy as _kcopy\ndef __kata_entry__(case):\n    calls = []\n    def fetch_batch():\n        calls.append(\"fetch_batch()\")\n        if case.get(\"raise\"):\n            n, m = case[\"raise\"]\n            raise {\"TimeoutError\": TimeoutError, \"ConnectionError\": ConnectionError, \"ValueError\": ValueError}.get(n, RuntimeError)(m)\n        return _kcopy.deepcopy(case[\"response\"])\n    try:\n        result = ingest_events(fetch_batch)\n    except Exception as exc:\n        result = {\"raises\": [type(exc).__name__]}\n    return {\"result\": result, \"calls\": calls}\n",
+"MINUTES": 22,
+"SOURCE": "Examen d'entraînement d'octobre n°7, question 4",
+"TAGS": [],
+"VISIBLE": 1,
+"tests": [
+{
+"case": {
+"response": {
+"batch_id": "b-001",
+"records": [
+{
+"event_id": "e1",
+"user_id": 42,
+"amount": 19.99,
+"currency": "mad",
+"ts": "2024-03-05T10:00:00Z"
+},
+{
+"event_id": "e2",
+"user_id": "43",
+"amount": "5",
+"ts": "2024-03-05T10:01:00Z"
+},
+{
+"event_id": "e3",
+"user_id": true,
+"amount": 1,
+"ts": "2024-03-05T10:02:00Z"
+},
+{
+"event_id": "e1",
+"user_id": 44,
+"amount": 2.5,
+"currency": "EUR",
+"ts": "2024-03-05T10:03:00Z"
+},
+{
+"user_id": 45,
+"amount": 3,
+"ts": "2024-03-05T10:04:00Z"
+},
+{
+"event_id": "e6",
+"user_id": 46,
+"amount": -1,
+"ts": "2024-03-05T10:05:00Z"
+},
+"e7,47,9.5",
+{
+"event_id": "e8",
+"user_id": 48,
+"amount": 7.5,
+"currency": "euro",
+"ts": "2024-03-05 10:06:00"
+},
+{
+"event_id": "e9",
+"user_id": 49,
+"amount": 0,
+"currency": null,
+"ts": "2024-02-30T10:00:00Z",
+"extra": "x"
+}
+]
+}
+}
+},
+{
+"case": {
+"response": {
+"batch_id": "b-002",
+"records": [
+{
+"event_id": "  e10  ",
+"user_id": 7,
+"amount": " 12.346 ",
+"currency": "  usd ",
+"ts": "2024-04-01T00:00:00Z"
+},
+{
+"event_id": "e10",
+"user_id": 8,
+"amount": 1,
+"ts": "2024-04-01T00:00:01Z"
+},
+{
+"event_id": "e11",
+"user_id": null,
+"amount": 1,
+"ts": "2024-04-01T00:00:02Z"
+},
+{
+"event_id": "e12",
+"user_id": 9,
+"amount": "abc",
+"ts": "2024-04-01T00:00:03Z"
+},
+{
+"event_id": "e13",
+"user_id": 9,
+"amount": "nan",
+"ts": "2024-04-01T00:00:04Z"
+},
+{
+"event_id": "e14",
+"user_id": 9,
+"amount": true,
+"ts": "2024-04-01T00:00:05Z"
+},
+{
+"event_id": "",
+"user_id": 9,
+"amount": 1,
+"ts": "2024-04-01T00:00:06Z"
+},
+{
+"event_id": 123,
+"user_id": 9,
+"amount": 1,
+"ts": "2024-04-01T00:00:07Z"
+},
+{
+"event_id": "e15",
+"user_id": 9,
+"amount": 1,
+"currency": "EU"
+},
+{
+"event_id": "e16",
+"user_id": 9,
+"amount": 2,
+"ts": "2024-04-01T00:00:09Z"
+},
+{
+"event_id": "e17",
+"user_id": 9,
+"amount": 1
+}
+]
+}
+}
+},
+{
+"case": {
+"response": {
+"batch_id": "b-003",
+"records": [
+{
+"event_id": "e20",
+"user_id": 1,
+"amount": 1,
+"ts": "2024-13-01T00:00:00Z"
+},
+{
+"event_id": "e20",
+"user_id": "007",
+"amount": 0,
+"ts": "2024-05-01T08:00:00Z"
+},
+{
+"event_id": "e21",
+"user_id": 2,
+"amount": 10,
+"currency": "Mad",
+"ts": "2024-05-01T09:00:00Z"
+},
+{
+"event_id": "e21",
+"user_id": 2,
+"amount": -5,
+"ts": "2024-05-01T09:00:01Z"
+},
+{
+"event_id": "e22",
+"user_id": 0,
+"amount": 1,
+"ts": "2024-05-01T09:00:02Z"
+},
+{
+"event_id": "e23",
+"user_id": "-3",
+"amount": 1,
+"ts": "2024-05-01T09:00:03Z"
+},
+{
+"event_id": "e24",
+"user_id": 12.5,
+"amount": 1,
+"ts": "2024-05-01T09:00:04Z"
+},
+{
+"event_id": "e25",
+"user_id": 5,
+"amount": 1,
+"ts": 1714554000
+},
+{
+"event_id": "e26",
+"user_id": 5,
+"amount": 1,
+"ts": "2024-05-01T09:00:06+01:00"
+},
+{
+"event_id": "e21",
+"user_id": 6,
+"amount": 3,
+"ts": "2024-05-01T09:00:07Z"
+}
+]
+}
+}
+},
+{
+"case": {
+"response": null,
+"raise": [
+"ConnectionError",
+"connection reset by peer"
+]
+}
+},
+{
+"case": {
+"response": {
+"batch_id": "b-005",
+"records": null
+}
+}
+}
+],
+"bank": [
+{
+"__subset__": {
+"result": {
+"status": "ok",
+"error": null,
+"batch_id": "b-001",
+"read": 9,
+"loaded": 2,
+"rejected": 7,
+"rejections": {
+"invalid_user_id": 1,
+"duplicate_event_id": 1,
+"missing_event_id": 1,
+"invalid_amount": 1,
+"not_an_object": 1,
+"invalid_currency": 1,
+"invalid_ts": 1
+},
+"records": [
+{
+"event_id": "e1",
+"user_id": 42,
+"amount": 19.99,
+"currency": "MAD",
+"ts": "2024-03-05T10:00:00Z"
+},
+{
+"event_id": "e2",
+"user_id": 43,
+"amount": 5.0,
+"currency": "EUR",
+"ts": "2024-03-05T10:01:00Z"
+}
+]
+},
+"calls": [
+"fetch_batch()"
+]
+}
+},
+{
+"__subset__": {
+"result": {
+"status": "ok",
+"error": null,
+"batch_id": "b-002",
+"read": 11,
+"loaded": 2,
+"rejected": 9,
+"rejections": {
+"duplicate_event_id": 1,
+"missing_user_id": 1,
+"invalid_amount": 3,
+"invalid_event_id": 2,
+"invalid_currency": 1,
+"missing_ts": 1
+},
+"records": [
+{
+"event_id": "e10",
+"user_id": 7,
+"amount": 12.35,
+"currency": "USD",
+"ts": "2024-04-01T00:00:00Z"
+},
+{
+"event_id": "e16",
+"user_id": 9,
+"amount": 2.0,
+"currency": "EUR",
+"ts": "2024-04-01T00:00:09Z"
+}
+]
+},
+"calls": [
+"fetch_batch()"
+]
+}
+},
+{
+"__subset__": {
+"result": {
+"status": "ok",
+"error": null,
+"batch_id": "b-003",
+"read": 10,
+"loaded": 2,
+"rejected": 8,
+"rejections": {
+"invalid_ts": 3,
+"invalid_amount": 1,
+"invalid_user_id": 3,
+"duplicate_event_id": 1
+},
+"records": [
+{
+"event_id": "e20",
+"user_id": 7,
+"amount": 0.0,
+"currency": "EUR",
+"ts": "2024-05-01T08:00:00Z"
+},
+{
+"event_id": "e21",
+"user_id": 2,
+"amount": 10.0,
+"currency": "MAD",
+"ts": "2024-05-01T09:00:00Z"
+}
+]
+},
+"calls": [
+"fetch_batch()"
+]
+}
+},
+{
+"__subset__": {
+"result": {
+"status": "error",
+"error": "ConnectionError",
+"batch_id": null,
+"read": 0,
+"loaded": 0,
+"rejected": 0,
+"rejections": {},
+"records": []
+},
+"calls": [
+"fetch_batch()"
+]
+}
+},
+{
+"__subset__": {
+"result": {
+"status": "ok",
+"error": null,
+"batch_id": "b-005",
+"read": 0,
+"loaded": 0,
+"rejected": 0,
+"rejections": {},
+"records": []
+},
+"calls": [
+"fetch_batch()"
+]
+}
+}
+]
+}

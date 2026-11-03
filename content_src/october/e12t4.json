@@ -1,0 +1,191 @@
+{
+"ID": "e12t4",
+"NAME": "NDJSON Event Loader",
+"LANG": "python",
+"PARAMS": [
+"ndjson_text"
+],
+"ENTRY": "parse_events",
+"ORDERED": true,
+"DESC": "<p>A partner drops event files in NDJSON format (one JSON object per line). The files are produced by several systems and are not always clean. Write the parser that turns the content of one file into clean records, and reports the lines it had to reject.</p>\n<h3>Input</h3>\n<p><code>ndjson_text</code>: the full content of the file, as a <code>str</code>. Lines are separated by <code>\"\\n\"</code>; some files use Windows line endings (<code>\"\\r\\n\"</code>).</p>\n<p>Each valid line is a JSON object with these fields (other fields may be present and must be dropped):</p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>field</th>\n<th>required</th>\n<th>accepted values</th>\n<th>output</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>id</td>\n<td>yes</td>\n<td>a JSON integer, or a string made of an optional <code>-</code> followed by digits, possibly surrounded by spaces (e.g. <code>\"42\"</code>, <code>\" -7 \"</code>)</td>\n<td><code>int</code></td>\n</tr>\n<tr>\n<td>event</td>\n<td>yes</td>\n<td>a string that is not empty after stripping</td>\n<td><code>str</code>, stripped</td>\n</tr>\n<tr>\n<td>value</td>\n<td>no</td>\n<td>missing or <code>null</code>; a JSON number; or a string holding a decimal number, possibly surrounded by spaces (e.g. <code>\"3.5\"</code>, <code>\" 12 \"</code>)</td>\n<td><code>float</code>, or <code>None</code> if missing or null</td>\n</tr>\n</tbody>\n</table>\n<p>Booleans (<code>true</code> / <code>false</code>) are never accepted as numbers. A JSON number with a decimal part (e.g. <code>1.0</code>) is not a valid <code>id</code>.</p>\n<h3>Rules</h3>\n<p>Process the lines in order. Line numbers start at 1 and count every physical line of the file, including blank lines.</p>\n<ol>\n<li>A blank line (empty or whitespace only) is skipped: it produces neither a record nor an error.</li>\n<li>If the line is not valid JSON, the error reason is <code>invalid_json</code>.</li>\n<li>If the line is valid JSON but not an object (e.g. an array, a string, <code>null</code>), the reason is <code>not_an_object</code>.</li>\n<li>If <code>id</code> or <code>event</code> is missing or <code>null</code>, the reason is <code>missing_field:&lt;name&gt;</code>, for the first missing field in the order <code>id</code>, <code>event</code>. This check happens before any type check.</li>\n<li>Otherwise, convert <code>id</code>, <code>event</code> and <code>value</code>, in this order. If a field has an unaccepted value, the reason is <code>invalid_field:&lt;name&gt;</code> for the first such field.</li>\n<li>A line without error produces the record <code>{\"id\": ..., \"event\": ..., \"value\": ...}</code> (exactly these 3 keys).</li>\n</ol>\n<h3>Output</h3>\n<p>Return a tuple <code>(records, errors)</code>:</p>\n<ul>\n<li><code>records</code>: list of dicts <code>{\"id\": int, \"event\": str, \"value\": float or None}</code>, in line order;</li>\n<li><code>errors</code>: list of dicts <code>{\"line\": int, \"reason\": str}</code>, in line order.</li>\n</ul>\n<h3>Example</h3>\n<p><code>ndjson_text</code> (line numbers added for readability, they are not part of the file):</p>\n<pre><code class=\"language-text\">1  {&quot;id&quot;: 1, &quot;event&quot;: &quot;click&quot;, &quot;value&quot;: 2}\n2  {&quot;id&quot;: &quot;42&quot;, &quot;event&quot;: &quot; view &quot;, &quot;value&quot;: &quot;3.5&quot;}\n3\n4  {&quot;id&quot;: 3, &quot;event&quot;: &quot;click&quot;\n5  [1, 2, 3]\n6  {&quot;event&quot;: &quot;click&quot;, &quot;value&quot;: 1}\n7  {&quot;id&quot;: &quot;4a&quot;, &quot;event&quot;: &quot;click&quot;}\n8  {&quot;id&quot;: 5, &quot;event&quot;: &quot;buy&quot;, &quot;value&quot;: null, &quot;extra&quot;: &quot;x&quot;}\n</code></pre>\n<p>Expected return value:</p>\n<pre><code class=\"language-python\">(\n    [\n        {&quot;id&quot;: 1, &quot;event&quot;: &quot;click&quot;, &quot;value&quot;: 2.0},\n        {&quot;id&quot;: 42, &quot;event&quot;: &quot;view&quot;, &quot;value&quot;: 3.5},\n        {&quot;id&quot;: 5, &quot;event&quot;: &quot;buy&quot;, &quot;value&quot;: None},\n    ],\n    [\n        {&quot;line&quot;: 4, &quot;reason&quot;: &quot;invalid_json&quot;},\n        {&quot;line&quot;: 5, &quot;reason&quot;: &quot;not_an_object&quot;},\n        {&quot;line&quot;: 6, &quot;reason&quot;: &quot;missing_field:id&quot;},\n        {&quot;line&quot;: 7, &quot;reason&quot;: &quot;invalid_field:id&quot;},\n    ],\n)\n</code></pre>\n<h3>Function signature</h3>\n<pre><code class=\"language-python\">def parse_events(ndjson_text: str) -&gt; tuple:\n    ...\n</code></pre>\n<h3>Constraints</h3>\n<ul>\n<li>Python 3 standard library only (<code>json</code> and <code>re</code> are available).</li>\n<li>Up to 10^6 lines per file.</li>\n</ul>",
+"STARTER": "def parse_events(ndjson_text):\n    # write your code here\n    return None\n",
+"SOLUTION": "import json\nimport re\n\nINT_RE = re.compile(r\"^-?\\d+$\")\n\n\ndef _to_int(v):\n    if isinstance(v, bool):                       # bool est une sous-classe de int en Python\n        raise ValueError\n    if isinstance(v, int):\n        return v\n    if isinstance(v, str) and INT_RE.match(v.strip()):\n        return int(v.strip())\n    raise ValueError\n\n\ndef _to_event(v):\n    if isinstance(v, str) and v.strip():\n        return v.strip()\n    raise ValueError\n\n\ndef _to_value(v):\n    if v is None:\n        return None\n    if isinstance(v, bool):\n        raise ValueError\n    if isinstance(v, (int, float)):\n        return float(v)\n    if isinstance(v, str):\n        return float(v.strip())                   # lève ValueError si ce n'est pas un nombre\n    raise ValueError\n\n\ndef parse_events(ndjson_text):\n    records, errors = [], []\n    for line_no, line in enumerate(ndjson_text.split(\"\\n\"), start=1):   # numéro de ligne physique\n        if not line.strip():\n            continue                              # ligne vide : ni record ni erreur\n        try:\n            obj = json.loads(line)\n        except json.JSONDecodeError:\n            errors.append({\"line\": line_no, \"reason\": \"invalid_json\"})\n            continue\n        if not isinstance(obj, dict):\n            errors.append({\"line\": line_no, \"reason\": \"not_an_object\"})\n            continue\n        missing = next((f for f in (\"id\", \"event\") if obj.get(f) is None), None)\n        if missing:\n            errors.append({\"line\": line_no, \"reason\": f\"missing_field:{missing}\"})\n            continue\n        out = {}\n        for field, convert in ((\"id\", _to_int), (\"event\", _to_event), (\"value\", _to_value)):\n            try:\n                out[field] = convert(obj.get(field))\n            except ValueError:\n                errors.append({\"line\": line_no, \"reason\": f\"invalid_field:{field}\"})\n                break\n        else:\n            records.append(out)\n    return records, errors\n",
+"WRAPPER": "",
+"MINUTES": 22,
+"SOURCE": "Examen d'entraînement d'octobre n°4, question 4",
+"TAGS": [],
+"VISIBLE": 1,
+"tests": [
+{
+"ndjson_text": "{\"id\": 1, \"event\": \"click\", \"value\": 2}\n{\"id\": \"42\", \"event\": \" view \", \"value\": \"3.5\"}\n\n{\"id\": 3, \"event\": \"click\"\n[1, 2, 3]\n{\"event\": \"click\", \"value\": 1}\n{\"id\": \"4a\", \"event\": \"click\"}\n{\"id\": 5, \"event\": \"buy\", \"value\": null, \"extra\": \"x\"}\n"
+},
+{
+"ndjson_text": "{\"id\": \" -7 \", \"event\": \"a\"}\r\n   \t\r\n{\"id\": 8, \"event\": null}\r\n{\"id\": 9, \"event\": \"b\", \"value\": true}\r\n{\"id\": 10, \"event\": \"c\", \"value\": \"  12 \"}\r\n"
+},
+{
+"ndjson_text": "null\n\"text\"\n{\"id\": 1.0, \"event\": \"ok\"}\n{\"id\": true, \"event\": \"ok\"}\n{\"id\": 2, \"event\": 5}\n{\"id\": 3, \"event\": \"   \"}\n{\"id\": 4, \"event\": \"ok\", \"value\": \"abc\"}\n{\"id\": 5, \"event\": \"ok\", \"value\": [1]}\n{\"id\": 0, \"event\": \"zero\", \"value\": -0.5}"
+},
+{
+"ndjson_text": "{'id': 1, 'event': 'a'}\n{\"id\": 1, \"event\": \"a\",}\n{\"id\": 1, \"event\": \"a\"}{\"id\": 2, \"event\": \"b\"}\n{\"value\": 1}\n{\"id\": 1}\n{\"id\": \"007\", \"event\": \"x\", \"value\": 1.5}\n{\"id\": \"zz\"}"
+},
+{
+"ndjson_text": "\n  \n{\"id\": 1, \"event\": \"x\"}\n{bad\n\n"
+}
+],
+"bank": [
+[
+[
+{
+"id": 1,
+"event": "click",
+"value": 2.0
+},
+{
+"id": 42,
+"event": "view",
+"value": 3.5
+},
+{
+"id": 5,
+"event": "buy",
+"value": null
+}
+],
+[
+{
+"line": 4,
+"reason": "invalid_json"
+},
+{
+"line": 5,
+"reason": "not_an_object"
+},
+{
+"line": 6,
+"reason": "missing_field:id"
+},
+{
+"line": 7,
+"reason": "invalid_field:id"
+}
+]
+],
+[
+[
+{
+"id": -7,
+"event": "a",
+"value": null
+},
+{
+"id": 10,
+"event": "c",
+"value": 12.0
+}
+],
+[
+{
+"line": 3,
+"reason": "missing_field:event"
+},
+{
+"line": 4,
+"reason": "invalid_field:value"
+}
+]
+],
+[
+[
+{
+"id": 0,
+"event": "zero",
+"value": -0.5
+}
+],
+[
+{
+"line": 1,
+"reason": "not_an_object"
+},
+{
+"line": 2,
+"reason": "not_an_object"
+},
+{
+"line": 3,
+"reason": "invalid_field:id"
+},
+{
+"line": 4,
+"reason": "invalid_field:id"
+},
+{
+"line": 5,
+"reason": "invalid_field:event"
+},
+{
+"line": 6,
+"reason": "invalid_field:event"
+},
+{
+"line": 7,
+"reason": "invalid_field:value"
+},
+{
+"line": 8,
+"reason": "invalid_field:value"
+}
+]
+],
+[
+[
+{
+"id": 7,
+"event": "x",
+"value": 1.5
+}
+],
+[
+{
+"line": 1,
+"reason": "invalid_json"
+},
+{
+"line": 2,
+"reason": "invalid_json"
+},
+{
+"line": 3,
+"reason": "invalid_json"
+},
+{
+"line": 4,
+"reason": "missing_field:id"
+},
+{
+"line": 5,
+"reason": "missing_field:event"
+},
+{
+"line": 7,
+"reason": "missing_field:event"
+}
+]
+],
+[
+[
+{
+"id": 1,
+"event": "x",
+"value": null
+}
+],
+[
+{
+"line": 4,
+"reason": "invalid_json"
+}
+]
+]
+]
+}

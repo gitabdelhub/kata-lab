@@ -805,6 +805,390 @@
 "tests": 12
 },
 {
+"id": "e10t1",
+"name": "Monthly Active Users by Plan",
+"lang": "pyspark",
+"tags": [],
+"minutes": 22,
+"source": "Examen d'entraînement d'octobre n°2, question 1",
+"tests": 5
+},
+{
+"id": "e10t2",
+"name": "Order Lines from JSON Payloads",
+"lang": "pyspark",
+"tags": [],
+"minutes": 22,
+"source": "Examen d'entraînement d'octobre n°2, question 2",
+"tests": 5
+},
+{
+"id": "e10t3",
+"name": "March Sales per Product, Unsold Products Included",
+"lang": "sql",
+"tags": [],
+"minutes": 22,
+"source": "Examen d'entraînement d'octobre n°2, question 3",
+"tests": 5
+},
+{
+"id": "e10t4",
+"name": "Paginated Users API",
+"lang": "python",
+"tags": [],
+"minutes": 22,
+"source": "Examen d'entraînement d'octobre n°2, question 4",
+"tests": 5
+},
+{
+"id": "e11t1",
+"name": "Shipment Tracking Summary",
+"lang": "pyspark",
+"tags": [],
+"minutes": 22,
+"source": "Examen d'entraînement d'octobre n°3, question 1",
+"tests": 5
+},
+{
+"id": "e11t2",
+"name": "Payment Method Mix per Merchant",
+"lang": "pyspark",
+"tags": [],
+"minutes": 22,
+"source": "Examen d'entraînement d'octobre n°3, question 2",
+"tests": 5
+},
+{
+"id": "e11t3",
+"name": "Longest Login Streak",
+"lang": "sql",
+"tags": [],
+"minutes": 22,
+"source": "Examen d'entraînement d'octobre n°3, question 3",
+"tests": 5
+},
+{
+"id": "e11t4",
+"name": "Resilient Orders Sync",
+"lang": "python",
+"tags": [],
+"minutes": 22,
+"source": "Examen d'entraînement d'octobre n°3, question 4",
+"tests": 5
+},
+{
+"id": "e12t1",
+"name": "7-Day Rolling Revenue per Store",
+"lang": "pyspark",
+"tags": [],
+"minutes": 22,
+"source": "Examen d'entraînement d'octobre n°4, question 1",
+"tests": 5
+},
+{
+"id": "e12t2",
+"name": "Customer Data Quality Gate",
+"lang": "pyspark",
+"tags": [],
+"minutes": 22,
+"source": "Examen d'entraînement d'octobre n°4, question 2",
+"tests": 5
+},
+{
+"id": "e12t3",
+"name": "Monthly Revenue, Running Total and Growth",
+"lang": "sql",
+"tags": [],
+"minutes": 22,
+"source": "Examen d'entraînement d'octobre n°4, question 3",
+"tests": 5
+},
+{
+"id": "e12t4",
+"name": "NDJSON Event Loader",
+"lang": "python",
+"tags": [],
+"minutes": 22,
+"source": "Examen d'entraînement d'octobre n°4, question 4",
+"tests": 5
+},
+{
+"id": "e13t1",
+"name": "Customer Master Merge",
+"lang": "pyspark",
+"tags": [],
+"minutes": 22,
+"source": "Examen d'entraînement d'octobre n°5, question 1",
+"tests": 5
+},
+{
+"id": "e13t2",
+"name": "Top Products per Category",
+"lang": "pyspark",
+"tags": [],
+"minutes": 22,
+"source": "Examen d'entraînement d'octobre n°5, question 2",
+"tests": 5
+},
+{
+"id": "e13t3",
+"name": "Win-back Campaign List",
+"lang": "sql",
+"tags": [],
+"minutes": 22,
+"source": "Examen d'entraînement d'octobre n°5, question 3",
+"tests": 5
+},
+{
+"id": "e13t4",
+"name": "Paginated Invoice Loader",
+"lang": "python",
+"tags": [],
+"minutes": 22,
+"source": "Examen d'entraînement d'octobre n°5, question 4",
+"tests": 5
+},
+{
+"id": "e14t1",
+"name": "Payment Date Cleanup",
+"lang": "pyspark",
+"tags": [],
+"minutes": 22,
+"source": "Examen d'entraînement d'octobre n°6, question 1",
+"tests": 5
+},
+{
+"id": "e14t2",
+"name": "User Browsing Profiles",
+"lang": "pyspark",
+"tags": [],
+"minutes": 22,
+"source": "Examen d'entraînement d'octobre n°6, question 2",
+"tests": 5
+},
+{
+"id": "e14t3",
+"name": "Daily Store Sales Calendar",
+"lang": "sql",
+"tags": [],
+"minutes": 22,
+"source": "Examen d'entraînement d'octobre n°6, question 3",
+"tests": 5
+},
+{
+"id": "e14t4",
+"name": "Order Feed Normalizer",
+"lang": "python",
+"tags": [],
+"minutes": 22,
+"source": "Examen d'entraînement d'octobre n°6, question 4",
+"tests": 5
+},
+{
+"id": "e15t1",
+"name": "Merchant Category Spend in EUR",
+"lang": "pyspark",
+"tags": [],
+"minutes": 22,
+"source": "Examen d'entraînement d'octobre n°7, question 1",
+"tests": 5
+},
+{
+"id": "e15t2",
+"name": "Catalog Snapshot Diff",
+"lang": "pyspark",
+"tags": [],
+"minutes": 22,
+"source": "Examen d'entraînement d'octobre n°7, question 2",
+"tests": 5
+},
+{
+"id": "e15t3",
+"name": "Day-1 and Day-7 Retention by Signup Cohort",
+"lang": "sql",
+"tags": [],
+"minutes": 22,
+"source": "Examen d'entraînement d'octobre n°7, question 3",
+"tests": 5
+},
+{
+"id": "e15t4",
+"name": "Event Batch Validator",
+"lang": "python",
+"tags": [],
+"minutes": 22,
+"source": "Examen d'entraînement d'octobre n°7, question 4",
+"tests": 5
+},
+{
+"id": "e16t1",
+"name": "Partitioned Sales Folders",
+"lang": "pyspark",
+"tags": [
+"partitions Hive",
+"basePath",
+"colonnes de partition",
+"fichiers vides"
+],
+"minutes": 20,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "e16t2",
+"name": "Pareto Products per Store",
+"lang": "pyspark",
+"tags": [
+"somme cumulée",
+"part en pourcentage",
+"fenêtre avec ordre et départage",
+"seuil 80 %"
+],
+"minutes": 20,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "e16t3",
+"name": "Typical Reorder Interval",
+"lang": "sql",
+"tags": [
+"LAG",
+"écart en jours",
+"PERCENTILE_CONT",
+"un seul achat par jour"
+],
+"minutes": 15,
+"source": "Kata Lab",
+"tests": 9
+},
+{
+"id": "e16t4",
+"name": "Merge Sorted Log Streams",
+"lang": "python",
+"tags": [
+"heapq",
+"fusion de k listes triées",
+"départage stable",
+"doublons consécutifs"
+],
+"minutes": 20,
+"source": "Kata Lab",
+"tests": 11
+},
+{
+"id": "e17t1",
+"name": "Player Event Files",
+"lang": "pyspark",
+"tags": [
+"JSON lines",
+"noms de champs différents",
+"explode",
+"lignes corrompues"
+],
+"minutes": 20,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "e17t2",
+"name": "Viewing Sessions",
+"lang": "pyspark",
+"tags": [
+"sessionisation",
+"lag",
+"somme cumulée d'indicateurs",
+"durée de session"
+],
+"minutes": 20,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "e17t3",
+"name": "Merge Subscription Periods",
+"lang": "sql",
+"tags": [
+"intervalles qui se chevauchent",
+"îlots",
+"MAX cumulé",
+"dates de fin NULL"
+],
+"minutes": 15,
+"source": "Kata Lab",
+"tests": 9
+},
+{
+"id": "e17t4",
+"name": "API Rate Limiter",
+"lang": "python",
+"tags": [
+"fenêtre glissante",
+"deque",
+"dictionnaire de files",
+"requêtes refusées non comptées"
+],
+"minutes": 20,
+"source": "Kata Lab",
+"tests": 11
+},
+{
+"id": "e18t1",
+"name": "Supplier Price Files",
+"lang": "pyspark",
+"tags": [
+"séparateur par fichier",
+"virgule décimale",
+"normaliser les en-têtes",
+"dernière version"
+],
+"minutes": 20,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "e18t2",
+"name": "Stock Value with Last Known Cost",
+"lang": "pyspark",
+"tags": [
+"last ignorenulls",
+"remplir vers l'avant",
+"stock cumulé",
+"dernière ligne par jour"
+],
+"minutes": 20,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "e18t3",
+"name": "Monthly Growth with Empty Months",
+"lang": "sql",
+"tags": [
+"generate_series",
+"mois sans vente",
+"LAG",
+"division par zéro"
+],
+"minutes": 15,
+"source": "Kata Lab",
+"tests": 9
+},
+{
+"id": "e18t4",
+"name": "Assign Meeting Rooms",
+"lang": "python",
+"tags": [
+"heapq",
+"deux tas",
+"intervalles",
+"plus petit index libre"
+],
+"minutes": 20,
+"source": "Kata Lab",
+"tests": 11
+},
+{
 "id": "p1m1",
 "name": "Payment status",
 "lang": "pyspark",

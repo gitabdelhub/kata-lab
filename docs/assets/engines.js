@@ -268,6 +268,8 @@
 
   /* ------------------------------------------------------------ API publique */
   async function runTests(task, code, tests, onProgress) {
+    // Certaines tasks ajoutent un petit code caché après celui de l'élève (API simulée, plusieurs sorties)
+    if (task.wrapper && task.lang !== "sql") code = code + "\n\n" + task.wrapper;
     onProgress = onProgress || (() => {});
     let results = [];
     if (task.lang === "pyspark") {

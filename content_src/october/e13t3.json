@@ -1,0 +1,668 @@
+{
+"ID": "e13t3",
+"NAME": "Win-back Campaign List",
+"LANG": "sql",
+"PARAMS": [],
+"ENTRY": null,
+"ORDERED": true,
+"DESC": "<p>The CRM team prepares a win-back campaign. It targets customers who signed up before the second quarter of 2024 but did not place any real order during that quarter. For each of them, the team also wants the date of their most recent real order before the quarter.</p>\n<h3>Tables</h3>\n<p><code>customers</code></p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>column</th>\n<th>type</th>\n<th>description</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>customer_id</td>\n<td>INT</td>\n<td>primary key</td>\n</tr>\n<tr>\n<td>full_name</td>\n<td>VARCHAR(50)</td>\n<td>not null</td>\n</tr>\n<tr>\n<td>signup_date</td>\n<td>DATE</td>\n<td>not null</td>\n</tr>\n</tbody>\n</table>\n<p><code>orders</code></p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>column</th>\n<th>type</th>\n<th>description</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>order_id</td>\n<td>INT</td>\n<td>primary key</td>\n</tr>\n<tr>\n<td>customer_id</td>\n<td>INT</td>\n<td>NULL for guest checkouts</td>\n</tr>\n<tr>\n<td>order_date</td>\n<td>DATE</td>\n<td>not null, no time part</td>\n</tr>\n<tr>\n<td>status</td>\n<td>VARCHAR(20)</td>\n<td>not null, one of <code>'delivered'</code>, <code>'shipped'</code>, <code>'cancelled'</code></td>\n</tr>\n</tbody>\n</table>\n<h3>Rules</h3>\n<ol>\n<li>A real order is an order whose status is not <code>'cancelled'</code>.</li>\n<li>A customer is eligible if <code>signup_date</code> is strictly before <code>2024-04-01</code>.</li>\n<li>Return every eligible customer who has no real order with <code>order_date</code> between <code>2024-04-01</code> and <code>2024-06-30</code> (both inclusive).</li>\n<li><code>last_order_date</code> is the most recent <code>order_date</code> among the customer's real orders placed strictly before <code>2024-04-01</code>, or NULL if there is none.</li>\n</ol>\n<h3>Output</h3>\n<p>Exactly these columns, in this order:</p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>column</th>\n<th>type</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>customer_id</td>\n<td>INT</td>\n</tr>\n<tr>\n<td>full_name</td>\n<td>VARCHAR</td>\n</tr>\n<tr>\n<td>signup_date</td>\n<td>DATE</td>\n</tr>\n<tr>\n<td>last_order_date</td>\n<td>DATE (may be NULL)</td>\n</tr>\n</tbody>\n</table>\n<p>Rows are sorted by <code>last_order_date</code> ascending with NULL values last, then <code>customer_id</code> ascending.</p>\n<h3>Example</h3>\n<p><code>customers</code></p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>customer_id</th>\n<th>full_name</th>\n<th>signup_date</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>1</td>\n<td>Amina</td>\n<td>2023-11-02</td>\n</tr>\n<tr>\n<td>2</td>\n<td>Youssef</td>\n<td>2024-01-15</td>\n</tr>\n<tr>\n<td>3</td>\n<td>Salma</td>\n<td>2024-02-20</td>\n</tr>\n<tr>\n<td>4</td>\n<td>Omar</td>\n<td>2024-03-31</td>\n</tr>\n<tr>\n<td>5</td>\n<td>Nadia</td>\n<td>2024-04-01</td>\n</tr>\n<tr>\n<td>6</td>\n<td>Karim</td>\n<td>2023-12-10</td>\n</tr>\n</tbody>\n</table>\n<p><code>orders</code></p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>order_id</th>\n<th>customer_id</th>\n<th>order_date</th>\n<th>status</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>101</td>\n<td>1</td>\n<td>2024-01-10</td>\n<td>delivered</td>\n</tr>\n<tr>\n<td>102</td>\n<td>1</td>\n<td>2024-05-03</td>\n<td>delivered</td>\n</tr>\n<tr>\n<td>103</td>\n<td>2</td>\n<td>2024-02-01</td>\n<td>delivered</td>\n</tr>\n<tr>\n<td>104</td>\n<td>2</td>\n<td>2024-04-20</td>\n<td>cancelled</td>\n</tr>\n<tr>\n<td>105</td>\n<td>NULL</td>\n<td>2024-03-05</td>\n<td>delivered</td>\n</tr>\n<tr>\n<td>106</td>\n<td>3</td>\n<td>2024-07-02</td>\n<td>shipped</td>\n</tr>\n<tr>\n<td>107</td>\n<td>4</td>\n<td>2024-03-31</td>\n<td>cancelled</td>\n</tr>\n<tr>\n<td>108</td>\n<td>6</td>\n<td>2024-03-15</td>\n<td>shipped</td>\n</tr>\n<tr>\n<td>109</td>\n<td>6</td>\n<td>2024-03-28</td>\n<td>delivered</td>\n</tr>\n</tbody>\n</table>\n<p>Expected output</p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>customer_id</th>\n<th>full_name</th>\n<th>signup_date</th>\n<th>last_order_date</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>2</td>\n<td>Youssef</td>\n<td>2024-01-15</td>\n<td>2024-02-01</td>\n</tr>\n<tr>\n<td>6</td>\n<td>Karim</td>\n<td>2023-12-10</td>\n<td>2024-03-28</td>\n</tr>\n<tr>\n<td>3</td>\n<td>Salma</td>\n<td>2024-02-20</td>\n<td>NULL</td>\n</tr>\n<tr>\n<td>4</td>\n<td>Omar</td>\n<td>2024-03-31</td>\n<td>NULL</td>\n</tr>\n</tbody>\n</table>\n<h3>Constraints</h3>\n<ul>\n<li>Dialect: PostgreSQL.</li>\n<li>Write a single <code>SELECT</code> statement (CTEs allowed). Do not create tables or views.</li>\n<li><code>customers</code> has up to 10^5 rows, <code>orders</code> up to 10^6 rows.</li>\n</ul><p class=\"muted\">Write a PostgreSQL query.</p>",
+"STARTER": "/* Write your PostgreSQL query here */\n",
+"SOLUTION": "WITH last_orders AS (\n    SELECT customer_id,\n           MAX(order_date) AS last_order_date\n    FROM orders\n    WHERE status <> 'cancelled'\n      AND order_date < DATE '2024-04-01'\n      AND customer_id IS NOT NULL\n    GROUP BY customer_id\n)\nSELECT c.customer_id,\n       c.full_name,\n       c.signup_date,\n       lo.last_order_date\nFROM customers c\nLEFT JOIN last_orders lo\n       ON lo.customer_id = c.customer_id\nWHERE c.signup_date < DATE '2024-04-01'\n  AND NOT EXISTS (\n        SELECT 1\n        FROM orders o\n        WHERE o.customer_id = c.customer_id\n          AND o.status <> 'cancelled'\n          AND o.order_date BETWEEN DATE '2024-04-01' AND DATE '2024-06-30'\n  )\nORDER BY lo.last_order_date ASC NULLS LAST, c.customer_id ASC;\n",
+"WRAPPER": "",
+"MINUTES": 22,
+"SOURCE": "Examen d'entraînement d'octobre n°5, question 3",
+"TAGS": [],
+"VISIBLE": 1,
+"tests": [
+{
+"tables": {
+"customers": {
+"columns": [
+[
+"customer_id",
+"INT"
+],
+[
+"full_name",
+"VARCHAR(50)"
+],
+[
+"signup_date",
+"DATE"
+]
+],
+"rows": [
+[
+1,
+"Amina",
+"2023-11-02"
+],
+[
+2,
+"Youssef",
+"2024-01-15"
+],
+[
+3,
+"Salma",
+"2024-02-20"
+],
+[
+4,
+"Omar",
+"2024-03-31"
+],
+[
+5,
+"Nadia",
+"2024-04-01"
+],
+[
+6,
+"Karim",
+"2023-12-10"
+]
+]
+},
+"orders": {
+"columns": [
+[
+"order_id",
+"INT"
+],
+[
+"customer_id",
+"INT"
+],
+[
+"order_date",
+"DATE"
+],
+[
+"status",
+"VARCHAR(20)"
+]
+],
+"rows": [
+[
+101,
+1,
+"2024-01-10",
+"delivered"
+],
+[
+102,
+1,
+"2024-05-03",
+"delivered"
+],
+[
+103,
+2,
+"2024-02-01",
+"delivered"
+],
+[
+104,
+2,
+"2024-04-20",
+"cancelled"
+],
+[
+105,
+null,
+"2024-03-05",
+"delivered"
+],
+[
+106,
+3,
+"2024-07-02",
+"shipped"
+],
+[
+107,
+4,
+"2024-03-31",
+"cancelled"
+],
+[
+108,
+6,
+"2024-03-15",
+"shipped"
+],
+[
+109,
+6,
+"2024-03-28",
+"delivered"
+]
+]
+}
+}
+},
+{
+"tables": {
+"customers": {
+"columns": [
+[
+"customer_id",
+"INT"
+],
+[
+"full_name",
+"VARCHAR(50)"
+],
+[
+"signup_date",
+"DATE"
+]
+],
+"rows": [
+[
+10,
+"Hamza",
+"2024-01-05"
+],
+[
+11,
+"Imane",
+"2024-02-11"
+],
+[
+12,
+"Rachid",
+"2024-03-01"
+],
+[
+13,
+"Leila",
+"2023-09-09"
+]
+]
+},
+"orders": {
+"columns": [
+[
+"order_id",
+"INT"
+],
+[
+"customer_id",
+"INT"
+],
+[
+"order_date",
+"DATE"
+],
+[
+"status",
+"VARCHAR(20)"
+]
+],
+"rows": [
+[
+201,
+null,
+"2024-05-15",
+"delivered"
+],
+[
+202,
+10,
+"2024-06-30",
+"delivered"
+],
+[
+203,
+11,
+"2024-07-01",
+"delivered"
+],
+[
+204,
+11,
+"2024-03-02",
+"shipped"
+],
+[
+205,
+12,
+"2024-04-01",
+"cancelled"
+],
+[
+206,
+13,
+"2024-04-01",
+"shipped"
+],
+[
+207,
+13,
+"2024-01-01",
+"delivered"
+]
+]
+}
+}
+},
+{
+"tables": {
+"customers": {
+"columns": [
+[
+"customer_id",
+"INT"
+],
+[
+"full_name",
+"VARCHAR(50)"
+],
+[
+"signup_date",
+"DATE"
+]
+],
+"rows": [
+[
+20,
+"Sara",
+"2024-03-31"
+],
+[
+21,
+"Ali",
+"2024-04-01"
+],
+[
+22,
+"Nour",
+"2023-06-01"
+],
+[
+23,
+"Ilyas",
+"2023-07-01"
+]
+]
+},
+"orders": {
+"columns": [
+[
+"order_id",
+"INT"
+],
+[
+"customer_id",
+"INT"
+],
+[
+"order_date",
+"DATE"
+],
+[
+"status",
+"VARCHAR(20)"
+]
+],
+"rows": [
+[
+301,
+22,
+"2024-02-01",
+"delivered"
+],
+[
+302,
+22,
+"2024-03-20",
+"cancelled"
+],
+[
+303,
+22,
+"2024-08-01",
+"delivered"
+],
+[
+304,
+23,
+"2023-12-31",
+"shipped"
+],
+[
+305,
+23,
+"2024-04-15",
+"cancelled"
+],
+[
+306,
+null,
+"2024-06-01",
+"shipped"
+],
+[
+307,
+20,
+"2024-03-31",
+"delivered"
+]
+]
+}
+}
+},
+{
+"tables": {
+"customers": {
+"columns": [
+[
+"customer_id",
+"INT"
+],
+[
+"full_name",
+"VARCHAR(50)"
+],
+[
+"signup_date",
+"DATE"
+]
+],
+"rows": [
+[
+30,
+"Zineb",
+"2024-01-01"
+],
+[
+31,
+"Mehdi",
+"2024-01-02"
+],
+[
+32,
+"Hind",
+"2024-01-03"
+],
+[
+33,
+"Karim",
+"2024-01-04"
+],
+[
+34,
+"Yassine",
+"2024-01-05"
+]
+]
+},
+"orders": {
+"columns": [
+[
+"order_id",
+"INT"
+],
+[
+"customer_id",
+"INT"
+],
+[
+"order_date",
+"DATE"
+],
+[
+"status",
+"VARCHAR(20)"
+]
+],
+"rows": [
+[
+401,
+33,
+"2024-02-10",
+"delivered"
+],
+[
+402,
+31,
+"2024-02-10",
+"shipped"
+],
+[
+403,
+null,
+"2024-04-02",
+"delivered"
+],
+[
+404,
+null,
+"2024-06-01",
+"shipped"
+]
+]
+}
+}
+},
+{
+"tables": {
+"customers": {
+"columns": [
+[
+"customer_id",
+"INT"
+],
+[
+"full_name",
+"VARCHAR(50)"
+],
+[
+"signup_date",
+"DATE"
+]
+],
+"rows": [
+[
+40,
+"Omar",
+"2024-01-01"
+],
+[
+41,
+"Salma",
+"2024-02-01"
+]
+]
+},
+"orders": {
+"columns": [
+[
+"order_id",
+"INT"
+],
+[
+"customer_id",
+"INT"
+],
+[
+"order_date",
+"DATE"
+],
+[
+"status",
+"VARCHAR(20)"
+]
+],
+"rows": [
+[
+501,
+40,
+"2024-04-05",
+"delivered"
+],
+[
+502,
+41,
+"2024-06-15",
+"shipped"
+],
+[
+503,
+null,
+"2024-05-01",
+"delivered"
+]
+]
+}
+}
+}
+],
+"bank": [
+{
+"__table__": {
+"columns": [
+"customer_id",
+"full_name",
+"signup_date",
+"last_order_date"
+],
+"rows": [
+[
+2,
+"Youssef",
+"2024-01-15",
+"2024-02-01"
+],
+[
+6,
+"Karim",
+"2023-12-10",
+"2024-03-28"
+],
+[
+3,
+"Salma",
+"2024-02-20",
+null
+],
+[
+4,
+"Omar",
+"2024-03-31",
+null
+]
+]
+}
+},
+{
+"__table__": {
+"columns": [
+"customer_id",
+"full_name",
+"signup_date",
+"last_order_date"
+],
+"rows": [
+[
+11,
+"Imane",
+"2024-02-11",
+"2024-03-02"
+],
+[
+12,
+"Rachid",
+"2024-03-01",
+null
+]
+]
+}
+},
+{
+"__table__": {
+"columns": [
+"customer_id",
+"full_name",
+"signup_date",
+"last_order_date"
+],
+"rows": [
+[
+23,
+"Ilyas",
+"2023-07-01",
+"2023-12-31"
+],
+[
+22,
+"Nour",
+"2023-06-01",
+"2024-02-01"
+],
+[
+20,
+"Sara",
+"2024-03-31",
+"2024-03-31"
+]
+]
+}
+},
+{
+"__table__": {
+"columns": [
+"customer_id",
+"full_name",
+"signup_date",
+"last_order_date"
+],
+"rows": [
+[
+31,
+"Mehdi",
+"2024-01-02",
+"2024-02-10"
+],
+[
+33,
+"Karim",
+"2024-01-04",
+"2024-02-10"
+],
+[
+30,
+"Zineb",
+"2024-01-01",
+null
+],
+[
+32,
+"Hind",
+"2024-01-03",
+null
+],
+[
+34,
+"Yassine",
+"2024-01-05",
+null
+]
+]
+}
+},
+{
+"__table__": {
+"columns": [
+"customer_id",
+"full_name",
+"signup_date",
+"last_order_date"
+],
+"rows": []
+}
+}
+]
+}

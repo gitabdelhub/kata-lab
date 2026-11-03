@@ -80,3 +80,12 @@ def exercism(slug, prop=None):
             continue
         out.append((x["input"], x["expected"]))
     return out
+
+
+def october(tid):
+    """Charge une question adaptée d'un examen d'octobre (voir tools/port_october.py)."""
+    d = json.load(open(_os.path.join(_os.path.dirname(__file__), "october", tid + ".json"), encoding="utf-8"))
+    tests, bank = d.pop("tests"), d.pop("bank")
+    d["tests"] = lambda: [json.loads(json.dumps(x)) for x in tests]
+    d["expected"] = lambda: bank
+    return d

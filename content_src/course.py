@@ -208,13 +208,28 @@ for w in range(6):
         {"type": "exam", "exam": P2_EXAMS[w], "title": "Examen complet chronométré", "sub": "4 tasks, au niveau du vrai test", "min": 70},
         {"type": "analysis", "exam": P2_EXAMS[w], "title": "Analyse guidée", "sub": "Comprendre tes erreurs, 15 min", "min": 15}]})
 
+# ---------------- Phase 3 : examens complets en mode strict, analyse, refaire ----------------
+P3_EXAMS = ["e10", "e16", "e11", "e12", "e17", "e13", "e14", "e18", "e15"]
+P3_BANK = ["bs02", "bp04", "bs08", "bp06", "bs09", "bp09", "bs10", "bp10"]
+SESSIONS_P3 = []
+for i, ex in enumerate(P3_EXAMS):
+    SESSIONS_P3.append({"id": f"p3s{2 * i + 1}", "title": f"Examen {i + 1} sur 9 · conditions réelles", "steps": [
+        dict(REVIEW),
+        {"type": "exam", "exam": ex, "title": "Examen complet, mode strict", "sub": "4 tasks, 70 min, pas de pause ni d'indice", "min": 70},
+        {"type": "analysis", "exam": ex, "title": "Analyse guidée", "sub": "Comprendre tes erreurs, 15 min", "min": 15}]})
+    steps = [{"type": "review", "title": "Refaire tes tasks ratées", "sub": "Les tests ratés de l'examen, de mémoire", "min": 20}]
+    if i < len(P3_BANK):
+        lang = "SQL" if P3_BANK[i].startswith("bs") else "Python"
+        steps.append({"type": "exo", "task": P3_BANK[i], "hints": 0, "title": f"Task {lang} sans indice", "sub": "Banque réelle, comme le jour J", "min": 13})
+    SESSIONS_P3.append({"id": f"p3s{2 * i + 2}", "title": f"Après l'examen {i + 1} · refaire", "steps": steps})
+
 PHASES = [
     {"id": "p1", "name": "Phase 1 · Réflexes", "dates": "15 au 31 janvier · 3 séances de 30 min par semaine", "opens": "2027-01-15",
      "note": "Un geste par séance : exemple guidé, mini-exo de mémoire, puis un exo chronométré.", "sessions": SESSIONS_P1},
     {"id": "p2", "name": "Phase 2 · Tasks guidées sous chrono", "dates": "1er février au 15 mars · 3 × 30 min par semaine, pendant ton PFE", "opens": "2027-02-01",
      "note": "Une task au format de l'examen par séance, PySpark, SQL et Python mélangés, avec des indices qui disparaissent peu à peu.", "sessions": SESSIONS_P2},
-    {"id": "p3", "name": "Phase 3 · Examens complets", "dates": "16 mars au 30 avril · 1 examen de 70 min par semaine", "opens": "2027-03-16",
-     "note": "Un examen complet en mode strict, puis une analyse guidée et une séance pour refaire tes tests ratés.", "sessions": []},
+    {"id": "p3", "name": "Phase 3 · Examens complets", "dates": "16 mars au 30 avril · 9 examens, chacun suivi d'une séance pour refaire", "opens": "2027-03-16",
+     "note": "Un examen complet en mode strict, puis une analyse guidée et une séance pour refaire tes tests ratés. Aucun indice.", "sessions": SESSIONS_P3},
 ]
 
 EXAMS = [
@@ -228,6 +243,15 @@ EXAMS = [
     {"id": "e07", "title": "Practice Assessment · Energy Meters", "minutes": 70, "tasks": ["e07t1", "e07t2", "e07t3", "e07t4"]},
     {"id": "e08", "title": "Practice Assessment · Marketplace Catalog", "minutes": 70, "tasks": ["e08t1", "e08t2", "e08t3", "e08t4"]},
     {"id": "e09", "title": "Practice Assessment · Airline Operations", "minutes": 70, "tasks": ["e09t1", "e09t2", "e09t3", "e09t4"]},
+    {"id": "e10", "title": "Practice Assessment · SaaS Subscriptions", "minutes": 70, "tasks": ["e10t1", "e10t2", "e10t3", "e10t4"]},
+    {"id": "e11", "title": "Practice Assessment · Logistics & Payments", "minutes": 70, "tasks": ["e11t1", "e11t2", "e11t3", "e11t4"]},
+    {"id": "e12", "title": "Practice Assessment · Retail Revenue", "minutes": 70, "tasks": ["e12t1", "e12t2", "e12t3", "e12t4"]},
+    {"id": "e13", "title": "Practice Assessment · Customer Master Data", "minutes": 70, "tasks": ["e13t1", "e13t2", "e13t3", "e13t4"]},
+    {"id": "e14", "title": "Practice Assessment · Payments Cleanup", "minutes": 70, "tasks": ["e14t1", "e14t2", "e14t3", "e14t4"]},
+    {"id": "e15", "title": "Practice Assessment · Full Rehearsal", "minutes": 70, "tasks": ["e15t1", "e15t2", "e15t3", "e15t4"]},
+    {"id": "e16", "title": "Practice Assessment · Retail Data Lake", "minutes": 70, "tasks": ["e16t1", "e16t2", "e16t3", "e16t4"]},
+    {"id": "e17", "title": "Practice Assessment · Streaming Platform", "minutes": 70, "tasks": ["e17t1", "e17t2", "e17t3", "e17t4"]},
+    {"id": "e18", "title": "Practice Assessment · Supply Chain", "minutes": 70, "tasks": ["e18t1", "e18t2", "e18t3", "e18t4"]},
 ]
 
 # Temps conseillé par task (stratégie d'examen), en minutes, pour 70 min
@@ -264,6 +288,7 @@ def write(out, index):
         "tasks": index,
         "library": [t for t in sorted(index) if t not in exam_tasks],
         "links": LINKS,
+        "live": __import__("live").check(index),
     }
     with open(os.path.join(out, "catalog.json"), "w", encoding="utf-8") as fh:
         json.dump(cat, fh, ensure_ascii=False, separators=(",", ":"))

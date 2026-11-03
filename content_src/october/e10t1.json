@@ -1,0 +1,490 @@
+{
+"ID": "e10t1",
+"NAME": "Monthly Active Users by Plan",
+"LANG": "pyspark",
+"PARAMS": [
+"events_df",
+"plans_df"
+],
+"ENTRY": "solve",
+"ORDERED": true,
+"DESC": "<p>A SaaS product logs user activity events. The subscription history is stored as a change table: each row says that, starting on <code>valid_from</code>, a user is on a given plan, until that user's next row. The product team wants the number of monthly active users broken down by the plan each user was on <strong>at the time of the activity</strong>.</p>\n<p>Implement <code>solve</code> so that it returns this monthly report.</p>\n<h3>Input</h3>\n<p><code>events_df</code></p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>column</th>\n<th>type</th>\n<th>description</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>event_id</td>\n<td>string</td>\n<td>event identifier, never null</td>\n</tr>\n<tr>\n<td>user_id</td>\n<td>string</td>\n<td>never null</td>\n</tr>\n<tr>\n<td>event_date</td>\n<td>date</td>\n<td>never null</td>\n</tr>\n</tbody>\n</table>\n<p><code>plans_df</code></p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>column</th>\n<th>type</th>\n<th>description</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>user_id</td>\n<td>string</td>\n<td>never null</td>\n</tr>\n<tr>\n<td>plan</td>\n<td>string</td>\n<td>free text, e.g. <code>\"Free\"</code>, <code>\" PRO \"</code>; never null</td>\n</tr>\n<tr>\n<td>valid_from</td>\n<td>date</td>\n<td>first day the plan applies; never null. <code>(user_id, valid_from)</code> is unique</td>\n</tr>\n</tbody>\n</table>\n<h3>Rules</h3>\n<ol>\n<li>Re-ingestion sometimes duplicates events. Rows that share an <code>event_id</code> are identical and must be counted once.</li>\n<li>The plan of an event is the plan of the <code>plans_df</code> row of the same user with the greatest <code>valid_from</code> that is less than or equal to <code>event_date</code>. A plan applies from its <code>valid_from</code> day included.</li>\n<li>Plan names are normalized: trimmed and lowercased (<code>\" PRO \"</code> and <code>\"pro\"</code> are the same plan).</li>\n<li>If no such row exists (the user is absent from <code>plans_df</code>, or the event happens before the user's first <code>valid_from</code>), the plan is <code>unknown</code>. These events must still be counted.</li>\n<li><code>month</code> is the month of <code>event_date</code>, formatted <code>yyyy-MM</code> (for example <code>2024-03</code>).</li>\n<li>A user who changes plan during a month is counted under each plan for which they have at least one event in that month.</li>\n</ol>\n<h3>Output</h3>\n<p>One row per (<code>month</code>, <code>plan</code>) with at least one event, with exactly these columns, in this order:</p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>column</th>\n<th>type</th>\n<th>description</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>month</td>\n<td>string</td>\n<td><code>yyyy-MM</code></td>\n</tr>\n<tr>\n<td>plan</td>\n<td>string</td>\n<td>normalized plan, or <code>unknown</code></td>\n</tr>\n<tr>\n<td>active_users</td>\n<td>long</td>\n<td>number of distinct users with at least one event in this month under this plan</td>\n</tr>\n<tr>\n<td>events</td>\n<td>long</td>\n<td>number of distinct events in this month under this plan</td>\n</tr>\n</tbody>\n</table>\n<p>Rows are sorted by <code>month</code> ascending, then <code>active_users</code> descending, then <code>plan</code> ascending.</p>\n<h3>Example</h3>\n<p><code>events_df</code></p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>event_id</th>\n<th>user_id</th>\n<th>event_date</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>e1</td>\n<td>u1</td>\n<td>2024-01-05</td>\n</tr>\n<tr>\n<td>e2</td>\n<td>u1</td>\n<td>2024-01-20</td>\n</tr>\n<tr>\n<td>e3</td>\n<td>u2</td>\n<td>2024-01-10</td>\n</tr>\n<tr>\n<td>e4</td>\n<td>u3</td>\n<td>2024-01-25</td>\n</tr>\n<tr>\n<td>e5</td>\n<td>u4</td>\n<td>2024-01-30</td>\n</tr>\n<tr>\n<td>e6</td>\n<td>u1</td>\n<td>2024-02-14</td>\n</tr>\n<tr>\n<td>e7</td>\n<td>u1</td>\n<td>2024-02-15</td>\n</tr>\n<tr>\n<td>e7</td>\n<td>u1</td>\n<td>2024-02-15</td>\n</tr>\n<tr>\n<td>e8</td>\n<td>u2</td>\n<td>2024-02-03</td>\n</tr>\n<tr>\n<td>e9</td>\n<td>u3</td>\n<td>2024-02-01</td>\n</tr>\n</tbody>\n</table>\n<p><code>plans_df</code></p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>user_id</th>\n<th>plan</th>\n<th>valid_from</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>u1</td>\n<td>\"Free\"</td>\n<td>2024-01-01</td>\n</tr>\n<tr>\n<td>u1</td>\n<td>\" PRO \"</td>\n<td>2024-02-15</td>\n</tr>\n<tr>\n<td>u2</td>\n<td>\"pro\"</td>\n<td>2024-01-10</td>\n</tr>\n<tr>\n<td>u3</td>\n<td>\"free\"</td>\n<td>2024-02-01</td>\n</tr>\n</tbody>\n</table>\n<p>Expected output</p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>month</th>\n<th>plan</th>\n<th>active_users</th>\n<th>events</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>2024-01</td>\n<td>unknown</td>\n<td>2</td>\n<td>2</td>\n</tr>\n<tr>\n<td>2024-01</td>\n<td>free</td>\n<td>1</td>\n<td>2</td>\n</tr>\n<tr>\n<td>2024-01</td>\n<td>pro</td>\n<td>1</td>\n<td>1</td>\n</tr>\n<tr>\n<td>2024-02</td>\n<td>free</td>\n<td>2</td>\n<td>2</td>\n</tr>\n<tr>\n<td>2024-02</td>\n<td>pro</td>\n<td>2</td>\n<td>2</td>\n</tr>\n</tbody>\n</table>\n<h3>Function signature</h3>\n<pre><code class=\"language-python\">from pyspark.sql import DataFrame\n\ndef solve(events_df: DataFrame, plans_df: DataFrame) -&gt; DataFrame:\n    ...\n</code></pre>\n<h3>Constraints</h3>\n<ul>\n<li>Use the PySpark DataFrame API. Do not convert to pandas, do not call <code>collect()</code> or <code>toPandas()</code> inside <code>solve</code>, do not use Python UDFs.</li>\n<li><code>events_df</code> has up to 10^7 rows, <code>plans_df</code> up to 10^5 rows.</li>\n<li>The returned DataFrame may be empty; its columns and types must still match the specification.</li>\n</ul>",
+"STARTER": "from pyspark.sql import DataFrame, Window\nfrom pyspark.sql import functions as F\n\n\ndef solve(events_df: DataFrame, plans_df: DataFrame) -> DataFrame:\n    # write your code here\n    return events_df\n",
+"SOLUTION": "from pyspark.sql import DataFrame, Window\nfrom pyspark.sql import functions as F\n\n\ndef solve(events_df: DataFrame, plans_df: DataFrame) -> DataFrame:\n    # 1. Un événement ne compte qu'une fois (doublons exacts de ré-ingestion).\n    events = events_df.dropDuplicates([\"event_id\"])\n\n    # 2. Plan normalisé (trim + lower).\n    plans = plans_df.select(\n        F.col(\"user_id\").alias(\"p_user_id\"),\n        F.lower(F.trim(F.col(\"plan\"))).alias(\"plan\"),\n        \"valid_from\",\n    )\n\n    # 3. LEFT join sur user_id ET valid_from <= event_date : on garde les événements sans plan.\n    joined = events.join(\n        plans,\n        (events[\"user_id\"] == plans[\"p_user_id\"]) & (plans[\"valid_from\"] <= events[\"event_date\"]),\n        \"left\",\n    )\n\n    # 4. Parmi les plans candidats, celui dont valid_from est le plus récent.\n    w = Window.partitionBy(\"event_id\").orderBy(F.col(\"valid_from\").desc())\n    tagged = (\n        joined\n        .withColumn(\"rn\", F.row_number().over(w))\n        .filter(F.col(\"rn\") == 1)\n        .withColumn(\"plan\", F.coalesce(F.col(\"plan\"), F.lit(\"unknown\")))\n        .withColumn(\"month\", F.date_format(\"event_date\", \"yyyy-MM\"))\n    )\n\n    # 5. Agrégation : utilisateurs distincts, événements distincts.\n    result = tagged.groupBy(\"month\", \"plan\").agg(\n        F.countDistinct(\"user_id\").alias(\"active_users\"),\n        F.countDistinct(\"event_id\").alias(\"events\"),\n    )\n    return (\n        result\n        .select(\"month\", \"plan\", \"active_users\", \"events\")\n        .orderBy(F.col(\"month\").asc(), F.col(\"active_users\").desc(), F.col(\"plan\").asc())\n    )\n",
+"WRAPPER": "",
+"MINUTES": 22,
+"SOURCE": "Examen d'entraînement d'octobre n°2, question 1",
+"TAGS": [],
+"VISIBLE": 1,
+"tests": [
+{
+"events_df": {
+"__df__": {
+"schema": "event_id string, user_id string, event_date date",
+"rows": [
+[
+"e1",
+"u1",
+"2024-01-05"
+],
+[
+"e2",
+"u1",
+"2024-01-20"
+],
+[
+"e3",
+"u2",
+"2024-01-10"
+],
+[
+"e4",
+"u3",
+"2024-01-25"
+],
+[
+"e5",
+"u4",
+"2024-01-30"
+],
+[
+"e6",
+"u1",
+"2024-02-14"
+],
+[
+"e7",
+"u1",
+"2024-02-15"
+],
+[
+"e7",
+"u1",
+"2024-02-15"
+],
+[
+"e8",
+"u2",
+"2024-02-03"
+],
+[
+"e9",
+"u3",
+"2024-02-01"
+]
+]
+}
+},
+"plans_df": {
+"__df__": {
+"schema": "user_id string, plan string, valid_from date",
+"rows": [
+[
+"u1",
+"Free",
+"2024-01-01"
+],
+[
+"u1",
+" PRO ",
+"2024-02-15"
+],
+[
+"u2",
+"pro",
+"2024-01-10"
+],
+[
+"u3",
+"free",
+"2024-02-01"
+]
+]
+}
+}
+},
+{
+"events_df": {
+"__df__": {
+"schema": "event_id string, user_id string, event_date date",
+"rows": [
+[
+"x2",
+"a",
+"2024-10-01"
+],
+[
+"x1",
+"a",
+"2024-09-30"
+],
+[
+"x3",
+"a",
+"2024-10-15"
+],
+[
+"x4",
+"b",
+"2024-09-02"
+]
+]
+}
+},
+"plans_df": {
+"__df__": {
+"schema": "user_id string, plan string, valid_from date",
+"rows": [
+[
+"a",
+"Basic",
+"2023-06-01"
+]
+]
+}
+}
+},
+{
+"events_df": {
+"__df__": {
+"schema": "event_id string, user_id string, event_date date",
+"rows": [
+[
+"m1",
+"p",
+"2024-03-05"
+],
+[
+"m2",
+"p",
+"2024-03-12"
+],
+[
+"m3",
+"p",
+"2024-03-19"
+],
+[
+"m4",
+"p",
+"2024-03-20"
+],
+[
+"m5",
+"q",
+"2024-03-02"
+],
+[
+"m6",
+"q",
+"2024-03-03"
+],
+[
+"m7",
+"q",
+"2024-03-04"
+],
+[
+"m8",
+"r",
+"2024-03-04"
+],
+[
+"m9",
+"r",
+"2024-03-06"
+]
+]
+}
+},
+"plans_df": {
+"__df__": {
+"schema": "user_id string, plan string, valid_from date",
+"rows": [
+[
+"p",
+"team",
+"2024-03-20"
+],
+[
+"q",
+"TEAM",
+"2024-01-01"
+],
+[
+"p",
+"free",
+"2024-03-01"
+],
+[
+"r",
+"free",
+"2024-03-05"
+],
+[
+"p",
+"pro",
+"2024-03-10"
+]
+]
+}
+}
+},
+{
+"events_df": {
+"__df__": {
+"schema": "event_id string, user_id string, event_date date",
+"rows": [
+[
+"d1",
+"k",
+"2024-04-02"
+],
+[
+"d1",
+"k",
+"2024-04-02"
+],
+[
+"d2",
+"k",
+"2024-04-03"
+],
+[
+"d3",
+"z",
+"2024-04-04"
+],
+[
+"d1",
+"k",
+"2024-04-02"
+],
+[
+"d4",
+"z",
+"2024-04-05"
+],
+[
+"d3",
+"z",
+"2024-04-04"
+]
+]
+}
+},
+"plans_df": {
+"__df__": {
+"schema": "user_id string, plan string, valid_from date",
+"rows": [
+[
+"k",
+"Pro",
+"2024-04-01"
+]
+]
+}
+}
+},
+{
+"events_df": {
+"__df__": {
+"schema": "event_id string, user_id string, event_date date",
+"rows": [
+[
+"y2",
+"y",
+"2024-12-10"
+],
+[
+"y1",
+"y",
+"2023-12-10"
+],
+[
+"y3",
+"w",
+"2024-12-11"
+]
+]
+}
+},
+"plans_df": {
+"__df__": {
+"schema": "user_id string, plan string, valid_from date",
+"rows": [
+[
+"y",
+"free",
+"2023-01-01"
+]
+]
+}
+}
+}
+],
+"bank": [
+{
+"__table__": {
+"columns": [
+"month",
+"plan",
+"active_users",
+"events"
+],
+"rows": [
+[
+"2024-01",
+"unknown",
+2,
+2
+],
+[
+"2024-01",
+"free",
+1,
+2
+],
+[
+"2024-01",
+"pro",
+1,
+1
+],
+[
+"2024-02",
+"free",
+2,
+2
+],
+[
+"2024-02",
+"pro",
+2,
+2
+]
+]
+}
+},
+{
+"__table__": {
+"columns": [
+"month",
+"plan",
+"active_users",
+"events"
+],
+"rows": [
+[
+"2024-09",
+"basic",
+1,
+1
+],
+[
+"2024-09",
+"unknown",
+1,
+1
+],
+[
+"2024-10",
+"basic",
+1,
+2
+]
+]
+}
+},
+{
+"__table__": {
+"columns": [
+"month",
+"plan",
+"active_users",
+"events"
+],
+"rows": [
+[
+"2024-03",
+"free",
+2,
+2
+],
+[
+"2024-03",
+"team",
+2,
+4
+],
+[
+"2024-03",
+"pro",
+1,
+2
+],
+[
+"2024-03",
+"unknown",
+1,
+1
+]
+]
+}
+},
+{
+"__table__": {
+"columns": [
+"month",
+"plan",
+"active_users",
+"events"
+],
+"rows": [
+[
+"2024-04",
+"pro",
+1,
+2
+],
+[
+"2024-04",
+"unknown",
+1,
+2
+]
+]
+}
+},
+{
+"__table__": {
+"columns": [
+"month",
+"plan",
+"active_users",
+"events"
+],
+"rows": [
+[
+"2023-12",
+"free",
+1,
+1
+],
+[
+"2024-12",
+"free",
+1,
+1
+],
+[
+"2024-12",
+"unknown",
+1,
+1
+]
+]
+}
+}
+]
+}

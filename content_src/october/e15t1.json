@@ -1,0 +1,549 @@
+{
+"ID": "e15t1",
+"NAME": "Merchant Category Spend in EUR",
+"LANG": "pyspark",
+"PARAMS": [
+"transactions_df",
+"merchants_df",
+"fx_df"
+],
+"ENTRY": "solve",
+"ORDERED": true,
+"DESC": "<p>A payment processor wants the card spend of the last month per merchant category, converted to euros. Transactions come from many acquirers that format merchant codes and currency codes inconsistently. Two small reference tables are available: the merchant catalog and the exchange rates.</p>\n<p>Implement <code>solve</code> so that it returns the spend per merchant category.</p>\n<h3>Input</h3>\n<p><code>transactions_df</code> (very large)</p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>column</th>\n<th>type</th>\n<th>description</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>txn_id</td>\n<td>string</td>\n<td>unique, never null</td>\n</tr>\n<tr>\n<td>merchant_code</td>\n<td>string</td>\n<td>dirty merchant code, e.g. <code>\" m-001 \"</code>, <code>\"M001\"</code>, <code>\"m_001\"</code>; may be null</td>\n</tr>\n<tr>\n<td>amount</td>\n<td>string</td>\n<td>decimal text in the transaction currency; negative for a refund; may be null</td>\n</tr>\n<tr>\n<td>currency</td>\n<td>string</td>\n<td>ISO code with arbitrary case and spaces, e.g. <code>\" eur\"</code></td>\n</tr>\n</tbody>\n</table>\n<p><code>merchants_df</code> (small, at most 10^4 rows)</p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>column</th>\n<th>type</th>\n<th>description</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>merchant_code</td>\n<td>string</td>\n<td>dirty merchant code</td>\n</tr>\n<tr>\n<td>merchant_name</td>\n<td>string</td>\n<td>display name</td>\n</tr>\n<tr>\n<td>category</td>\n<td>string</td>\n<td>clean lowercase category, never null</td>\n</tr>\n</tbody>\n</table>\n<p><code>fx_df</code> (small, at most 200 rows)</p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>column</th>\n<th>type</th>\n<th>description</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>currency</td>\n<td>string</td>\n<td>ISO code with arbitrary case and spaces; unique after normalization</td>\n</tr>\n<tr>\n<td>rate_to_eur</td>\n<td>double</td>\n<td>value of 1 unit of the currency in EUR</td>\n</tr>\n</tbody>\n</table>\n<h3>Rules</h3>\n<ol>\n<li>A merchant code is normalized by converting it to uppercase and removing every character that is not a letter A-Z or a digit 0-9: <code>\" m-001 \"</code>, <code>\"M001\"</code> and <code>\"m_001\"</code> all become <code>\"M001\"</code>. The same normalization applies to both <code>transactions_df</code> and <code>merchants_df</code>. A code that is null or empty after normalization never matches anything.</li>\n<li><code>merchants_df</code> may list the same merchant several times under different spellings. All spellings of a merchant have the same category.</li>\n<li>A currency code is normalized by trimming spaces and converting to uppercase, in both <code>transactions_df</code> and <code>fx_df</code>.</li>\n<li>A transaction is excluded if its <code>amount</code> is null, if its merchant is not in <code>merchants_df</code>, or if its currency is not in <code>fx_df</code>.</li>\n<li><code>amount_eur = amount * rate_to_eur</code>. Refunds (negative amounts) are included as they are.</li>\n<li>Both joins with the reference tables must be broadcast joins. The grader disables automatic broadcasting (<code>spark.sql.autoBroadcastJoinThreshold=-1</code>), and one hidden test inspects the physical plan.</li>\n</ol>\n<h3>Output</h3>\n<p>A DataFrame with one row per category that has at least one counted transaction, with exactly these columns, in this order:</p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>column</th>\n<th>type</th>\n<th>description</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>category</td>\n<td>string</td>\n<td></td>\n</tr>\n<tr>\n<td>txn_count</td>\n<td>long</td>\n<td>number of counted transactions</td>\n</tr>\n<tr>\n<td>total_eur</td>\n<td>double</td>\n<td>sum of <code>amount_eur</code>, rounded to 2 decimals</td>\n</tr>\n<tr>\n<td>avg_eur</td>\n<td>double</td>\n<td>average of <code>amount_eur</code>, rounded to 2 decimals</td>\n</tr>\n</tbody>\n</table>\n<p>Rows are sorted by <code>total_eur</code> descending, then <code>category</code> ascending.</p>\n<h3>Example</h3>\n<p><code>transactions_df</code></p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>txn_id</th>\n<th>merchant_code</th>\n<th>amount</th>\n<th>currency</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>T1</td>\n<td>\" m-001 \"</td>\n<td>\"100.00\"</td>\n<td>\"eur\"</td>\n</tr>\n<tr>\n<td>T2</td>\n<td>\"M001\"</td>\n<td>\"50.00\"</td>\n<td>\"MAD\"</td>\n</tr>\n<tr>\n<td>T3</td>\n<td>\"m_002\"</td>\n<td>\"20.00\"</td>\n<td>\"USD\"</td>\n</tr>\n<tr>\n<td>T4</td>\n<td>\"M-003\"</td>\n<td>\"10.00\"</td>\n<td>\"EUR\"</td>\n</tr>\n<tr>\n<td>T5</td>\n<td>\"M002\"</td>\n<td>null</td>\n<td>\"EUR\"</td>\n</tr>\n<tr>\n<td>T6</td>\n<td>\"M 002\"</td>\n<td>\"30.00\"</td>\n<td>\"GBP\"</td>\n</tr>\n<tr>\n<td>T7</td>\n<td>\"M-004\"</td>\n<td>\"40.00\"</td>\n<td>\" eur\"</td>\n</tr>\n</tbody>\n</table>\n<p><code>merchants_df</code></p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>merchant_code</th>\n<th>merchant_name</th>\n<th>category</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>\"M-001\"</td>\n<td>Marjane Anfa</td>\n<td>grocery</td>\n</tr>\n<tr>\n<td>\"m001\"</td>\n<td>Marjane Anfa (old)</td>\n<td>grocery</td>\n</tr>\n<tr>\n<td>\"M-002\"</td>\n<td>Zara Morocco</td>\n<td>fashion</td>\n</tr>\n<tr>\n<td>\"M-004\"</td>\n<td>Carrefour Market</td>\n<td>grocery</td>\n</tr>\n</tbody>\n</table>\n<p><code>fx_df</code></p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>currency</th>\n<th>rate_to_eur</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>EUR</td>\n<td>1.0</td>\n</tr>\n<tr>\n<td>MAD</td>\n<td>0.092</td>\n</tr>\n<tr>\n<td>USD</td>\n<td>0.92</td>\n</tr>\n</tbody>\n</table>\n<p>Expected output</p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>category</th>\n<th>txn_count</th>\n<th>total_eur</th>\n<th>avg_eur</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>grocery</td>\n<td>3</td>\n<td>144.6</td>\n<td>48.2</td>\n</tr>\n<tr>\n<td>fashion</td>\n<td>1</td>\n<td>18.4</td>\n<td>18.4</td>\n</tr>\n</tbody>\n</table>\n<h3>Function signature</h3>\n<pre><code class=\"language-python\">from pyspark.sql import DataFrame\n\ndef solve(transactions_df: DataFrame, merchants_df: DataFrame, fx_df: DataFrame) -&gt; DataFrame:\n    ...\n</code></pre>\n<h3>Constraints</h3>\n<ul>\n<li>Use the PySpark DataFrame API. Do not convert to pandas, do not call <code>collect()</code> or <code>toPandas()</code> inside <code>solve</code>, and do not use Python UDFs.</li>\n<li><code>transactions_df</code> has up to 10^9 rows.</li>\n<li>The returned DataFrame may be empty; its columns and types must still match the specification.</li>\n</ul>",
+"STARTER": "from pyspark.sql import DataFrame, Window\nfrom pyspark.sql import functions as F\n\n\ndef solve(transactions_df: DataFrame, merchants_df: DataFrame, fx_df: DataFrame) -> DataFrame:\n    # write your code here\n    return transactions_df\n",
+"SOLUTION": "from pyspark.sql import DataFrame\nfrom pyspark.sql import functions as F\n\n\ndef normalize_code(col):\n    # Majuscules puis suppression de tout ce qui n'est ni lettre ni chiffre : \" m-001 \" -> \"M001\".\n    return F.regexp_replace(F.upper(col), \"[^A-Z0-9]\", \"\")\n\n\ndef solve(transactions_df: DataFrame, merchants_df: DataFrame, fx_df: DataFrame) -> DataFrame:\n    # 1. Petites tables de référence : clé normalisée, clés vides exclues, UNE ligne par clé\n    #    (sinon la jointure multiplie les transactions).\n    merchants = (\n        merchants_df\n        .select(normalize_code(F.col(\"merchant_code\")).alias(\"merchant_key\"), \"category\")\n        .filter(F.col(\"merchant_key\").isNotNull() & (F.col(\"merchant_key\") != \"\"))\n        .dropDuplicates([\"merchant_key\"])\n    )\n    fx = fx_df.select(F.upper(F.trim(F.col(\"currency\"))).alias(\"currency_key\"), \"rate_to_eur\")\n\n    # 2. Grande table : mêmes normalisations, montant en double, montants null exclus.\n    txns = (\n        transactions_df\n        .withColumn(\"merchant_key\", normalize_code(F.col(\"merchant_code\")))\n        .withColumn(\"currency_key\", F.upper(F.trim(F.col(\"currency\"))))\n        .withColumn(\"amount\", F.col(\"amount\").cast(\"double\"))\n        .filter(F.col(\"amount\").isNotNull())\n    )\n\n    # 3. Deux broadcast joins (inner : marchand ou devise inconnus => transaction exclue).\n    joined = (\n        txns\n        .join(F.broadcast(merchants), on=\"merchant_key\", how=\"inner\")\n        .join(F.broadcast(fx), on=\"currency_key\", how=\"inner\")\n        .withColumn(\"amount_eur\", F.col(\"amount\") * F.col(\"rate_to_eur\"))\n    )\n\n    return (\n        joined.groupBy(\"category\")\n        .agg(\n            F.count(F.lit(1)).alias(\"txn_count\"),\n            F.round(F.sum(\"amount_eur\"), 2).alias(\"total_eur\"),\n            F.round(F.avg(\"amount_eur\"), 2).alias(\"avg_eur\"),\n        )\n        .orderBy(F.col(\"total_eur\").desc(), F.col(\"category\").asc())\n    )\n",
+"WRAPPER": "",
+"MINUTES": 22,
+"SOURCE": "Examen d'entraînement d'octobre n°7, question 1",
+"TAGS": [],
+"VISIBLE": 1,
+"tests": [
+{
+"transactions_df": {
+"__df__": {
+"schema": "txn_id string, merchant_code string, amount string, currency string",
+"rows": [
+[
+"T1",
+" m-001 ",
+"100.00",
+"eur"
+],
+[
+"T2",
+"M001",
+"50.00",
+"MAD"
+],
+[
+"T3",
+"m_002",
+"20.00",
+"USD"
+],
+[
+"T4",
+"M-003",
+"10.00",
+"EUR"
+],
+[
+"T5",
+"M002",
+null,
+"EUR"
+],
+[
+"T6",
+"M 002",
+"30.00",
+"GBP"
+],
+[
+"T7",
+"M-004",
+"40.00",
+" eur"
+]
+]
+}
+},
+"merchants_df": {
+"__df__": {
+"schema": "merchant_code string, merchant_name string, category string",
+"rows": [
+[
+"M-001",
+"Marjane Anfa",
+"grocery"
+],
+[
+"m001",
+"Marjane Anfa (old)",
+"grocery"
+],
+[
+"M-002",
+"Zara Morocco",
+"fashion"
+],
+[
+"M-004",
+"Carrefour Market",
+"grocery"
+]
+]
+}
+},
+"fx_df": {
+"__df__": {
+"schema": "currency string, rate_to_eur double",
+"rows": [
+[
+"EUR",
+1.0
+],
+[
+"MAD",
+0.092
+],
+[
+"USD",
+0.92
+]
+]
+}
+}
+},
+{
+"transactions_df": {
+"__df__": {
+"schema": "txn_id string, merchant_code string, amount string, currency string",
+"rows": [
+[
+"A1",
+"m.010",
+"25.00",
+"EUR"
+],
+[
+"A2",
+"M011",
+"250.00",
+"mad"
+],
+[
+"A3",
+"M-012",
+"10.00",
+"EUR"
+],
+[
+"A4",
+"M-012",
+"15.00",
+"EUR"
+]
+]
+}
+},
+"merchants_df": {
+"__df__": {
+"schema": "merchant_code string, merchant_name string, category string",
+"rows": [
+[
+"M-010",
+"Royal Air Maroc",
+"travel"
+],
+[
+"M-011",
+"Librairie Nationale",
+"books"
+],
+[
+"M-012",
+"Pharmacie Centrale",
+"pharmacy"
+]
+]
+}
+},
+"fx_df": {
+"__df__": {
+"schema": "currency string, rate_to_eur double",
+"rows": [
+[
+"EUR",
+1.0
+],
+[
+"MAD",
+0.1
+]
+]
+}
+}
+},
+{
+"transactions_df": {
+"__df__": {
+"schema": "txn_id string, merchant_code string, amount string, currency string",
+"rows": [
+[
+"B1",
+"M-020",
+"10",
+"EUR"
+],
+[
+"B2",
+"M-020",
+"10",
+"eur"
+],
+[
+"B3",
+"m020",
+"10.01",
+"EUR"
+],
+[
+"B4",
+"M-021",
+"33.33",
+"MAD"
+],
+[
+"B5",
+"M-022",
+"100",
+"USD"
+],
+[
+"B6",
+"M-022",
+"-20",
+"USD"
+]
+]
+}
+},
+"merchants_df": {
+"__df__": {
+"schema": "merchant_code string, merchant_name string, category string",
+"rows": [
+[
+"M-020",
+"Acima",
+"grocery"
+],
+[
+"M-021",
+"Afriquia",
+"fuel"
+],
+[
+"M-022",
+"Electroplanet",
+"electronics"
+],
+[
+"M 022",
+"Electroplanet Maarif",
+"electronics"
+]
+]
+}
+},
+"fx_df": {
+"__df__": {
+"schema": "currency string, rate_to_eur double",
+"rows": [
+[
+"EUR",
+1.0
+],
+[
+"MAD",
+0.092
+],
+[
+"usd ",
+0.9
+]
+]
+}
+}
+},
+{
+"transactions_df": {
+"__df__": {
+"schema": "txn_id string, merchant_code string, amount string, currency string",
+"rows": [
+[
+"C1",
+null,
+"5",
+"EUR"
+],
+[
+"C2",
+"---",
+"5",
+"EUR"
+],
+[
+"C3",
+"M-030",
+"12.5",
+"EUR"
+],
+[
+"C4",
+"M-031",
+null,
+"EUR"
+],
+[
+"C5",
+"M-031",
+"7",
+"JPY"
+],
+[
+"C6",
+"m-030",
+"7.6",
+"CHF"
+]
+]
+}
+},
+"merchants_df": {
+"__df__": {
+"schema": "merchant_code string, merchant_name string, category string",
+"rows": [
+[
+"M-030",
+"Bab Souk",
+"gifts"
+],
+[
+"M-031",
+"Kids Planet",
+"toys"
+],
+[
+"--",
+"Unknown",
+"misc"
+]
+]
+}
+},
+"fx_df": {
+"__df__": {
+"schema": "currency string, rate_to_eur double",
+"rows": [
+[
+"EUR",
+1.0
+],
+[
+"CHF",
+1.05
+]
+]
+}
+}
+},
+{
+"transactions_df": {
+"__df__": {
+"schema": "txn_id string, merchant_code string, amount string, currency string",
+"rows": [
+[
+"D1",
+"M-040",
+"100",
+"EUR"
+],
+[
+"D2",
+"M-041",
+"200",
+"MAD"
+],
+[
+"D3",
+"M-040",
+"50",
+"EUR"
+],
+[
+"D4",
+"m041",
+"300",
+"MAD"
+]
+]
+}
+},
+"merchants_df": {
+"__df__": {
+"schema": "merchant_code string, merchant_name string, category string",
+"rows": [
+[
+"M-040",
+"Paul",
+"food"
+],
+[
+"M-041",
+"Venezia Ice",
+"food"
+]
+]
+}
+},
+"fx_df": {
+"__df__": {
+"schema": "currency string, rate_to_eur double",
+"rows": [
+[
+"EUR",
+1.0
+],
+[
+"MAD",
+0.1
+]
+]
+}
+}
+}
+],
+"bank": [
+{
+"__table__": {
+"columns": [
+"category",
+"txn_count",
+"total_eur",
+"avg_eur"
+],
+"rows": [
+[
+"grocery",
+3,
+144.6,
+48.2
+],
+[
+"fashion",
+1,
+18.4,
+18.4
+]
+]
+}
+},
+{
+"__table__": {
+"columns": [
+"category",
+"txn_count",
+"total_eur",
+"avg_eur"
+],
+"rows": [
+[
+"books",
+1,
+25.0,
+25.0
+],
+[
+"pharmacy",
+2,
+25.0,
+12.5
+],
+[
+"travel",
+1,
+25.0,
+25.0
+]
+]
+}
+},
+{
+"__table__": {
+"columns": [
+"category",
+"txn_count",
+"total_eur",
+"avg_eur"
+],
+"rows": [
+[
+"electronics",
+2,
+72.0,
+36.0
+],
+[
+"grocery",
+3,
+30.01,
+10.0
+],
+[
+"fuel",
+1,
+3.07,
+3.07
+]
+]
+}
+},
+{
+"__table__": {
+"columns": [
+"category",
+"txn_count",
+"total_eur",
+"avg_eur"
+],
+"rows": [
+[
+"gifts",
+2,
+20.48,
+10.24
+]
+]
+}
+},
+{
+"__table__": {
+"columns": [
+"category",
+"txn_count",
+"total_eur",
+"avg_eur"
+],
+"rows": [
+[
+"food",
+4,
+200.0,
+50.0
+]
+]
+}
+}
+]
+}

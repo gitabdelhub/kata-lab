@@ -1,0 +1,263 @@
+{
+"ID": "e14t4",
+"NAME": "Order Feed Normalizer",
+"LANG": "python",
+"PARAMS": [
+"raw_body"
+],
+"ENTRY": "normalize_orders",
+"ORDERED": true,
+"DESC": "<p>An e-commerce API returns orders as nested JSON. The data warehouse stores them in two flat tables: one row per order, and one row per order line. The API omits keys it does not know, and sends <code>null</code> for keys it knows but that have no value: your loader must handle both.</p>\n<h3>Input</h3>\n<p><code>raw_body</code> is the raw text of the API response (a JSON document), for example:</p>\n<pre><code class=\"language-json\">{\n  &quot;orders&quot;: [\n    {\n      &quot;id&quot;: &quot;A-1&quot;,\n      &quot;customer&quot;: {&quot;id&quot;: &quot;C1&quot;, &quot;email&quot;: &quot;a@x.ma&quot;},\n      &quot;shipping&quot;: {&quot;address&quot;: {&quot;city&quot;: &quot;Rabat&quot;}},\n      &quot;coupon&quot;: &quot;WELCOME10&quot;,\n      &quot;items&quot;: [\n        {&quot;sku&quot;: &quot;SKU-1&quot;, &quot;qty&quot;: 2, &quot;unit_price&quot;: 10.5},\n        {&quot;sku&quot;: &quot;SKU-2&quot;, &quot;unit_price&quot;: &quot;4.99&quot;},\n        {&quot;sku&quot;: &quot;SKU-3&quot;, &quot;qty&quot;: null, &quot;unit_price&quot;: 3}\n      ]\n    },\n    {&quot;id&quot;: &quot;A-2&quot;, &quot;customer&quot;: null, &quot;coupon&quot;: null, &quot;items&quot;: []},\n    {&quot;customer&quot;: {&quot;id&quot;: &quot;C9&quot;}, &quot;items&quot;: [{&quot;sku&quot;: &quot;SKU-9&quot;, &quot;qty&quot;: 1, &quot;unit_price&quot;: 1}]},\n    {&quot;id&quot;: &quot;A-3&quot;, &quot;customer&quot;: {&quot;email&quot;: &quot;b@x.ma&quot;}, &quot;shipping&quot;: {&quot;address&quot;: null}}\n  ]\n}\n</code></pre>\n<ul>\n<li><code>orders</code> may be absent or null (no orders).</li>\n<li>In an order, every key may be absent; <code>customer</code>, <code>shipping</code>, <code>shipping.address</code>, <code>coupon</code> and <code>items</code> may also be null.</li>\n<li>In an item, <code>sku</code> and <code>unit_price</code> are always present and not null. <code>unit_price</code> is a number or a numeric string, possibly with more than 2 decimals. <code>qty</code>, when present, is an integer or null.</li>\n</ul>\n<h3>Rules</h3>\n<ol>\n<li>Orders whose <code>id</code> is absent or null are ignored, together with their items. Other orders are output in the same order as in the input.</li>\n<li><code>customer_id</code> is <code>customer.id</code>; it is <code>None</code> if <code>customer</code> or its <code>id</code> is absent or null.</li>\n<li><code>city</code> is <code>shipping.address.city</code>; it is <code>None</code> if any level is absent or null.</li>\n<li><code>coupon_code</code> is the value of <code>coupon</code> exactly as received (<code>None</code> if absent or null). <code>coupon_provided</code> is <code>True</code> if the key <code>coupon</code> is present in the order (even with a null value), <code>False</code> if it is absent.</li>\n<li><code>items</code> absent, null or empty all mean that the order has no items.</li>\n<li>For each item: if <code>qty</code> is absent, the quantity is 1; if <code>qty</code> is present with a value (0 included), that value is used; if <code>qty</code> is present and null, the item is rejected and does not appear in the items table.</li>\n<li><code>line_no</code> is the 1-based position of the item in the order's original <code>items</code> list (rejected items keep their position, so numbers can have gaps).</li>\n<li><code>unit_price</code> is a float, <code>line_total = round(qty * unit_price, 2)</code>.</li>\n<li>For each order: <code>item_count</code> is the number of accepted items, <code>rejected_items</code> the number of rejected items, and <code>order_total</code> the sum of the <code>line_total</code> of its accepted items, rounded to 2 decimals (<code>0.0</code> when there is none).</li>\n</ol>\n<h3>Output</h3>\n<p>A dict with exactly two keys:</p>\n<ul>\n<li><code>\"orders\"</code>: a list of dicts with exactly the keys <code>order_id</code>, <code>customer_id</code>, <code>city</code>, <code>coupon_code</code>, <code>coupon_provided</code> (bool), <code>item_count</code> (int), <code>rejected_items</code> (int), <code>order_total</code> (float).</li>\n<li><code>\"items\"</code>: a list of dicts with exactly the keys <code>order_id</code>, <code>line_no</code> (int), <code>sku</code>, <code>qty</code> (int), <code>unit_price</code> (float), <code>line_total</code> (float), ordered by order (input order), then by <code>line_no</code>.</li>\n</ul>\n<h3>Example</h3>\n<p>For the body above, the expected output is:</p>\n<pre><code class=\"language-python\">{\n    &quot;orders&quot;: [\n        {&quot;order_id&quot;: &quot;A-1&quot;, &quot;customer_id&quot;: &quot;C1&quot;, &quot;city&quot;: &quot;Rabat&quot;, &quot;coupon_code&quot;: &quot;WELCOME10&quot;,\n         &quot;coupon_provided&quot;: True, &quot;item_count&quot;: 2, &quot;rejected_items&quot;: 1, &quot;order_total&quot;: 25.99},\n        {&quot;order_id&quot;: &quot;A-2&quot;, &quot;customer_id&quot;: None, &quot;city&quot;: None, &quot;coupon_code&quot;: None,\n         &quot;coupon_provided&quot;: True, &quot;item_count&quot;: 0, &quot;rejected_items&quot;: 0, &quot;order_total&quot;: 0.0},\n        {&quot;order_id&quot;: &quot;A-3&quot;, &quot;customer_id&quot;: None, &quot;city&quot;: None, &quot;coupon_code&quot;: None,\n         &quot;coupon_provided&quot;: False, &quot;item_count&quot;: 0, &quot;rejected_items&quot;: 0, &quot;order_total&quot;: 0.0},\n    ],\n    &quot;items&quot;: [\n        {&quot;order_id&quot;: &quot;A-1&quot;, &quot;line_no&quot;: 1, &quot;sku&quot;: &quot;SKU-1&quot;, &quot;qty&quot;: 2, &quot;unit_price&quot;: 10.5, &quot;line_total&quot;: 21.0},\n        {&quot;order_id&quot;: &quot;A-1&quot;, &quot;line_no&quot;: 2, &quot;sku&quot;: &quot;SKU-2&quot;, &quot;qty&quot;: 1, &quot;unit_price&quot;: 4.99, &quot;line_total&quot;: 4.99},\n    ],\n}\n</code></pre>\n<h3>Function signature</h3>\n<pre><code class=\"language-python\">def normalize_orders(raw_body: str) -&gt; dict:\n    ...\n</code></pre>\n<h3>Constraints</h3>\n<ul>\n<li>Standard library only (<code>json</code>, <code>math</code>, <code>datetime</code>, ... are available).</li>\n<li>The body contains up to 10^4 orders and 10^5 items.</li>\n</ul>",
+"STARTER": "def normalize_orders(raw_body: str) -> dict:\n    # write your code here\n    return None\n",
+"SOLUTION": "import json\n\n\ndef normalize_orders(raw_body: str) -> dict:\n    body = json.loads(raw_body)\n    orders_out = []\n    items_out = []\n\n    for order in body.get(\"orders\") or []:           # clé absente ou null => aucune commande\n        order_id = order.get(\"id\")\n        if order_id is None:                          # sans id : commande ignorée avec ses lignes\n            continue\n\n        customer = order.get(\"customer\") or {}        # absent, null ou {} => pas de client\n        address = (order.get(\"shipping\") or {}).get(\"address\") or {}\n\n        item_count = 0\n        rejected_items = 0\n        order_total = 0.0\n        for line_no, item in enumerate(order.get(\"items\") or [], start=1):\n            if \"qty\" in item:                         # présent : la valeur compte, même 0\n                qty = item[\"qty\"]\n                if qty is None:                       # présent à null : ligne rejetée\n                    rejected_items += 1\n                    continue\n            else:                                     # absent : 1 par défaut\n                qty = 1\n            unit_price = float(item[\"unit_price\"])\n            line_total = round(qty * unit_price, 2)\n            items_out.append({\n                \"order_id\": order_id,\n                \"line_no\": line_no,                   # position d'origine, trous compris\n                \"sku\": item[\"sku\"],\n                \"qty\": qty,\n                \"unit_price\": unit_price,\n                \"line_total\": line_total,\n            })\n            item_count += 1\n            order_total += line_total\n\n        orders_out.append({\n            \"order_id\": order_id,\n            \"customer_id\": customer.get(\"id\"),\n            \"city\": address.get(\"city\"),\n            \"coupon_code\": order.get(\"coupon\"),\n            \"coupon_provided\": \"coupon\" in order,     # présent, même à null\n            \"item_count\": item_count,\n            \"rejected_items\": rejected_items,\n            \"order_total\": round(order_total, 2),\n        })\n\n    return {\"orders\": orders_out, \"items\": items_out}\n",
+"WRAPPER": "",
+"MINUTES": 22,
+"SOURCE": "Examen d'entraînement d'octobre n°6, question 4",
+"TAGS": [],
+"VISIBLE": 1,
+"tests": [
+{
+"raw_body": "{\"orders\": [{\"id\": \"A-1\", \"customer\": {\"id\": \"C1\", \"email\": \"a@x.ma\"}, \"shipping\": {\"address\": {\"city\": \"Rabat\"}}, \"coupon\": \"WELCOME10\", \"items\": [{\"sku\": \"SKU-1\", \"qty\": 2, \"unit_price\": 10.5}, {\"sku\": \"SKU-2\", \"unit_price\": \"4.99\"}, {\"sku\": \"SKU-3\", \"qty\": null, \"unit_price\": 3}]}, {\"id\": \"A-2\", \"customer\": null, \"coupon\": null, \"items\": []}, {\"customer\": {\"id\": \"C9\"}, \"items\": [{\"sku\": \"SKU-9\", \"qty\": 1, \"unit_price\": 1}]}, {\"id\": \"A-3\", \"customer\": {\"email\": \"b@x.ma\"}, \"shipping\": {\"address\": null}}]}"
+},
+{
+"raw_body": "{\"orders\": [{\"id\": \"B-1\", \"customer\": {}, \"shipping\": {}, \"coupon\": \"\", \"items\": [{\"sku\": \"S-1\", \"qty\": 0, \"unit_price\": 9.99}, {\"sku\": \"S-2\", \"qty\": 3, \"unit_price\": \"2.50\"}]}, {\"id\": \"B-2\", \"customer\": {\"id\": \"C2\", \"email\": null}, \"shipping\": {\"address\": {\"city\": null, \"zip\": \"10000\"}}, \"items\": [{\"sku\": \"S-3\", \"unit_price\": 0.1}]}]}"
+},
+{
+"raw_body": "{\"orders\": [{\"id\": \"C-1\", \"customer\": {\"id\": \"K1\"}, \"shipping\": {\"address\": {\"city\": \"Fes\"}}, \"coupon\": \"SUMMER\", \"items\": [{\"sku\": \"X-1\", \"qty\": null, \"unit_price\": 5}, {\"sku\": \"X-2\", \"qty\": 3, \"unit_price\": 0.1}, {\"sku\": \"X-3\", \"qty\": null, \"unit_price\": \"7.00\"}, {\"sku\": \"X-4\", \"qty\": 3, \"unit_price\": \"19.99\"}]}, {\"id\": \"C-2\", \"customer\": {\"id\": \"K2\"}, \"items\": [{\"sku\": \"X-5\", \"qty\": null, \"unit_price\": 1}, {\"sku\": \"X-6\", \"qty\": null, \"unit_price\": 2}]}, {\"id\": \"C-3\", \"customer\": null, \"shipping\": null, \"items\": null}]}"
+},
+{
+"raw_body": "{\"orders\": [{\"id\": \"D-3\", \"customer\": {\"id\": \"Z3\"}, \"coupon\": \"VIP\", \"items\": [{\"sku\": \"Y-1\", \"qty\": 2, \"unit_price\": \"1.005\"}]}, {\"id\": null, \"customer\": {\"id\": \"Z0\"}, \"items\": [{\"sku\": \"Y-0\", \"qty\": 1, \"unit_price\": 50}]}, {\"id\": \"D-1\", \"customer\": {\"id\": \"Z1\"}, \"shipping\": {\"address\": {\"city\": \"Tanger\"}}, \"items\": [{\"sku\": \"Y-2\", \"qty\": 3, \"unit_price\": \"3.333\"}]}, {\"customer\": {\"id\": \"Z9\"}}, {\"id\": \"D-2\", \"items\": [{\"sku\": \"Y-3\", \"unit_price\": \"0.99\"}, {\"sku\": \"Y-4\", \"unit_price\": 0.01}]}]}"
+},
+{
+"raw_body": "{\"orders\": null, \"meta\": {\"count\": 0}}"
+}
+],
+"bank": [
+{
+"orders": [
+{
+"order_id": "A-1",
+"customer_id": "C1",
+"city": "Rabat",
+"coupon_code": "WELCOME10",
+"coupon_provided": true,
+"item_count": 2,
+"rejected_items": 1,
+"order_total": 25.99
+},
+{
+"order_id": "A-2",
+"customer_id": null,
+"city": null,
+"coupon_code": null,
+"coupon_provided": true,
+"item_count": 0,
+"rejected_items": 0,
+"order_total": 0.0
+},
+{
+"order_id": "A-3",
+"customer_id": null,
+"city": null,
+"coupon_code": null,
+"coupon_provided": false,
+"item_count": 0,
+"rejected_items": 0,
+"order_total": 0.0
+}
+],
+"items": [
+{
+"order_id": "A-1",
+"line_no": 1,
+"sku": "SKU-1",
+"qty": 2,
+"unit_price": 10.5,
+"line_total": 21.0
+},
+{
+"order_id": "A-1",
+"line_no": 2,
+"sku": "SKU-2",
+"qty": 1,
+"unit_price": 4.99,
+"line_total": 4.99
+}
+]
+},
+{
+"orders": [
+{
+"order_id": "B-1",
+"customer_id": null,
+"city": null,
+"coupon_code": "",
+"coupon_provided": true,
+"item_count": 2,
+"rejected_items": 0,
+"order_total": 7.5
+},
+{
+"order_id": "B-2",
+"customer_id": "C2",
+"city": null,
+"coupon_code": null,
+"coupon_provided": false,
+"item_count": 1,
+"rejected_items": 0,
+"order_total": 0.1
+}
+],
+"items": [
+{
+"order_id": "B-1",
+"line_no": 1,
+"sku": "S-1",
+"qty": 0,
+"unit_price": 9.99,
+"line_total": 0.0
+},
+{
+"order_id": "B-1",
+"line_no": 2,
+"sku": "S-2",
+"qty": 3,
+"unit_price": 2.5,
+"line_total": 7.5
+},
+{
+"order_id": "B-2",
+"line_no": 1,
+"sku": "S-3",
+"qty": 1,
+"unit_price": 0.1,
+"line_total": 0.1
+}
+]
+},
+{
+"orders": [
+{
+"order_id": "C-1",
+"customer_id": "K1",
+"city": "Fes",
+"coupon_code": "SUMMER",
+"coupon_provided": true,
+"item_count": 2,
+"rejected_items": 2,
+"order_total": 60.27
+},
+{
+"order_id": "C-2",
+"customer_id": "K2",
+"city": null,
+"coupon_code": null,
+"coupon_provided": false,
+"item_count": 0,
+"rejected_items": 2,
+"order_total": 0.0
+},
+{
+"order_id": "C-3",
+"customer_id": null,
+"city": null,
+"coupon_code": null,
+"coupon_provided": false,
+"item_count": 0,
+"rejected_items": 0,
+"order_total": 0.0
+}
+],
+"items": [
+{
+"order_id": "C-1",
+"line_no": 2,
+"sku": "X-2",
+"qty": 3,
+"unit_price": 0.1,
+"line_total": 0.3
+},
+{
+"order_id": "C-1",
+"line_no": 4,
+"sku": "X-4",
+"qty": 3,
+"unit_price": 19.99,
+"line_total": 59.97
+}
+]
+},
+{
+"orders": [
+{
+"order_id": "D-3",
+"customer_id": "Z3",
+"city": null,
+"coupon_code": "VIP",
+"coupon_provided": true,
+"item_count": 1,
+"rejected_items": 0,
+"order_total": 2.01
+},
+{
+"order_id": "D-1",
+"customer_id": "Z1",
+"city": "Tanger",
+"coupon_code": null,
+"coupon_provided": false,
+"item_count": 1,
+"rejected_items": 0,
+"order_total": 10.0
+},
+{
+"order_id": "D-2",
+"customer_id": null,
+"city": null,
+"coupon_code": null,
+"coupon_provided": false,
+"item_count": 2,
+"rejected_items": 0,
+"order_total": 1.0
+}
+],
+"items": [
+{
+"order_id": "D-3",
+"line_no": 1,
+"sku": "Y-1",
+"qty": 2,
+"unit_price": 1.005,
+"line_total": 2.01
+},
+{
+"order_id": "D-1",
+"line_no": 1,
+"sku": "Y-2",
+"qty": 3,
+"unit_price": 3.333,
+"line_total": 10.0
+},
+{
+"order_id": "D-2",
+"line_no": 1,
+"sku": "Y-3",
+"qty": 1,
+"unit_price": 0.99,
+"line_total": 0.99
+},
+{
+"order_id": "D-2",
+"line_no": 2,
+"sku": "Y-4",
+"qty": 1,
+"unit_price": 0.01,
+"line_total": 0.01
+}
+]
+},
+{
+"orders": [],
+"items": []
+}
+]
+}

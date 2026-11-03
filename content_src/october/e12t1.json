@@ -1,0 +1,427 @@
+{
+"ID": "e12t1",
+"NAME": "7-Day Rolling Revenue per Store",
+"LANG": "pyspark",
+"PARAMS": [
+"sales_df"
+],
+"ENTRY": "solve",
+"ORDERED": true,
+"DESC": "<p>A retail chain wants to smooth its daily sales curves. For every store and every day with sales, compute the revenue over the last 7 calendar days.</p>\n<h3>Input</h3>\n<p><code>sales_df</code></p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>column</th>\n<th>type</th>\n<th>description</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>store_id</td>\n<td>string</td>\n<td>never null</td>\n</tr>\n<tr>\n<td>sale_date</td>\n<td>date</td>\n<td>never null</td>\n</tr>\n<tr>\n<td>amount</td>\n<td>double</td>\n<td>sale amount; may be null</td>\n</tr>\n</tbody>\n</table>\n<p>A store can have several rows on the same day, and no row at all on some days.</p>\n<h3>Rules</h3>\n<ol>\n<li>Rows with a null <code>amount</code> are ignored. A (store, day) appears in the output only if the store has at least one row with a non-null <code>amount</code> on that day.</li>\n<li><code>daily_revenue</code> is the sum of the amounts of the store on that day.</li>\n<li>The 7-day window of day D covers the calendar days from D - 6 to D, both inclusive, whatever the number of days with sales in between.</li>\n<li><code>rolling_7d_revenue</code> is the sum of <code>daily_revenue</code> over the window. <code>rolling_7d_avg</code> is <code>rolling_7d_revenue / 7</code> (always divided by 7 calendar days).</li>\n<li><code>days_with_sales_7d</code> is the number of days of the window that appear in the output for this store.</li>\n<li>All doubles are rounded to 2 decimals.</li>\n</ol>\n<h3>Output</h3>\n<p>One row per (store, day with sales), with exactly these columns, in this order:</p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>column</th>\n<th>type</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>store_id</td>\n<td>string</td>\n</tr>\n<tr>\n<td>sale_date</td>\n<td>date</td>\n</tr>\n<tr>\n<td>daily_revenue</td>\n<td>double</td>\n</tr>\n<tr>\n<td>rolling_7d_revenue</td>\n<td>double</td>\n</tr>\n<tr>\n<td>rolling_7d_avg</td>\n<td>double</td>\n</tr>\n<tr>\n<td>days_with_sales_7d</td>\n<td>long</td>\n</tr>\n</tbody>\n</table>\n<p>Rows are sorted by <code>store_id</code> ascending, then <code>sale_date</code> ascending.</p>\n<h3>Example</h3>\n<p><code>sales_df</code></p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>store_id</th>\n<th>sale_date</th>\n<th>amount</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>A</td>\n<td>2024-03-01</td>\n<td>100.0</td>\n</tr>\n<tr>\n<td>A</td>\n<td>2024-03-01</td>\n<td>50.0</td>\n</tr>\n<tr>\n<td>A</td>\n<td>2024-03-02</td>\n<td>null</td>\n</tr>\n<tr>\n<td>A</td>\n<td>2024-03-03</td>\n<td>30.0</td>\n</tr>\n<tr>\n<td>A</td>\n<td>2024-03-07</td>\n<td>20.0</td>\n</tr>\n<tr>\n<td>B</td>\n<td>2024-03-05</td>\n<td>7.5</td>\n</tr>\n<tr>\n<td>A</td>\n<td>2024-03-08</td>\n<td>10.0</td>\n</tr>\n<tr>\n<td>A</td>\n<td>2024-03-10</td>\n<td>5.0</td>\n</tr>\n</tbody>\n</table>\n<p>Expected output</p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>store_id</th>\n<th>sale_date</th>\n<th>daily_revenue</th>\n<th>rolling_7d_revenue</th>\n<th>rolling_7d_avg</th>\n<th>days_with_sales_7d</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>A</td>\n<td>2024-03-01</td>\n<td>150.0</td>\n<td>150.0</td>\n<td>21.43</td>\n<td>1</td>\n</tr>\n<tr>\n<td>A</td>\n<td>2024-03-03</td>\n<td>30.0</td>\n<td>180.0</td>\n<td>25.71</td>\n<td>2</td>\n</tr>\n<tr>\n<td>A</td>\n<td>2024-03-07</td>\n<td>20.0</td>\n<td>200.0</td>\n<td>28.57</td>\n<td>3</td>\n</tr>\n<tr>\n<td>A</td>\n<td>2024-03-08</td>\n<td>10.0</td>\n<td>60.0</td>\n<td>8.57</td>\n<td>3</td>\n</tr>\n<tr>\n<td>A</td>\n<td>2024-03-10</td>\n<td>5.0</td>\n<td>35.0</td>\n<td>5.0</td>\n<td>3</td>\n</tr>\n<tr>\n<td>B</td>\n<td>2024-03-05</td>\n<td>7.5</td>\n<td>7.5</td>\n<td>1.07</td>\n<td>1</td>\n</tr>\n</tbody>\n</table>\n<p>On 2024-03-08 the window covers 2024-03-02 to 2024-03-08, so the sales of 2024-03-01 are no longer included.</p>\n<h3>Function signature</h3>\n<pre><code class=\"language-python\">from pyspark.sql import DataFrame\n\ndef solve(sales_df: DataFrame) -&gt; DataFrame:\n    ...\n</code></pre>\n<h3>Constraints</h3>\n<ul>\n<li>Use the PySpark DataFrame API. Do not convert to pandas, do not call <code>collect()</code> or <code>toPandas()</code> inside <code>solve</code>, do not use Python UDFs.</li>\n<li><code>sales_df</code> has up to 10^7 rows, for up to 10^4 stores.</li>\n</ul>",
+"STARTER": "from pyspark.sql import DataFrame, Window\nfrom pyspark.sql import functions as F\n\n\ndef solve(sales_df: DataFrame) -> DataFrame:\n    # write your code here\n    return sales_df\n",
+"SOLUTION": "from pyspark.sql import DataFrame, Window\nfrom pyspark.sql import functions as F\n\n\ndef solve(sales_df: DataFrame) -> DataFrame:\n    # 1. Une ligne par (magasin, jour) : montants null ignorés, jour sans montant réel => pas de ligne.\n    daily = (\n        sales_df\n        .filter(F.col(\"amount\").isNotNull())\n        .groupBy(\"store_id\", \"sale_date\")\n        .agg(F.sum(\"amount\").alias(\"daily\"))\n    )\n\n    # 2. Fenêtre en jours CALENDAIRES : rangeBetween sur un entier \"numéro de jour\".\n    #    (rangeBetween directement sur une colonne date est refusé par Spark.)\n    day_num = F.datediff(F.col(\"sale_date\"), F.lit(\"1970-01-01\"))\n    w = Window.partitionBy(\"store_id\").orderBy(day_num).rangeBetween(-6, 0)   # [J-6, J] = 7 jours\n\n    rolling = F.sum(\"daily\").over(w)\n    result = daily.select(\n        \"store_id\",\n        \"sale_date\",\n        F.round(\"daily\", 2).alias(\"daily_revenue\"),\n        F.round(rolling, 2).alias(\"rolling_7d_revenue\"),\n        F.round(rolling / 7, 2).alias(\"rolling_7d_avg\"),          # divisé par 7 jours, pas par le nb de lignes\n        F.count(F.lit(1)).over(w).alias(\"days_with_sales_7d\"),\n    )\n    return result.orderBy(\"store_id\", \"sale_date\")\n",
+"WRAPPER": "",
+"MINUTES": 22,
+"SOURCE": "Examen d'entraînement d'octobre n°4, question 1",
+"TAGS": [],
+"VISIBLE": 1,
+"tests": [
+{
+"sales_df": {
+"__df__": {
+"schema": "store_id string, sale_date date, amount double",
+"rows": [
+[
+"A",
+"2024-03-01",
+100.0
+],
+[
+"A",
+"2024-03-01",
+50.0
+],
+[
+"A",
+"2024-03-02",
+null
+],
+[
+"A",
+"2024-03-03",
+30.0
+],
+[
+"A",
+"2024-03-07",
+20.0
+],
+[
+"B",
+"2024-03-05",
+7.5
+],
+[
+"A",
+"2024-03-08",
+10.0
+],
+[
+"A",
+"2024-03-10",
+5.0
+]
+]
+}
+}
+},
+{
+"sales_df": {
+"__df__": {
+"schema": "store_id string, sale_date date, amount double",
+"rows": [
+[
+"C",
+"2024-03-04",
+1.0
+],
+[
+"C",
+"2024-02-26",
+10.0
+],
+[
+"C",
+"2024-03-03",
+40.0
+],
+[
+"C",
+"2024-02-29",
+20.0
+]
+]
+}
+}
+},
+{
+"sales_df": {
+"__df__": {
+"schema": "store_id string, sale_date date, amount double",
+"rows": [
+[
+"E",
+"2024-05-01",
+1000.0
+],
+[
+"D",
+"2024-05-01",
+0.1
+],
+[
+"E",
+"2024-05-02",
+null
+],
+[
+"D",
+"2024-05-02",
+0.3
+],
+[
+"D",
+"2024-05-01",
+0.2
+],
+[
+"E",
+"2024-05-08",
+1.0
+]
+]
+}
+}
+},
+{
+"sales_df": {
+"__df__": {
+"schema": "store_id string, sale_date date, amount double",
+"rows": [
+[
+"F",
+"2024-06-01",
+10.0
+],
+[
+"F",
+"2024-06-01",
+null
+],
+[
+"F",
+"2024-06-04",
+null
+],
+[
+"F",
+"2024-06-07",
+5.0
+]
+]
+}
+}
+},
+{
+"sales_df": {
+"__df__": {
+"schema": "store_id string, sale_date date, amount double",
+"rows": [
+[
+"G",
+"2024-07-01",
+7.0
+],
+[
+"G",
+"2024-07-07",
+7.0
+],
+[
+"G",
+"2024-07-08",
+7.0
+],
+[
+"G",
+"2024-07-14",
+7.0
+]
+]
+}
+}
+}
+],
+"bank": [
+{
+"__table__": {
+"columns": [
+"store_id",
+"sale_date",
+"daily_revenue",
+"rolling_7d_revenue",
+"rolling_7d_avg",
+"days_with_sales_7d"
+],
+"rows": [
+[
+"A",
+"2024-03-01",
+150.0,
+150.0,
+21.43,
+1
+],
+[
+"A",
+"2024-03-03",
+30.0,
+180.0,
+25.71,
+2
+],
+[
+"A",
+"2024-03-07",
+20.0,
+200.0,
+28.57,
+3
+],
+[
+"A",
+"2024-03-08",
+10.0,
+60.0,
+8.57,
+3
+],
+[
+"A",
+"2024-03-10",
+5.0,
+35.0,
+5.0,
+3
+],
+[
+"B",
+"2024-03-05",
+7.5,
+7.5,
+1.07,
+1
+]
+]
+}
+},
+{
+"__table__": {
+"columns": [
+"store_id",
+"sale_date",
+"daily_revenue",
+"rolling_7d_revenue",
+"rolling_7d_avg",
+"days_with_sales_7d"
+],
+"rows": [
+[
+"C",
+"2024-02-26",
+10.0,
+10.0,
+1.43,
+1
+],
+[
+"C",
+"2024-02-29",
+20.0,
+30.0,
+4.29,
+2
+],
+[
+"C",
+"2024-03-03",
+40.0,
+70.0,
+10.0,
+3
+],
+[
+"C",
+"2024-03-04",
+1.0,
+61.0,
+8.71,
+3
+]
+]
+}
+},
+{
+"__table__": {
+"columns": [
+"store_id",
+"sale_date",
+"daily_revenue",
+"rolling_7d_revenue",
+"rolling_7d_avg",
+"days_with_sales_7d"
+],
+"rows": [
+[
+"D",
+"2024-05-01",
+0.3,
+0.3,
+0.04,
+1
+],
+[
+"D",
+"2024-05-02",
+0.3,
+0.6,
+0.09,
+2
+],
+[
+"E",
+"2024-05-01",
+1000.0,
+1000.0,
+142.86,
+1
+],
+[
+"E",
+"2024-05-08",
+1.0,
+1.0,
+0.14,
+1
+]
+]
+}
+},
+{
+"__table__": {
+"columns": [
+"store_id",
+"sale_date",
+"daily_revenue",
+"rolling_7d_revenue",
+"rolling_7d_avg",
+"days_with_sales_7d"
+],
+"rows": [
+[
+"F",
+"2024-06-01",
+10.0,
+10.0,
+1.43,
+1
+],
+[
+"F",
+"2024-06-07",
+5.0,
+15.0,
+2.14,
+2
+]
+]
+}
+},
+{
+"__table__": {
+"columns": [
+"store_id",
+"sale_date",
+"daily_revenue",
+"rolling_7d_revenue",
+"rolling_7d_avg",
+"days_with_sales_7d"
+],
+"rows": [
+[
+"G",
+"2024-07-01",
+7.0,
+7.0,
+1.0,
+1
+],
+[
+"G",
+"2024-07-07",
+7.0,
+14.0,
+2.0,
+2
+],
+[
+"G",
+"2024-07-08",
+7.0,
+14.0,
+2.0,
+2
+],
+[
+"G",
+"2024-07-14",
+7.0,
+14.0,
+2.0,
+2
+]
+]
+}
+}
+]
+}

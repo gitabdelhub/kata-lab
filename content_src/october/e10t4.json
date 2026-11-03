@@ -1,0 +1,449 @@
+{
+"ID": "e10t4",
+"NAME": "Paginated Users API",
+"LANG": "python",
+"PARAMS": [
+"case"
+],
+"ENTRY": "__kata_entry__",
+"ORDERED": true,
+"DESC": "<p>You are writing the extraction step of a pipeline that copies users from a partner's REST API. The HTTP layer is already written: you receive a function <code>fetch_page</code> that performs the call and returns the raw response body.</p>\n<pre><code class=\"language-python\">def fetch_page(cursor: Optional[str]) -&gt; str:\n    &quot;&quot;&quot;Calls GET /users?cursor=&lt;cursor&gt; and returns the raw response body (a JSON string).\n    Use cursor=None for the first page. Raises an exception if the cursor is invalid.&quot;&quot;&quot;\n</code></pre>\n<p>Each response body has this shape:</p>\n<pre><code class=\"language-json\">{&quot;data&quot;: [ &lt;user&gt;, &lt;user&gt;, ... ], &quot;has_more&quot;: true, &quot;next_cursor&quot;: &quot;c2&quot;}\n</code></pre>\n<p>A user object looks like this. Any field may be missing or <code>null</code>, at any level, and unknown fields may be present:</p>\n<pre><code class=\"language-json\">{\n  &quot;id&quot;: 1,\n  &quot;email&quot;: &quot; Amina@Mail.COM &quot;,\n  &quot;profile&quot;: {&quot;first_name&quot;: &quot;Amina&quot;, &quot;last_name&quot;: &quot;Benali&quot;},\n  &quot;address&quot;: {&quot;city&quot;: &quot;Casablanca&quot;, &quot;country_code&quot;: &quot;ma&quot;, &quot;geo&quot;: {&quot;lat&quot;: 33.57, &quot;lng&quot;: -7.59}},\n  &quot;tags&quot;: [&quot;vip&quot;, &quot;beta&quot;]\n}\n</code></pre>\n<h3>Pagination rules</h3>\n<ol>\n<li>The first call is <code>fetch_page(None)</code>.</li>\n<li>While the current page has <code>has_more</code> equal to <code>true</code>, fetch the next page with <code>fetch_page(next_cursor)</code>. A page may have an empty <code>data</code> list while <code>has_more</code> is still <code>true</code>.</li>\n<li>Stop as soon as a page has <code>has_more</code> equal to <code>false</code>, even if its <code>next_cursor</code> is not null. Do not call <code>fetch_page</code> more times than needed.</li>\n</ol>\n<h3>Output</h3>\n<p>Return a list of dicts, one per user, in the order in which the API returned them. Users whose <code>id</code> is missing or <code>null</code> are skipped. Each dict has exactly these keys:</p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>key</th>\n<th>type</th>\n<th>rule</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>user_id</td>\n<td>str</td>\n<td><code>id</code> converted to <code>str</code> (<code>id</code> can be an int or a str; <code>0</code> is a valid id)</td>\n</tr>\n<tr>\n<td>email</td>\n<td>str or None</td>\n<td>stripped and lowercased; <code>None</code> if missing or null</td>\n</tr>\n<tr>\n<td>full_name</td>\n<td>str or None</td>\n<td><code>profile.first_name</code> and <code>profile.last_name</code>, each stripped, joined with a single space; a part that is missing, null or blank is skipped; <code>None</code> if no part is left</td>\n</tr>\n<tr>\n<td>city</td>\n<td>str or None</td>\n<td><code>address.city</code> as is; <code>None</code> if missing or null</td>\n</tr>\n<tr>\n<td>country</td>\n<td>str or None</td>\n<td><code>address.country_code</code> stripped and uppercased; <code>None</code> if missing, null or blank</td>\n</tr>\n<tr>\n<td>lat</td>\n<td>float or None</td>\n<td><code>address.geo.lat</code> as a <code>float</code>; <code>None</code> if missing or null</td>\n</tr>\n<tr>\n<td>lng</td>\n<td>float or None</td>\n<td><code>address.geo.lng</code> as a <code>float</code>; <code>None</code> if missing or null</td>\n</tr>\n<tr>\n<td>n_tags</td>\n<td>int</td>\n<td>number of elements of <code>tags</code>; <code>0</code> if missing or null</td>\n</tr>\n</tbody>\n</table>\n<h3>Example</h3>\n<p>Pages returned by the API:</p>\n<pre><code class=\"language-python\">fetch_page(None) == '{&quot;data&quot;: [{&quot;id&quot;: 1, &quot;email&quot;: &quot; Amina@Mail.COM &quot;, &quot;profile&quot;: {&quot;first_name&quot;: &quot;Amina&quot;, &quot;last_name&quot;: &quot;Benali&quot;}, &quot;address&quot;: {&quot;city&quot;: &quot;Casablanca&quot;, &quot;country_code&quot;: &quot;ma&quot;, &quot;geo&quot;: {&quot;lat&quot;: 33.57, &quot;lng&quot;: -7.59}}, &quot;tags&quot;: [&quot;vip&quot;, &quot;beta&quot;]}, {&quot;id&quot;: &quot;u-2&quot;, &quot;email&quot;: null, &quot;profile&quot;: {&quot;first_name&quot;: &quot;Omar&quot;}, &quot;address&quot;: null}], &quot;has_more&quot;: true, &quot;next_cursor&quot;: &quot;c2&quot;}'\nfetch_page(&quot;c2&quot;) == '{&quot;data&quot;: [{&quot;id&quot;: 3, &quot;profile&quot;: {&quot;first_name&quot;: &quot; &quot;, &quot;last_name&quot;: &quot;Idrissi&quot;}, &quot;address&quot;: {&quot;city&quot;: &quot;Rabat&quot;, &quot;geo&quot;: null}, &quot;tags&quot;: []}], &quot;has_more&quot;: false, &quot;next_cursor&quot;: null}'\n</code></pre>\n<p>Expected return value:</p>\n<pre><code class=\"language-python\">[\n    {&quot;user_id&quot;: &quot;1&quot;, &quot;email&quot;: &quot;amina@mail.com&quot;, &quot;full_name&quot;: &quot;Amina Benali&quot;, &quot;city&quot;: &quot;Casablanca&quot;,\n     &quot;country&quot;: &quot;MA&quot;, &quot;lat&quot;: 33.57, &quot;lng&quot;: -7.59, &quot;n_tags&quot;: 2},\n    {&quot;user_id&quot;: &quot;u-2&quot;, &quot;email&quot;: None, &quot;full_name&quot;: &quot;Omar&quot;, &quot;city&quot;: None,\n     &quot;country&quot;: None, &quot;lat&quot;: None, &quot;lng&quot;: None, &quot;n_tags&quot;: 0},\n    {&quot;user_id&quot;: &quot;3&quot;, &quot;email&quot;: None, &quot;full_name&quot;: &quot;Idrissi&quot;, &quot;city&quot;: &quot;Rabat&quot;,\n     &quot;country&quot;: None, &quot;lat&quot;: None, &quot;lng&quot;: None, &quot;n_tags&quot;: 0},\n]\n</code></pre>\n<h3>Function signature</h3>\n<pre><code class=\"language-python\">def ingest_users(fetch_page) -&gt; list:\n    ...\n</code></pre>\n<h3>Constraints</h3>\n<ul>\n<li>Python 3 standard library only (<code>json</code> is available). No network access: only call <code>fetch_page</code>.</li>\n<li>Up to 10^4 pages, up to 100 users per page.</li>\n</ul><p class=\"muted\">The functions described in the task (the API) are provided by the tests: you only write your function.</p>",
+"STARTER": "def ingest_users(fetch_page):\n    # write your code here\n    return None\n",
+"SOLUTION": "import json\n\n\ndef _clean_str(value):\n    \"\"\"Chaîne nettoyée (strip), ou None si absente, null, non str ou vide après strip.\"\"\"\n    if not isinstance(value, str):\n        return None\n    value = value.strip()\n    return value or None\n\n\ndef ingest_users(fetch_page):\n    rows = []\n    cursor = None\n    while True:\n        page = json.loads(fetch_page(cursor))          # le corps est une str JSON\n        for rec in page.get(\"data\") or []:\n            if rec.get(\"id\") is None:                  # id absent ou null => ignoré (id 0 gardé)\n                continue\n            profile = rec.get(\"profile\") or {}         # absent ou null => dict vide\n            address = rec.get(\"address\") or {}\n            geo = address.get(\"geo\") or {}\n            email = _clean_str(rec.get(\"email\"))\n            parts = [_clean_str(profile.get(\"first_name\")), _clean_str(profile.get(\"last_name\"))]\n            parts = [p for p in parts if p]\n            country = _clean_str(address.get(\"country_code\"))\n            lat, lng = geo.get(\"lat\"), geo.get(\"lng\")\n            rows.append({\n                \"user_id\": str(rec[\"id\"]),\n                \"email\": email.lower() if email else None,\n                \"full_name\": \" \".join(parts) if parts else None,\n                \"city\": address.get(\"city\"),\n                \"country\": country.upper() if country else None,\n                \"lat\": float(lat) if lat is not None else None,   # 0.0 reste 0.0\n                \"lng\": float(lng) if lng is not None else None,\n                \"n_tags\": len(rec.get(\"tags\") or []),\n            })\n        if not page.get(\"has_more\"):                   # on s'arrête sur has_more, pas sur next_cursor\n            break\n        cursor = page[\"next_cursor\"]\n    return rows\n",
+"WRAPPER": "\nimport json as _kjson\ndef __kata_entry__(case):\n    pages = {c: b for c, b in case[\"pages\"]}\n    calls = []\n    def fetch_page(cursor):\n        calls.append(cursor)\n        if len(calls) > 50:\n            raise RuntimeError(\"more than 50 calls: infinite loop?\")\n        if cursor not in pages:\n            raise ValueError(f\"invalid cursor: {cursor!r}\")\n        return _kjson.dumps(pages[cursor])\n    try:\n        result = ingest_users(fetch_page)\n    except Exception as exc:\n        result = {\"error\": type(exc).__name__ + \": \" + str(exc)}\n    return {\"result\": result, \"calls\": calls}\n",
+"MINUTES": 22,
+"SOURCE": "Examen d'entraînement d'octobre n°2, question 4",
+"TAGS": [],
+"VISIBLE": 1,
+"tests": [
+{
+"case": {
+"pages": [
+[
+null,
+{
+"data": [
+{
+"id": 1,
+"email": " Amina@Mail.COM ",
+"profile": {
+"first_name": "Amina",
+"last_name": "Benali"
+},
+"address": {
+"city": "Casablanca",
+"country_code": "ma",
+"geo": {
+"lat": 33.57,
+"lng": -7.59
+}
+},
+"tags": [
+"vip",
+"beta"
+]
+},
+{
+"id": "u-2",
+"email": null,
+"profile": {
+"first_name": "Omar"
+},
+"address": null
+}
+],
+"has_more": true,
+"next_cursor": "c2"
+}
+],
+[
+"c2",
+{
+"data": [
+{
+"id": 3,
+"profile": {
+"first_name": " ",
+"last_name": "Idrissi"
+},
+"address": {
+"city": "Rabat",
+"geo": null
+},
+"tags": []
+}
+],
+"has_more": false,
+"next_cursor": null
+}
+]
+]
+}
+},
+{
+"case": {
+"pages": [
+[
+null,
+{
+"data": [
+{
+"id": 10,
+"email": "X@Y.ORG",
+"profile": null,
+"tags": null
+}
+],
+"has_more": true,
+"next_cursor": "a"
+}
+],
+[
+"a",
+{
+"data": [],
+"has_more": true,
+"next_cursor": "b"
+}
+],
+[
+"b",
+{
+"data": [
+{
+"id": 11,
+"profile": {
+"first_name": "Sara",
+"last_name": null
+},
+"address": {
+"country_code": "fr"
+}
+},
+{
+"id": 12,
+"tags": [
+"a",
+"b",
+"c"
+],
+"address": {
+"geo": {
+"lat": 0.0,
+"lng": 0
+}
+}
+}
+],
+"has_more": false,
+"next_cursor": "zzz"
+}
+]
+]
+}
+},
+{
+"case": {
+"pages": [
+[
+null,
+{
+"data": [
+{
+"email": "a@b.c"
+},
+{
+"id": null,
+"email": "d@e.f"
+},
+{
+"id": 0,
+"email": " Z@Z.IO",
+"profile": {
+"last_name": "Zed "
+}
+}
+],
+"has_more": false,
+"next_cursor": null
+}
+]
+]
+}
+},
+{
+"case": {
+"pages": [
+[
+null,
+{
+"data": [
+{
+"id": "a",
+"address": {
+"city": "Fes",
+"country_code": null,
+"geo": {
+"lat": 34.03
+}
+}
+}
+],
+"has_more": true,
+"next_cursor": "c1"
+}
+],
+[
+"c1",
+{
+"data": [
+{
+"id": "b",
+"tags": [
+"x",
+"x"
+]
+}
+],
+"has_more": true,
+"next_cursor": "c2"
+}
+],
+[
+"c2",
+{
+"data": [
+{
+"id": "c",
+"email": "C@C.COM",
+"profile": {}
+},
+{
+"id": "d",
+"profile": {
+"first_name": "Ali",
+"last_name": "  "
+},
+"address": {}
+}
+],
+"has_more": true,
+"next_cursor": "c3"
+}
+],
+[
+"c3",
+{
+"data": [],
+"has_more": true,
+"next_cursor": "c4"
+}
+],
+[
+"c4",
+{
+"data": [
+{
+"id": "e",
+"profile": {
+"first_name": "  Nora ",
+"last_name": " El Fassi"
+}
+}
+],
+"has_more": false,
+"next_cursor": null
+}
+]
+]
+}
+},
+{
+"case": {
+"pages": [
+[
+null,
+{
+"data": [],
+"has_more": false,
+"next_cursor": null
+}
+]
+]
+}
+}
+],
+"bank": [
+{
+"__subset__": {
+"result": [
+{
+"user_id": "1",
+"email": "amina@mail.com",
+"full_name": "Amina Benali",
+"city": "Casablanca",
+"country": "MA",
+"lat": 33.57,
+"lng": -7.59,
+"n_tags": 2
+},
+{
+"user_id": "u-2",
+"email": null,
+"full_name": "Omar",
+"city": null,
+"country": null,
+"lat": null,
+"lng": null,
+"n_tags": 0
+},
+{
+"user_id": "3",
+"email": null,
+"full_name": "Idrissi",
+"city": "Rabat",
+"country": null,
+"lat": null,
+"lng": null,
+"n_tags": 0
+}
+],
+"calls": [
+null,
+"c2"
+]
+}
+},
+{
+"__subset__": {
+"result": [
+{
+"user_id": "10",
+"email": "x@y.org",
+"full_name": null,
+"city": null,
+"country": null,
+"lat": null,
+"lng": null,
+"n_tags": 0
+},
+{
+"user_id": "11",
+"email": null,
+"full_name": "Sara",
+"city": null,
+"country": "FR",
+"lat": null,
+"lng": null,
+"n_tags": 0
+},
+{
+"user_id": "12",
+"email": null,
+"full_name": null,
+"city": null,
+"country": null,
+"lat": 0.0,
+"lng": 0.0,
+"n_tags": 3
+}
+],
+"calls": [
+null,
+"a",
+"b"
+]
+}
+},
+{
+"__subset__": {
+"result": [
+{
+"user_id": "0",
+"email": "z@z.io",
+"full_name": "Zed",
+"city": null,
+"country": null,
+"lat": null,
+"lng": null,
+"n_tags": 0
+}
+],
+"calls": [
+null
+]
+}
+},
+{
+"__subset__": {
+"result": [
+{
+"user_id": "a",
+"email": null,
+"full_name": null,
+"city": "Fes",
+"country": null,
+"lat": 34.03,
+"lng": null,
+"n_tags": 0
+},
+{
+"user_id": "b",
+"email": null,
+"full_name": null,
+"city": null,
+"country": null,
+"lat": null,
+"lng": null,
+"n_tags": 2
+},
+{
+"user_id": "c",
+"email": "c@c.com",
+"full_name": null,
+"city": null,
+"country": null,
+"lat": null,
+"lng": null,
+"n_tags": 0
+},
+{
+"user_id": "d",
+"email": null,
+"full_name": "Ali",
+"city": null,
+"country": null,
+"lat": null,
+"lng": null,
+"n_tags": 0
+},
+{
+"user_id": "e",
+"email": null,
+"full_name": "Nora El Fassi",
+"city": null,
+"country": null,
+"lat": null,
+"lng": null,
+"n_tags": 0
+}
+],
+"calls": [
+null,
+"c1",
+"c2",
+"c3",
+"c4"
+]
+}
+},
+{
+"__subset__": {
+"result": [],
+"calls": [
+null
+]
+}
+}
+]
+}

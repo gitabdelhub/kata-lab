@@ -1,0 +1,425 @@
+{
+"ID": "e12t3",
+"NAME": "Monthly Revenue, Running Total and Growth",
+"LANG": "sql",
+"PARAMS": [],
+"ENTRY": null,
+"ORDERED": true,
+"DESC": "<p>The finance team wants a monthly revenue table with a running total and the month-over-month growth, without holes: a month without any sale must appear with a revenue of 0.</p>\n<h3>Table</h3>\n<p><code>orders</code></p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>column</th>\n<th>type</th>\n<th>description</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>order_id</td>\n<td>INT</td>\n<td>primary key</td>\n</tr>\n<tr>\n<td>order_date</td>\n<td>DATE</td>\n<td>not null</td>\n</tr>\n<tr>\n<td>amount</td>\n<td>DECIMAL(10,2)</td>\n<td>not null, strictly positive</td>\n</tr>\n<tr>\n<td>status</td>\n<td>VARCHAR(20)</td>\n<td><code>'completed'</code>, <code>'pending'</code>, <code>'cancelled'</code> or <code>'refunded'</code></td>\n</tr>\n</tbody>\n</table>\n<h3>Rules</h3>\n<ol>\n<li>Only orders with status <code>'completed'</code> count.</li>\n<li>The output contains every calendar month from the month of the earliest completed order to the month of the latest completed order, both included, including the months without any completed order. Orders with another status never extend this range. If there is no completed order, the output is empty.</li>\n<li><code>revenue</code> is the sum of the amounts of the completed orders of the month (<code>0.00</code> for a month without any).</li>\n<li><code>cumulative_revenue</code> is the running total of <code>revenue</code> from the first month of the output up to the current month.</li>\n<li><code>mom_growth_pct</code> is <code>100 * (revenue - previous month revenue) / previous month revenue</code>, rounded to 2 decimals. It is NULL for the first month and when the previous month's revenue is 0.</li>\n</ol>\n<h3>Output</h3>\n<p>Exactly these columns, in this order:</p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>column</th>\n<th>type</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>month</td>\n<td>VARCHAR, format <code>YYYY-MM</code></td>\n</tr>\n<tr>\n<td>revenue</td>\n<td>DECIMAL, 2 decimals</td>\n</tr>\n<tr>\n<td>cumulative_revenue</td>\n<td>DECIMAL, 2 decimals</td>\n</tr>\n<tr>\n<td>mom_growth_pct</td>\n<td>DECIMAL, 2 decimals, may be NULL</td>\n</tr>\n</tbody>\n</table>\n<p>Rows are sorted by <code>month</code> ascending.</p>\n<h3>Example</h3>\n<p><code>orders</code></p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>order_id</th>\n<th>order_date</th>\n<th>amount</th>\n<th>status</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>1</td>\n<td>2024-01-05</td>\n<td>100.00</td>\n<td>completed</td>\n</tr>\n<tr>\n<td>2</td>\n<td>2024-01-20</td>\n<td>50.00</td>\n<td>completed</td>\n</tr>\n<tr>\n<td>3</td>\n<td>2024-02-10</td>\n<td>300.00</td>\n<td>refunded</td>\n</tr>\n<tr>\n<td>4</td>\n<td>2024-03-03</td>\n<td>200.00</td>\n<td>completed</td>\n</tr>\n<tr>\n<td>5</td>\n<td>2024-03-31</td>\n<td>25.50</td>\n<td>completed</td>\n</tr>\n<tr>\n<td>6</td>\n<td>2024-04-15</td>\n<td>75.00</td>\n<td>completed</td>\n</tr>\n<tr>\n<td>7</td>\n<td>2024-05-01</td>\n<td>90.00</td>\n<td>completed</td>\n</tr>\n</tbody>\n</table>\n<p>Expected output</p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>month</th>\n<th>revenue</th>\n<th>cumulative_revenue</th>\n<th>mom_growth_pct</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>2024-01</td>\n<td>150.00</td>\n<td>150.00</td>\n<td>NULL</td>\n</tr>\n<tr>\n<td>2024-02</td>\n<td>0.00</td>\n<td>150.00</td>\n<td>-100.00</td>\n</tr>\n<tr>\n<td>2024-03</td>\n<td>225.50</td>\n<td>375.50</td>\n<td>NULL</td>\n</tr>\n<tr>\n<td>2024-04</td>\n<td>75.00</td>\n<td>450.50</td>\n<td>-66.74</td>\n</tr>\n<tr>\n<td>2024-05</td>\n<td>90.00</td>\n<td>540.50</td>\n<td>20.00</td>\n</tr>\n</tbody>\n</table>\n<h3>Constraints</h3>\n<ul>\n<li>Dialect: PostgreSQL.</li>\n<li>Write a single <code>SELECT</code> statement (CTEs allowed). Do not create tables or views.</li>\n<li><code>orders</code> has up to 10^7 rows.</li>\n</ul><p class=\"muted\">Write a PostgreSQL query.</p>",
+"STARTER": "/* Write your PostgreSQL query here */\n",
+"SOLUTION": "-- Q3 : solution de référence PostgreSQL\nWITH completed AS (\n    SELECT CAST(DATE_TRUNC('month', order_date) AS DATE) AS month_start,\n           amount\n    FROM orders\n    WHERE status = 'completed'\n),\nmonths AS (\n    -- 1. Tous les mois entre le premier et le dernier mois AVEC une commande completed.\n    --    Sans commande completed, MIN/MAX valent NULL et generate_series ne renvoie aucune ligne.\n    SELECT CAST(generate_series(MIN(month_start), MAX(month_start), INTERVAL '1 month') AS DATE) AS month_start\n    FROM completed\n),\nmonthly AS (\n    -- 2. LEFT JOIN depuis le calendrier : un mois sans commande garde une ligne à 0.\n    SELECT m.month_start,\n           COALESCE(SUM(c.amount), 0.00) AS revenue\n    FROM months m\n    LEFT JOIN completed c\n      ON c.month_start = m.month_start\n    GROUP BY m.month_start\n),\nwith_prev AS (\n    -- 3. Fenêtres APRES le remplissage des mois vides.\n    SELECT month_start,\n           revenue,\n           SUM(revenue) OVER (ORDER BY month_start\n                              ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS cumulative_revenue,\n           LAG(revenue) OVER (ORDER BY month_start) AS prev_revenue\n    FROM monthly\n)\nSELECT TO_CHAR(month_start, 'YYYY-MM') AS month,\n       revenue,\n       cumulative_revenue,\n       -- NULLIF : mois précédent à 0 => division par NULL => NULL (au lieu d'une erreur en PostgreSQL)\n       ROUND(100.0 * (revenue - prev_revenue) / NULLIF(prev_revenue, 0), 2) AS mom_growth_pct\nFROM with_prev\nORDER BY month_start;\n",
+"WRAPPER": "",
+"MINUTES": 22,
+"SOURCE": "Examen d'entraînement d'octobre n°4, question 3",
+"TAGS": [],
+"VISIBLE": 1,
+"tests": [
+{
+"tables": {
+"orders": {
+"columns": [
+[
+"order_id",
+"INT"
+],
+[
+"order_date",
+"DATE"
+],
+[
+"amount",
+"NUMERIC(10,2)"
+],
+[
+"status",
+"VARCHAR(20)"
+]
+],
+"rows": [
+[
+1,
+"2024-01-05",
+"100.00",
+"completed"
+],
+[
+2,
+"2024-01-20",
+"50.00",
+"completed"
+],
+[
+3,
+"2024-02-10",
+"300.00",
+"refunded"
+],
+[
+4,
+"2024-03-03",
+"200.00",
+"completed"
+],
+[
+5,
+"2024-03-31",
+"25.50",
+"completed"
+],
+[
+6,
+"2024-04-15",
+"75.00",
+"completed"
+],
+[
+7,
+"2024-05-01",
+"90.00",
+"completed"
+]
+]
+}
+}
+},
+{
+"tables": {
+"orders": {
+"columns": [
+[
+"order_id",
+"INT"
+],
+[
+"order_date",
+"DATE"
+],
+[
+"amount",
+"NUMERIC(10,2)"
+],
+[
+"status",
+"VARCHAR(20)"
+]
+],
+"rows": [
+[
+1,
+"2023-11-30",
+"300.00",
+"completed"
+],
+[
+2,
+"2024-01-01",
+"33.33",
+"completed"
+],
+[
+3,
+"2024-02-29",
+"60.00",
+"completed"
+],
+[
+4,
+"2024-02-01",
+"40.00",
+"completed"
+]
+]
+}
+}
+},
+{
+"tables": {
+"orders": {
+"columns": [
+[
+"order_id",
+"INT"
+],
+[
+"order_date",
+"DATE"
+],
+[
+"amount",
+"NUMERIC(10,2)"
+],
+[
+"status",
+"VARCHAR(20)"
+]
+],
+"rows": [
+[
+1,
+"2024-06-10",
+"10.00",
+"completed"
+],
+[
+2,
+"2024-06-11",
+"5.25",
+"completed"
+],
+[
+3,
+"2024-05-01",
+"99.00",
+"cancelled"
+],
+[
+4,
+"2024-08-01",
+"99.00",
+"pending"
+]
+]
+}
+}
+},
+{
+"tables": {
+"orders": {
+"columns": [
+[
+"order_id",
+"INT"
+],
+[
+"order_date",
+"DATE"
+],
+[
+"amount",
+"NUMERIC(10,2)"
+],
+[
+"status",
+"VARCHAR(20)"
+]
+],
+"rows": [
+[
+1,
+"2025-01-10",
+"60.00",
+"completed"
+],
+[
+2,
+"2025-01-10",
+"60.00",
+"completed"
+],
+[
+3,
+"2025-02-14",
+"80.00",
+"completed"
+],
+[
+4,
+"2025-03-01",
+"80.00",
+"completed"
+],
+[
+5,
+"2025-04-30",
+"100.00",
+"completed"
+]
+]
+}
+}
+},
+{
+"tables": {
+"orders": {
+"columns": [
+[
+"order_id",
+"INT"
+],
+[
+"order_date",
+"DATE"
+],
+[
+"amount",
+"NUMERIC(10,2)"
+],
+[
+"status",
+"VARCHAR(20)"
+]
+],
+"rows": [
+[
+1,
+"2024-01-01",
+"10.00",
+"pending"
+],
+[
+2,
+"2024-02-01",
+"5.00",
+"refunded"
+]
+]
+}
+}
+}
+],
+"bank": [
+{
+"__table__": {
+"columns": [
+"month",
+"revenue",
+"cumulative_revenue",
+"mom_growth_pct"
+],
+"rows": [
+[
+"2024-01",
+150.0,
+150.0,
+null
+],
+[
+"2024-02",
+0.0,
+150.0,
+-100.0
+],
+[
+"2024-03",
+225.5,
+375.5,
+null
+],
+[
+"2024-04",
+75.0,
+450.5,
+-66.74
+],
+[
+"2024-05",
+90.0,
+540.5,
+20.0
+]
+]
+}
+},
+{
+"__table__": {
+"columns": [
+"month",
+"revenue",
+"cumulative_revenue",
+"mom_growth_pct"
+],
+"rows": [
+[
+"2023-11",
+300.0,
+300.0,
+null
+],
+[
+"2023-12",
+0.0,
+300.0,
+-100.0
+],
+[
+"2024-01",
+33.33,
+333.33,
+null
+],
+[
+"2024-02",
+100.0,
+433.33,
+200.03
+]
+]
+}
+},
+{
+"__table__": {
+"columns": [
+"month",
+"revenue",
+"cumulative_revenue",
+"mom_growth_pct"
+],
+"rows": [
+[
+"2024-06",
+15.25,
+15.25,
+null
+]
+]
+}
+},
+{
+"__table__": {
+"columns": [
+"month",
+"revenue",
+"cumulative_revenue",
+"mom_growth_pct"
+],
+"rows": [
+[
+"2025-01",
+120.0,
+120.0,
+null
+],
+[
+"2025-02",
+80.0,
+200.0,
+-33.33
+],
+[
+"2025-03",
+80.0,
+280.0,
+0.0
+],
+[
+"2025-04",
+100.0,
+380.0,
+25.0
+]
+]
+}
+},
+{
+"__table__": {
+"columns": [
+"month",
+"revenue",
+"cumulative_revenue",
+"mom_growth_pct"
+],
+"rows": []
+}
+}
+]
+}

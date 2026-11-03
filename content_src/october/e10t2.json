@@ -1,0 +1,296 @@
+{
+"ID": "e10t2",
+"NAME": "Order Lines from JSON Payloads",
+"LANG": "pyspark",
+"PARAMS": [
+"raw_orders_df"
+],
+"ENTRY": "solve",
+"ORDERED": true,
+"DESC": "<p>An e-commerce platform receives orders through a webhook. The raw JSON body of each call is stored as a string, next to the order identifier. You must turn these payloads into clean order lines.</p>\n<h3>Input</h3>\n<p><code>raw_orders_df</code></p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>column</th>\n<th>type</th>\n<th>description</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>order_id</td>\n<td>string</td>\n<td>unique, never null</td>\n</tr>\n<tr>\n<td>payload</td>\n<td>string</td>\n<td>raw JSON text; may be null or invalid JSON</td>\n</tr>\n</tbody>\n</table>\n<p>A typical payload looks like this:</p>\n<pre><code class=\"language-json\">{\n  &quot;customer&quot;: {&quot;id&quot;: &quot;C1&quot;, &quot;country&quot;: &quot;ma&quot;},\n  &quot;items&quot;: [\n    {&quot;sku&quot;: &quot;A&quot;, &quot;qty&quot;: 2, &quot;price&quot;: 10.5},\n    {&quot;sku&quot;: &quot;B&quot;, &quot;qty&quot;: 1, &quot;price&quot;: 4}\n  ]\n}\n</code></pre>\n<ul>\n<li><code>qty</code>, when present, is a JSON integer. <code>price</code> is always present and is a JSON number.</li>\n<li>Any field may be missing or <code>null</code>. Payloads may contain extra fields, which must be ignored.</li>\n</ul>\n<h3>Rules</h3>\n<ol>\n<li>Rows whose <code>payload</code> is null, is not valid JSON, is not a JSON object, or has no non-empty <code>items</code> array (missing, <code>null</code> or <code>[]</code>) produce no output row.</li>\n<li>Items whose <code>qty</code> is missing, <code>null</code>, or less than or equal to 0 are ignored.</li>\n<li>There is one output row per (<code>order_id</code>, <code>sku</code>). If the same <code>sku</code> appears several times in one order, merge those items: <code>qty</code> is the sum of the quantities and <code>line_total</code> is the sum of <code>qty * price</code>, rounded to 2 decimals <strong>after</strong> summing.</li>\n<li><code>customer_id</code> is <code>customer.id</code>; it is null when <code>customer</code> is missing.</li>\n<li><code>country</code> is <code>customer.country</code>, trimmed and uppercased. If it is missing, null or empty after trimming, use <code>UNKNOWN</code>.</li>\n</ol>\n<h3>Output</h3>\n<p>Exactly these columns, in this order:</p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>column</th>\n<th>type</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>order_id</td>\n<td>string</td>\n</tr>\n<tr>\n<td>customer_id</td>\n<td>string</td>\n</tr>\n<tr>\n<td>country</td>\n<td>string</td>\n</tr>\n<tr>\n<td>sku</td>\n<td>string</td>\n</tr>\n<tr>\n<td>qty</td>\n<td>long</td>\n</tr>\n<tr>\n<td>line_total</td>\n<td>double</td>\n</tr>\n</tbody>\n</table>\n<p>Rows are sorted by <code>order_id</code> ascending, then <code>sku</code> ascending (plain string order).</p>\n<h3>Example</h3>\n<p><code>raw_orders_df</code></p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>order_id</th>\n<th>payload</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>O1</td>\n<td><code>{\"customer\": {\"id\": \"C1\", \"country\": \"ma\"}, \"items\": [{\"sku\": \"A\", \"qty\": 2, \"price\": 10.5}, {\"sku\": \"B\", \"qty\": 1, \"price\": 4}]}</code></td>\n</tr>\n<tr>\n<td>O2</td>\n<td><code>{\"customer\": {\"id\": \"C2\"}, \"items\": [{\"sku\": \"A\", \"qty\": 1, \"price\": 10.5}, {\"sku\": \"A\", \"qty\": 3, \"price\": 10.0}, {\"sku\": \"C\", \"qty\": 0, \"price\": 99.9}]}</code></td>\n</tr>\n<tr>\n<td>O3</td>\n<td><code>{\"customer\": {\"id\": \"C3\"</code></td>\n</tr>\n<tr>\n<td>O4</td>\n<td><code>{\"customer\": {\"id\": \"C4\", \"country\": \" fr \"}, \"items\": []}</code></td>\n</tr>\n<tr>\n<td>O5</td>\n<td><code>{\"customer\": {\"id\": \"C5\", \"country\": null}, \"items\": [{\"sku\": \"D\", \"price\": 1.25}, {\"sku\": \"E\", \"qty\": 4, \"price\": 1.25}]}</code></td>\n</tr>\n</tbody>\n</table>\n<p>Expected output</p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>order_id</th>\n<th>customer_id</th>\n<th>country</th>\n<th>sku</th>\n<th>qty</th>\n<th>line_total</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>O1</td>\n<td>C1</td>\n<td>MA</td>\n<td>A</td>\n<td>2</td>\n<td>21.0</td>\n</tr>\n<tr>\n<td>O1</td>\n<td>C1</td>\n<td>MA</td>\n<td>B</td>\n<td>1</td>\n<td>4.0</td>\n</tr>\n<tr>\n<td>O2</td>\n<td>C2</td>\n<td>UNKNOWN</td>\n<td>A</td>\n<td>4</td>\n<td>40.5</td>\n</tr>\n<tr>\n<td>O5</td>\n<td>C5</td>\n<td>UNKNOWN</td>\n<td>E</td>\n<td>4</td>\n<td>5.0</td>\n</tr>\n</tbody>\n</table>\n<h3>Function signature</h3>\n<pre><code class=\"language-python\">from pyspark.sql import DataFrame\n\ndef solve(raw_orders_df: DataFrame) -&gt; DataFrame:\n    ...\n</code></pre>\n<h3>Constraints</h3>\n<ul>\n<li>Use the PySpark DataFrame API (<code>from_json</code> and friends). No pandas, no <code>collect()</code>, no Python UDFs, no <code>json</code> module inside <code>solve</code>.</li>\n<li><code>raw_orders_df</code> has up to 10^6 rows; an order has at most 100 items.</li>\n<li>The returned DataFrame may be empty; its columns and types must still match the specification.</li>\n</ul>",
+"STARTER": "from pyspark.sql import DataFrame, Window\nfrom pyspark.sql import functions as F\n\n\ndef solve(raw_orders_df: DataFrame) -> DataFrame:\n    # write your code here\n    return raw_orders_df\n",
+"SOLUTION": "from pyspark.sql import DataFrame\nfrom pyspark.sql import functions as F\n\n# Schéma du payload : on ne déclare que les champs utiles (les autres sont ignorés).\nPAYLOAD_SCHEMA = (\n    \"customer struct<id: string, country: string>, \"\n    \"items array<struct<sku: string, qty: long, price: double>>\"\n)\n\n\ndef solve(raw_orders_df: DataFrame) -> DataFrame:\n    # 1. Parsing. JSON invalide => struct à champs null (ou null si payload null) => items null.\n    parsed = raw_orders_df.select(\n        \"order_id\",\n        F.from_json(F.col(\"payload\"), PAYLOAD_SCHEMA).alias(\"p\"),\n    )\n\n    # 2. country : trim + upper, null ou vide => UNKNOWN.\n    country = F.upper(F.trim(F.col(\"p.customer.country\")))\n    flat = parsed.select(\n        \"order_id\",\n        F.col(\"p.customer.id\").alias(\"customer_id\"),\n        F.when(country.isNull() | (country == \"\"), F.lit(\"UNKNOWN\")).otherwise(country).alias(\"country\"),\n        # explode (pas explode_outer) : items null ou vide => aucune ligne\n        F.explode(F.col(\"p.items\")).alias(\"item\"),\n    )\n\n    # 3. Items exploitables : qty non null et > 0.\n    items = (\n        flat\n        .select(\"order_id\", \"customer_id\", \"country\",\n                F.col(\"item.sku\").alias(\"sku\"),\n                F.col(\"item.qty\").alias(\"qty\"),\n                F.col(\"item.price\").alias(\"price\"))\n        .filter(F.col(\"qty\").isNotNull() & (F.col(\"qty\") > 0))\n    )\n\n    # 4. Fusion des sku répétés dans une même commande, arrondi APRES la somme.\n    result = items.groupBy(\"order_id\", \"customer_id\", \"country\", \"sku\").agg(\n        F.sum(\"qty\").cast(\"long\").alias(\"qty\"),\n        F.round(F.sum(F.col(\"qty\") * F.col(\"price\")), 2).alias(\"line_total\"),\n    )\n    return (\n        result\n        .select(\"order_id\", \"customer_id\", \"country\", \"sku\", \"qty\", \"line_total\")\n        .orderBy(\"order_id\", \"sku\")\n    )\n",
+"WRAPPER": "",
+"MINUTES": 22,
+"SOURCE": "Examen d'entraînement d'octobre n°2, question 2",
+"TAGS": [],
+"VISIBLE": 1,
+"tests": [
+{
+"raw_orders_df": {
+"__df__": {
+"schema": "order_id string, payload string",
+"rows": [
+[
+"O1",
+"{\"customer\": {\"id\": \"C1\", \"country\": \"ma\"}, \"items\": [{\"sku\": \"A\", \"qty\": 2, \"price\": 10.5}, {\"sku\": \"B\", \"qty\": 1, \"price\": 4}]}"
+],
+[
+"O2",
+"{\"customer\": {\"id\": \"C2\"}, \"items\": [{\"sku\": \"A\", \"qty\": 1, \"price\": 10.5}, {\"sku\": \"A\", \"qty\": 3, \"price\": 10.0}, {\"sku\": \"C\", \"qty\": 0, \"price\": 99.9}]}"
+],
+[
+"O3",
+"{\"customer\": {\"id\": \"C3\""
+],
+[
+"O4",
+"{\"customer\": {\"id\": \"C4\", \"country\": \" fr \"}, \"items\": []}"
+],
+[
+"O5",
+"{\"customer\": {\"id\": \"C5\", \"country\": null}, \"items\": [{\"sku\": \"D\", \"price\": 1.25}, {\"sku\": \"E\", \"qty\": 4, \"price\": 1.25}]}"
+]
+]
+}
+}
+},
+{
+"raw_orders_df": {
+"__df__": {
+"schema": "order_id string, payload string",
+"rows": [
+[
+"O9",
+"{\"customer\":{\"id\":\"K9\",\"country\":\" es \"},\"items\":[{\"sku\":\"X\",\"qty\":1,\"price\":0.1},{\"sku\":\"X\",\"qty\":2,\"price\":0.1},{\"sku\":\"W\",\"qty\":3,\"price\":19.99}]}"
+],
+[
+"O10",
+"{\"customer\":{\"id\":\"K10\",\"country\":\"ES\"},\"items\":[{\"sku\":\"Z\",\"qty\":1,\"price\":5}]}"
+]
+]
+}
+}
+},
+{
+"raw_orders_df": {
+"__df__": {
+"schema": "order_id string, payload string",
+"rows": [
+[
+"O20",
+null
+],
+[
+"O21",
+"{\"customer\":{\"id\":\"C21\",\"country\":\"MA\"}}"
+],
+[
+"O22",
+"{\"customer\":{\"id\":\"C22\",\"country\":\"MA\"},\"items\":null}"
+],
+[
+"O23",
+"[{\"sku\":\"A\",\"qty\":1,\"price\":1.0}]"
+],
+[
+"O24",
+"{\"items\":[{\"sku\":\"Q\",\"qty\":2,\"price\":2.5}]}"
+],
+[
+"O25",
+"{\"customer\":{\"id\":\"C25\",\"country\":\"\"},\"items\":[{\"sku\":\"R\",\"qty\":-1,\"price\":2.0},{\"sku\":\"S\",\"qty\":1,\"price\":2.0}]}"
+]
+]
+}
+}
+},
+{
+"raw_orders_df": {
+"__df__": {
+"schema": "order_id string, payload string",
+"rows": [
+[
+"O30",
+"{\"id_ignored\": 5, \"items\":[{\"price\":2.0,\"qty\":2,\"sku\":\"M\",\"color\":\"red\"},{\"sku\":\"M\",\"qty\":null,\"price\":2.0},{\"sku\":\"N\",\"qty\":1,\"price\":0.333}],\"customer\":{\"country\":\"ma\",\"id\":\"C30\",\"tier\":\"gold\"}}"
+],
+[
+"O31",
+"{\"customer\":{\"id\":\"C31\",\"country\":\"MA\"},\"items\":[{\"sku\":\"P\",\"qty\":null,\"price\":1.0}]}"
+]
+]
+}
+}
+},
+{
+"raw_orders_df": {
+"__df__": {
+"schema": "order_id string, payload string",
+"rows": [
+[
+"O40",
+"garbage"
+],
+[
+"O41",
+"{\"customer\":{\"id\":\"C41\"},\"items\":[]}"
+],
+[
+"O42",
+"{\"customer\":{\"id\":\"C42\"},\"items\":[{\"sku\":\"A\",\"qty\":0,\"price\":1.0}]}"
+]
+]
+}
+}
+}
+],
+"bank": [
+{
+"__table__": {
+"columns": [
+"order_id",
+"customer_id",
+"country",
+"sku",
+"qty",
+"line_total"
+],
+"rows": [
+[
+"O1",
+"C1",
+"MA",
+"A",
+2,
+21.0
+],
+[
+"O1",
+"C1",
+"MA",
+"B",
+1,
+4.0
+],
+[
+"O2",
+"C2",
+"UNKNOWN",
+"A",
+4,
+40.5
+],
+[
+"O5",
+"C5",
+"UNKNOWN",
+"E",
+4,
+5.0
+]
+]
+}
+},
+{
+"__table__": {
+"columns": [
+"order_id",
+"customer_id",
+"country",
+"sku",
+"qty",
+"line_total"
+],
+"rows": [
+[
+"O10",
+"K10",
+"ES",
+"Z",
+1,
+5.0
+],
+[
+"O9",
+"K9",
+"ES",
+"W",
+3,
+59.97
+],
+[
+"O9",
+"K9",
+"ES",
+"X",
+3,
+0.3
+]
+]
+}
+},
+{
+"__table__": {
+"columns": [
+"order_id",
+"customer_id",
+"country",
+"sku",
+"qty",
+"line_total"
+],
+"rows": [
+[
+"O24",
+null,
+"UNKNOWN",
+"Q",
+2,
+5.0
+],
+[
+"O25",
+"C25",
+"UNKNOWN",
+"S",
+1,
+2.0
+]
+]
+}
+},
+{
+"__table__": {
+"columns": [
+"order_id",
+"customer_id",
+"country",
+"sku",
+"qty",
+"line_total"
+],
+"rows": [
+[
+"O30",
+"C30",
+"MA",
+"M",
+2,
+4.0
+],
+[
+"O30",
+"C30",
+"MA",
+"N",
+1,
+0.33
+]
+]
+}
+},
+{
+"__table__": {
+"columns": [
+"order_id",
+"customer_id",
+"country",
+"sku",
+"qty",
+"line_total"
+],
+"rows": []
+}
+}
+]
+}

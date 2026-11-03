@@ -1,0 +1,395 @@
+{
+"ID": "e11t1",
+"NAME": "Shipment Tracking Summary",
+"LANG": "pyspark",
+"PARAMS": [
+"events_df"
+],
+"ENTRY": "solve",
+"ORDERED": true,
+"DESC": "<p>A logistics company receives tracking events from its carriers. Each event says that a shipment reached a status at a given time. The operations team wants one summary row per shipment: its current status, how many times its status changed, and the longest silence between two consecutive events (a long silence often means a lost parcel).</p>\n<p>Implement <code>solve</code> so that it returns this summary.</p>\n<h3>Input</h3>\n<p><code>events_df</code></p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>column</th>\n<th>type</th>\n<th>description</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>shipment_id</td>\n<td>string</td>\n<td>never null</td>\n</tr>\n<tr>\n<td>status</td>\n<td>string</td>\n<td>lowercase, e.g. <code>created</code>, <code>picked_up</code>, <code>in_transit</code>, <code>delivered</code>; never null</td>\n</tr>\n<tr>\n<td>event_ts</td>\n<td>string</td>\n<td>format <code>yyyy-MM-dd HH:mm:ss</code>, always a whole minute (seconds are <code>00</code>), UTC; never null</td>\n</tr>\n</tbody>\n</table>\n<p>Carriers sometimes send the same event twice: such rows are exact duplicates. Apart from exact duplicates, two events of the same shipment never share the same <code>event_ts</code>. Rows arrive in no particular order.</p>\n<h3>Rules</h3>\n<ol>\n<li>Exact duplicate rows count as one event.</li>\n<li>Events of a shipment are ordered chronologically by <code>event_ts</code>.</li>\n<li><code>current_status</code> is the status of the most recent event of the shipment.</li>\n<li><code>status_changes</code> is the number of events whose status is different from the status of the previous event of the same shipment. The first event of a shipment is not a change. Receiving <code>created</code> twice in a row is not a change.</li>\n<li><code>max_gap_minutes</code> is the largest time difference, in minutes, between two consecutive events of the same shipment. It is null when the shipment has a single event.</li>\n</ol>\n<h3>Output</h3>\n<p>One row per shipment, with exactly these columns, in this order:</p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>column</th>\n<th>type</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>shipment_id</td>\n<td>string</td>\n</tr>\n<tr>\n<td>current_status</td>\n<td>string</td>\n</tr>\n<tr>\n<td>n_events</td>\n<td>long</td>\n</tr>\n<tr>\n<td>status_changes</td>\n<td>long</td>\n</tr>\n<tr>\n<td>max_gap_minutes</td>\n<td>long</td>\n</tr>\n</tbody>\n</table>\n<p>Rows are sorted by <code>max_gap_minutes</code> descending with nulls last, then <code>shipment_id</code> ascending.</p>\n<h3>Example</h3>\n<p><code>events_df</code></p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>shipment_id</th>\n<th>status</th>\n<th>event_ts</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>S2</td>\n<td>picked_up</td>\n<td>2024-05-01 13:00:00</td>\n</tr>\n<tr>\n<td>S1</td>\n<td>created</td>\n<td>2024-05-01 08:00:00</td>\n</tr>\n<tr>\n<td>S1</td>\n<td>in_transit</td>\n<td>2024-05-02 09:00:00</td>\n</tr>\n<tr>\n<td>S3</td>\n<td>created</td>\n<td>2024-05-02 07:00:00</td>\n</tr>\n<tr>\n<td>S1</td>\n<td>delivered</td>\n<td>2024-05-03 14:00:00</td>\n</tr>\n<tr>\n<td>S2</td>\n<td>created</td>\n<td>2024-05-01 09:00:00</td>\n</tr>\n<tr>\n<td>S1</td>\n<td>picked_up</td>\n<td>2024-05-01 10:30:00</td>\n</tr>\n<tr>\n<td>S1</td>\n<td>in_transit</td>\n<td>2024-05-02 09:00:00</td>\n</tr>\n<tr>\n<td>S2</td>\n<td>created</td>\n<td>2024-05-01 12:00:00</td>\n</tr>\n</tbody>\n</table>\n<p>Expected output</p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>shipment_id</th>\n<th>current_status</th>\n<th>n_events</th>\n<th>status_changes</th>\n<th>max_gap_minutes</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>S1</td>\n<td>delivered</td>\n<td>4</td>\n<td>3</td>\n<td>1740</td>\n</tr>\n<tr>\n<td>S2</td>\n<td>picked_up</td>\n<td>3</td>\n<td>1</td>\n<td>180</td>\n</tr>\n<tr>\n<td>S3</td>\n<td>created</td>\n<td>1</td>\n<td>0</td>\n<td>null</td>\n</tr>\n</tbody>\n</table>\n<p>Explanation for S1: the gaps are 150, 1350 and 1740 minutes; the duplicated <code>in_transit</code> event counts once.</p>\n<h3>Function signature</h3>\n<pre><code class=\"language-python\">from pyspark.sql import DataFrame\n\ndef solve(events_df: DataFrame) -&gt; DataFrame:\n    ...\n</code></pre>\n<h3>Constraints</h3>\n<ul>\n<li>Use the PySpark DataFrame API. Do not convert to pandas, do not call <code>collect()</code> or <code>toPandas()</code> inside <code>solve</code>, do not use Python UDFs.</li>\n<li><code>events_df</code> has up to 10^7 rows.</li>\n</ul>",
+"STARTER": "from pyspark.sql import DataFrame, Window\nfrom pyspark.sql import functions as F\n\n\ndef solve(events_df: DataFrame) -> DataFrame:\n    # write your code here\n    return events_df\n",
+"SOLUTION": "from pyspark.sql import DataFrame, Window\nfrom pyspark.sql import functions as F\n\n\ndef solve(events_df: DataFrame) -> DataFrame:\n    # 1. Doublons exacts supprimés, timestamp parsé.\n    events = (\n        events_df\n        .dropDuplicates()\n        .withColumn(\"ts\", F.to_timestamp(\"event_ts\", \"yyyy-MM-dd HH:mm:ss\"))\n    )\n\n    # 2. Evénement précédent DU MEME colis, en ordre chronologique.\n    w = Window.partitionBy(\"shipment_id\").orderBy(\"ts\")\n    events = (\n        events\n        .withColumn(\"prev_ts\", F.lag(\"ts\").over(w))\n        .withColumn(\"prev_status\", F.lag(\"status\").over(w))\n        .withColumn(\"gap_min\",\n                    ((F.col(\"ts\").cast(\"long\") - F.col(\"prev_ts\").cast(\"long\")) / 60).cast(\"long\"))\n        # premier événement : prev_status null => pas un changement\n        .withColumn(\"is_change\",\n                    F.when(F.col(\"prev_status\").isNotNull() & (F.col(\"status\") != F.col(\"prev_status\")), 1)\n                     .otherwise(0))\n        # rang inverse pour récupérer le statut du dernier événement\n        .withColumn(\"rn_desc\", F.row_number().over(\n            Window.partitionBy(\"shipment_id\").orderBy(F.col(\"ts\").desc())))\n    )\n\n    # 3. Agrégation par colis. max() ignore les null : un seul événement => null.\n    result = events.groupBy(\"shipment_id\").agg(\n        F.max(F.when(F.col(\"rn_desc\") == 1, F.col(\"status\"))).alias(\"current_status\"),\n        F.count(F.lit(1)).alias(\"n_events\"),\n        F.sum(\"is_change\").cast(\"long\").alias(\"status_changes\"),\n        F.max(\"gap_min\").alias(\"max_gap_minutes\"),\n    )\n    return (\n        result\n        .select(\"shipment_id\", \"current_status\", \"n_events\", \"status_changes\", \"max_gap_minutes\")\n        .orderBy(F.col(\"max_gap_minutes\").desc_nulls_last(), F.col(\"shipment_id\").asc())\n    )\n",
+"WRAPPER": "",
+"MINUTES": 22,
+"SOURCE": "Examen d'entraînement d'octobre n°3, question 1",
+"TAGS": [],
+"VISIBLE": 1,
+"tests": [
+{
+"events_df": {
+"__df__": {
+"schema": "shipment_id string, status string, event_ts string",
+"rows": [
+[
+"S2",
+"picked_up",
+"2024-05-01 13:00:00"
+],
+[
+"S1",
+"created",
+"2024-05-01 08:00:00"
+],
+[
+"S1",
+"in_transit",
+"2024-05-02 09:00:00"
+],
+[
+"S3",
+"created",
+"2024-05-02 07:00:00"
+],
+[
+"S1",
+"delivered",
+"2024-05-03 14:00:00"
+],
+[
+"S2",
+"created",
+"2024-05-01 09:00:00"
+],
+[
+"S1",
+"picked_up",
+"2024-05-01 10:30:00"
+],
+[
+"S1",
+"in_transit",
+"2024-05-02 09:00:00"
+],
+[
+"S2",
+"created",
+"2024-05-01 12:00:00"
+]
+]
+}
+}
+},
+{
+"events_df": {
+"__df__": {
+"schema": "shipment_id string, status string, event_ts string",
+"rows": [
+[
+"A2",
+"delivered",
+"2024-06-01 11:30:00"
+],
+[
+"A1",
+"in_transit",
+"2024-06-01 13:00:00"
+],
+[
+"A1",
+"created",
+"2024-06-01 10:00:00"
+],
+[
+"A2",
+"created",
+"2024-06-01 10:30:00"
+],
+[
+"A1",
+"exception",
+"2024-06-01 12:00:00"
+],
+[
+"A1",
+"in_transit",
+"2024-06-01 11:00:00"
+]
+]
+}
+}
+},
+{
+"events_df": {
+"__df__": {
+"schema": "shipment_id string, status string, event_ts string",
+"rows": [
+[
+"B1",
+"in_transit",
+"2024-02-03 00:10:00"
+],
+[
+"B1",
+"created",
+"2024-01-31 23:50:00"
+],
+[
+"B1",
+"in_transit",
+"2024-02-03 00:10:00"
+],
+[
+"B1",
+"created",
+"2024-02-01 00:10:00"
+]
+]
+}
+}
+},
+{
+"events_df": {
+"__df__": {
+"schema": "shipment_id string, status string, event_ts string",
+"rows": [
+[
+"C7",
+"created",
+"2024-07-04 10:00:00"
+],
+[
+"C2",
+"created",
+"2024-07-02 10:00:00"
+],
+[
+"C1",
+"cancelled",
+"2024-07-01 09:00:00"
+],
+[
+"C5",
+"picked_up",
+"2024-07-05 10:00:00"
+],
+[
+"C1",
+"created",
+"2024-07-01 08:00:00"
+],
+[
+"C0",
+"created",
+"2024-07-03 10:00:00"
+],
+[
+"C3",
+"created",
+"2024-07-06 10:00:00"
+],
+[
+"C1",
+"cancelled",
+"2024-07-01 09:00:00"
+]
+]
+}
+}
+},
+{
+"events_df": {
+"__df__": {
+"schema": "shipment_id string, status string, event_ts string",
+"rows": [
+[
+"D1",
+"created",
+"2024-03-30 12:00:00"
+],
+[
+"D1",
+"picked_up",
+"2024-03-30 12:05:00"
+],
+[
+"D1",
+"in_transit",
+"2024-04-02 12:35:00"
+],
+[
+"D1",
+"delivered",
+"2024-04-02 13:00:00"
+],
+[
+"D2",
+"delivered",
+"2024-04-04 00:30:00"
+],
+[
+"D2",
+"created",
+"2024-04-01 00:00:00"
+]
+]
+}
+}
+}
+],
+"bank": [
+{
+"__table__": {
+"columns": [
+"shipment_id",
+"current_status",
+"n_events",
+"status_changes",
+"max_gap_minutes"
+],
+"rows": [
+[
+"S1",
+"delivered",
+4,
+3,
+1740
+],
+[
+"S2",
+"picked_up",
+3,
+1,
+180
+],
+[
+"S3",
+"created",
+1,
+0,
+null
+]
+]
+}
+},
+{
+"__table__": {
+"columns": [
+"shipment_id",
+"current_status",
+"n_events",
+"status_changes",
+"max_gap_minutes"
+],
+"rows": [
+[
+"A1",
+"in_transit",
+4,
+3,
+60
+],
+[
+"A2",
+"delivered",
+2,
+1,
+60
+]
+]
+}
+},
+{
+"__table__": {
+"columns": [
+"shipment_id",
+"current_status",
+"n_events",
+"status_changes",
+"max_gap_minutes"
+],
+"rows": [
+[
+"B1",
+"in_transit",
+3,
+1,
+2880
+]
+]
+}
+},
+{
+"__table__": {
+"columns": [
+"shipment_id",
+"current_status",
+"n_events",
+"status_changes",
+"max_gap_minutes"
+],
+"rows": [
+[
+"C1",
+"cancelled",
+2,
+1,
+60
+],
+[
+"C0",
+"created",
+1,
+0,
+null
+],
+[
+"C2",
+"created",
+1,
+0,
+null
+],
+[
+"C3",
+"created",
+1,
+0,
+null
+],
+[
+"C5",
+"picked_up",
+1,
+0,
+null
+],
+[
+"C7",
+"created",
+1,
+0,
+null
+]
+]
+}
+},
+{
+"__table__": {
+"columns": [
+"shipment_id",
+"current_status",
+"n_events",
+"status_changes",
+"max_gap_minutes"
+],
+"rows": [
+[
+"D1",
+"delivered",
+4,
+3,
+4350
+],
+[
+"D2",
+"delivered",
+2,
+1,
+4350
+]
+]
+}
+}
+]
+}

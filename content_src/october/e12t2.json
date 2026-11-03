@@ -1,0 +1,585 @@
+{
+"ID": "e12t2",
+"NAME": "Customer Data Quality Gate",
+"LANG": "pyspark",
+"PARAMS": [
+"customers_raw_df"
+],
+"ENTRY": "__kata_entry__",
+"ORDERED": false,
+"DESC": "<p>Before loading a customer extract into the warehouse, the team wants a quality gate: valid rows are cleaned and loaded, invalid rows are kept aside with the reason of their rejection, so that the source team can fix them.</p>\n<h3>Input</h3>\n<p><code>customers_raw_df</code> (all columns are raw text)</p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>column</th>\n<th>type</th>\n<th>description</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>customer_id</td>\n<td>string</td>\n<td>may be null, blank, or padded with spaces</td>\n</tr>\n<tr>\n<td>email</td>\n<td>string</td>\n<td>may be null</td>\n</tr>\n<tr>\n<td>age</td>\n<td>string</td>\n<td>may be null; at most 6 characters</td>\n</tr>\n<tr>\n<td>country</td>\n<td>string</td>\n<td>may be null</td>\n</tr>\n</tbody>\n</table>\n<h3>Rules</h3>\n<p>Check the rules below in this order. The first rule that fails gives the <code>reject_reason</code> of the row; a row that passes all rules is valid. Every input row ends up in exactly one of the two outputs.</p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>order</th>\n<th>reject_reason</th>\n<th>the row is rejected when</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>1</td>\n<td><code>missing_id</code></td>\n<td><code>customer_id</code> is null or empty after trimming</td>\n</tr>\n<tr>\n<td>2</td>\n<td><code>duplicate_id</code></td>\n<td>the trimmed <code>customer_id</code> appears in more than one row of the input (all those rows are rejected)</td>\n</tr>\n<tr>\n<td>3</td>\n<td><code>invalid_email</code></td>\n<td><code>email</code> is null, or the trimmed email does not match the regex <code>^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$</code></td>\n</tr>\n<tr>\n<td>4</td>\n<td><code>invalid_age</code></td>\n<td><code>age</code> is not null and, after trimming, is not made only of digits <code>0-9</code>, or its value is greater than 120</td>\n</tr>\n<tr>\n<td>5</td>\n<td><code>invalid_country</code></td>\n<td><code>country</code> is null, or the trimmed country is not exactly 2 letters <code>A-Z</code> / <code>a-z</code></td>\n</tr>\n</tbody>\n</table>\n<p>A null <code>age</code> is valid (the age is unknown).</p>\n<h3>Output</h3>\n<p><code>solve</code> returns a tuple <code>(valid_df, rejected_df)</code>.</p>\n<p><code>valid_df</code>: cleaned values, exactly these columns, in this order:</p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>column</th>\n<th>type</th>\n<th>value</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>customer_id</td>\n<td>string</td>\n<td>trimmed</td>\n</tr>\n<tr>\n<td>email</td>\n<td>string</td>\n<td>trimmed and lowercased</td>\n</tr>\n<tr>\n<td>age</td>\n<td>int</td>\n<td>integer value of the trimmed age, or null</td>\n</tr>\n<tr>\n<td>country</td>\n<td>string</td>\n<td>trimmed and uppercased</td>\n</tr>\n</tbody>\n</table>\n<p><code>rejected_df</code>: original values (unchanged) plus the reason, exactly these columns, in this order:</p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>column</th>\n<th>type</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>customer_id</td>\n<td>string</td>\n</tr>\n<tr>\n<td>email</td>\n<td>string</td>\n</tr>\n<tr>\n<td>age</td>\n<td>string</td>\n</tr>\n<tr>\n<td>country</td>\n<td>string</td>\n</tr>\n<tr>\n<td>reject_reason</td>\n<td>string</td>\n</tr>\n</tbody>\n</table>\n<p>The row order of both DataFrames does not matter.</p>\n<h3>Example</h3>\n<p><code>customers_raw_df</code></p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>customer_id</th>\n<th>email</th>\n<th>age</th>\n<th>country</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>\" C1 \"</td>\n<td>\"Amina@Mail.com \"</td>\n<td>\"34\"</td>\n<td>\"ma\"</td>\n</tr>\n<tr>\n<td>\"C2\"</td>\n<td>\"omar@mail\"</td>\n<td>\"28\"</td>\n<td>\"FR\"</td>\n</tr>\n<tr>\n<td>\"C3\"</td>\n<td>\"sara@mail.fr\"</td>\n<td>\"abc\"</td>\n<td>\"FR\"</td>\n</tr>\n<tr>\n<td>null</td>\n<td>\"x@y.z\"</td>\n<td>\"20\"</td>\n<td>\"MA\"</td>\n</tr>\n<tr>\n<td>\"C4\"</td>\n<td>\"c4@mail.ma\"</td>\n<td>null</td>\n<td>\"es\"</td>\n</tr>\n<tr>\n<td>\"C5\"</td>\n<td>\"c5@mail.ma\"</td>\n<td>\"40\"</td>\n<td>\"France\"</td>\n</tr>\n<tr>\n<td>\"C6\"</td>\n<td>\"c6@a.io\"</td>\n<td>\"200\"</td>\n<td>\"MA\"</td>\n</tr>\n<tr>\n<td>\"C7\"</td>\n<td>\"a@b.co\"</td>\n<td>\"22\"</td>\n<td>\"MA\"</td>\n</tr>\n<tr>\n<td>\"C7 \"</td>\n<td>\"other@b.co\"</td>\n<td>\"23\"</td>\n<td>\"US\"</td>\n</tr>\n</tbody>\n</table>\n<p>Expected <code>valid_df</code></p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>customer_id</th>\n<th>email</th>\n<th>age</th>\n<th>country</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>C1</td>\n<td>amina@mail.com</td>\n<td>34</td>\n<td>MA</td>\n</tr>\n<tr>\n<td>C4</td>\n<td>c4@mail.ma</td>\n<td>null</td>\n<td>ES</td>\n</tr>\n</tbody>\n</table>\n<p>Expected <code>rejected_df</code></p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>customer_id</th>\n<th>email</th>\n<th>age</th>\n<th>country</th>\n<th>reject_reason</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>\"C2\"</td>\n<td>\"omar@mail\"</td>\n<td>\"28\"</td>\n<td>\"FR\"</td>\n<td>invalid_email</td>\n</tr>\n<tr>\n<td>\"C3\"</td>\n<td>\"sara@mail.fr\"</td>\n<td>\"abc\"</td>\n<td>\"FR\"</td>\n<td>invalid_age</td>\n</tr>\n<tr>\n<td>null</td>\n<td>\"x@y.z\"</td>\n<td>\"20\"</td>\n<td>\"MA\"</td>\n<td>missing_id</td>\n</tr>\n<tr>\n<td>\"C5\"</td>\n<td>\"c5@mail.ma\"</td>\n<td>\"40\"</td>\n<td>\"France\"</td>\n<td>invalid_country</td>\n</tr>\n<tr>\n<td>\"C6\"</td>\n<td>\"c6@a.io\"</td>\n<td>\"200\"</td>\n<td>\"MA\"</td>\n<td>invalid_age</td>\n</tr>\n<tr>\n<td>\"C7\"</td>\n<td>\"a@b.co\"</td>\n<td>\"22\"</td>\n<td>\"MA\"</td>\n<td>duplicate_id</td>\n</tr>\n<tr>\n<td>\"C7 \"</td>\n<td>\"other@b.co\"</td>\n<td>\"23\"</td>\n<td>\"US\"</td>\n<td>duplicate_id</td>\n</tr>\n</tbody>\n</table>\n<h3>Function signature</h3>\n<pre><code class=\"language-python\">from pyspark.sql import DataFrame\nfrom typing import Tuple\n\ndef solve(customers_raw_df: DataFrame) -&gt; Tuple[DataFrame, DataFrame]:\n    ...\n</code></pre>\n<h3>Constraints</h3>\n<ul>\n<li>Use the PySpark DataFrame API. No pandas, no <code>collect()</code>, no Python UDFs.</li>\n<li>Your code is run with Spark's ANSI mode enabled (<code>spark.sql.ansi.enabled=true</code>, the default since Spark 4.0): in this mode, casting an invalid string such as <code>\"abc\"</code> to <code>int</code> raises an error instead of returning null. Your job must not fail on any input.</li>\n<li><code>customers_raw_df</code> has up to 10^7 rows.</li>\n</ul><p class=\"muted\">In the test results, both DataFrames are shown in one table: the column <code>output</code> says if a row comes from <code>valid</code> or from <code>rejected</code>.</p>",
+"STARTER": "from pyspark.sql import DataFrame, Window\nfrom pyspark.sql import functions as F\n\n\ndef solve(customers_raw_df: DataFrame):\n    # write your code here\n    return customers_raw_df, customers_raw_df\n",
+"SOLUTION": "from pyspark.sql import DataFrame, Window\nfrom pyspark.sql import functions as F\n\nEMAIL_RE = r\"^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$\"\n\n\ndef solve(customers_raw_df: DataFrame):\n    cid = F.trim(F.col(\"customer_id\"))\n    email = F.trim(F.col(\"email\"))\n    age_txt = F.trim(F.col(\"age\"))\n    country = F.upper(F.trim(F.col(\"country\")))\n\n    # Cast protégé : on ne caste que du texte fait de chiffres (sinon, en mode ANSI, cast lève une erreur).\n    age_int = F.when(age_txt.rlike(r\"^[0-9]+$\"), age_txt.cast(\"int\"))\n\n    # Nombre de lignes partageant le même id nettoyé (doublons après trim).\n    n_same_id = F.count(F.lit(1)).over(Window.partitionBy(cid))\n\n    # Règles dans l'ordre : la première qui échoue donne le motif. Un when sans otherwise => null = valide.\n    reason = (\n        F.when(cid.isNull() | (cid == \"\"), \"missing_id\")\n         .when(n_same_id > 1, \"duplicate_id\")\n         .when(email.isNull() | ~email.rlike(EMAIL_RE), \"invalid_email\")\n         .when(F.col(\"age\").isNotNull() & (age_int.isNull() | (age_int > 120)), \"invalid_age\")\n         .when(country.isNull() | ~country.rlike(r\"^[A-Z]{2}$\"), \"invalid_country\")\n    )\n    tagged = customers_raw_df.withColumn(\"reject_reason\", reason)\n\n    valid_df = tagged.filter(F.col(\"reject_reason\").isNull()).select(\n        cid.alias(\"customer_id\"),\n        F.lower(email).alias(\"email\"),\n        age_int.alias(\"age\"),\n        country.alias(\"country\"),\n    )\n    rejected_df = tagged.filter(F.col(\"reject_reason\").isNotNull()).select(\n        \"customer_id\", \"email\", \"age\", \"country\", \"reject_reason\"      # valeurs brutes + motif\n    )\n    return valid_df, rejected_df\n",
+"WRAPPER": "\nfrom pyspark.sql import functions as _KF\ndef __kata_entry__(customers_raw_df):\n    valid, rejected = solve(customers_raw_df)\n    v = valid.select(\"customer_id\", \"email\", _KF.col(\"age\").cast(\"string\").alias(\"age\"), \"country\",\n                     _KF.lit(None).cast(\"string\").alias(\"reject_reason\"), _KF.lit(\"valid\").alias(\"output\"))\n    r = rejected.select(\"customer_id\", \"email\", _KF.col(\"age\").cast(\"string\").alias(\"age\"), \"country\",\n                        \"reject_reason\", _KF.lit(\"rejected\").alias(\"output\"))\n    return v.unionByName(r)\n",
+"MINUTES": 22,
+"SOURCE": "Examen d'entraînement d'octobre n°4, question 2",
+"TAGS": [],
+"VISIBLE": 1,
+"tests": [
+{
+"customers_raw_df": {
+"__df__": {
+"schema": "customer_id string, email string, age string, country string",
+"rows": [
+[
+" C1 ",
+"Amina@Mail.com ",
+"34",
+"ma"
+],
+[
+"C2",
+"omar@mail",
+"28",
+"FR"
+],
+[
+"C3",
+"sara@mail.fr",
+"abc",
+"FR"
+],
+[
+null,
+"x@y.z",
+"20",
+"MA"
+],
+[
+"C4",
+"c4@mail.ma",
+null,
+"es"
+],
+[
+"C5",
+"c5@mail.ma",
+"40",
+"France"
+],
+[
+"C6",
+"c6@a.io",
+"200",
+"MA"
+],
+[
+"C7",
+"a@b.co",
+"22",
+"MA"
+],
+[
+"C7 ",
+"other@b.co",
+"23",
+"US"
+]
+]
+}
+}
+},
+{
+"customers_raw_df": {
+"__df__": {
+"schema": "customer_id string, email string, age string, country string",
+"rows": [
+[
+"  ",
+"bad",
+"x",
+null
+],
+[
+null,
+null,
+null,
+null
+],
+[
+"D1",
+"bad-email",
+"30",
+"MA"
+],
+[
+"D1",
+"d1@ok.ma",
+"30",
+"MA"
+],
+[
+"D2",
+"D2@OK.MA",
+" 007 ",
+" us "
+]
+]
+}
+}
+},
+{
+"customers_raw_df": {
+"__df__": {
+"schema": "customer_id string, email string, age string, country string",
+"rows": [
+[
+"E1",
+"e1@x.io",
+"4x",
+"MA"
+],
+[
+"E2",
+"e2@x.io",
+"-5",
+"MA"
+],
+[
+"E3",
+"e3@x.io",
+"",
+"MA"
+],
+[
+"E4",
+"e4@x.io",
+"12.5",
+"MA"
+],
+[
+"E5",
+"e5@x.io",
+"120",
+"MA"
+],
+[
+"E6",
+"e6@x.io",
+"121",
+"MA"
+],
+[
+"E7",
+"a b@c.d",
+"20",
+"MA"
+],
+[
+"E8",
+"@b.c",
+"20",
+"MA"
+],
+[
+"E9",
+"a@@b.c",
+"20",
+"MA"
+],
+[
+"E10",
+"a@b.c",
+"0",
+"MA"
+]
+]
+}
+}
+},
+{
+"customers_raw_df": {
+"__df__": {
+"schema": "customer_id string, email string, age string, country string",
+"rows": [
+[
+"F1",
+"f1@x.io",
+"30",
+" ma "
+],
+[
+"F2",
+"f2@x.io",
+"30",
+"M4"
+],
+[
+"F3",
+"f3@x.io",
+"30",
+null
+],
+[
+"F4",
+"f4@x.io",
+"30",
+"USA"
+],
+[
+"F5",
+null,
+"30",
+"MA"
+]
+]
+}
+}
+},
+{
+"customers_raw_df": {
+"__df__": {
+"schema": "customer_id string, email string, age string, country string",
+"rows": [
+[
+"G1",
+"g1@x.io",
+null,
+"FR"
+],
+[
+"G2",
+"G2@X.IO",
+"55",
+"fr"
+],
+[
+"G3",
+"g3@x.io",
+"1",
+"ES"
+]
+]
+}
+}
+}
+],
+"bank": [
+{
+"__table__": {
+"columns": [
+"customer_id",
+"email",
+"age",
+"country",
+"reject_reason",
+"output"
+],
+"rows": [
+[
+"C1",
+"amina@mail.com",
+"34",
+"MA",
+null,
+"valid"
+],
+[
+"C4",
+"c4@mail.ma",
+null,
+"ES",
+null,
+"valid"
+],
+[
+"C2",
+"omar@mail",
+"28",
+"FR",
+"invalid_email",
+"rejected"
+],
+[
+"C3",
+"sara@mail.fr",
+"abc",
+"FR",
+"invalid_age",
+"rejected"
+],
+[
+null,
+"x@y.z",
+"20",
+"MA",
+"missing_id",
+"rejected"
+],
+[
+"C5",
+"c5@mail.ma",
+"40",
+"France",
+"invalid_country",
+"rejected"
+],
+[
+"C6",
+"c6@a.io",
+"200",
+"MA",
+"invalid_age",
+"rejected"
+],
+[
+"C7",
+"a@b.co",
+"22",
+"MA",
+"duplicate_id",
+"rejected"
+],
+[
+"C7 ",
+"other@b.co",
+"23",
+"US",
+"duplicate_id",
+"rejected"
+]
+]
+}
+},
+{
+"__table__": {
+"columns": [
+"customer_id",
+"email",
+"age",
+"country",
+"reject_reason",
+"output"
+],
+"rows": [
+[
+"D2",
+"d2@ok.ma",
+"7",
+"US",
+null,
+"valid"
+],
+[
+"  ",
+"bad",
+"x",
+null,
+"missing_id",
+"rejected"
+],
+[
+null,
+null,
+null,
+null,
+"missing_id",
+"rejected"
+],
+[
+"D1",
+"bad-email",
+"30",
+"MA",
+"duplicate_id",
+"rejected"
+],
+[
+"D1",
+"d1@ok.ma",
+"30",
+"MA",
+"duplicate_id",
+"rejected"
+]
+]
+}
+},
+{
+"__table__": {
+"columns": [
+"customer_id",
+"email",
+"age",
+"country",
+"reject_reason",
+"output"
+],
+"rows": [
+[
+"E10",
+"a@b.c",
+"0",
+"MA",
+null,
+"valid"
+],
+[
+"E5",
+"e5@x.io",
+"120",
+"MA",
+null,
+"valid"
+],
+[
+"E1",
+"e1@x.io",
+"4x",
+"MA",
+"invalid_age",
+"rejected"
+],
+[
+"E2",
+"e2@x.io",
+"-5",
+"MA",
+"invalid_age",
+"rejected"
+],
+[
+"E3",
+"e3@x.io",
+"",
+"MA",
+"invalid_age",
+"rejected"
+],
+[
+"E4",
+"e4@x.io",
+"12.5",
+"MA",
+"invalid_age",
+"rejected"
+],
+[
+"E6",
+"e6@x.io",
+"121",
+"MA",
+"invalid_age",
+"rejected"
+],
+[
+"E7",
+"a b@c.d",
+"20",
+"MA",
+"invalid_email",
+"rejected"
+],
+[
+"E8",
+"@b.c",
+"20",
+"MA",
+"invalid_email",
+"rejected"
+],
+[
+"E9",
+"a@@b.c",
+"20",
+"MA",
+"invalid_email",
+"rejected"
+]
+]
+}
+},
+{
+"__table__": {
+"columns": [
+"customer_id",
+"email",
+"age",
+"country",
+"reject_reason",
+"output"
+],
+"rows": [
+[
+"F1",
+"f1@x.io",
+"30",
+"MA",
+null,
+"valid"
+],
+[
+"F2",
+"f2@x.io",
+"30",
+"M4",
+"invalid_country",
+"rejected"
+],
+[
+"F3",
+"f3@x.io",
+"30",
+null,
+"invalid_country",
+"rejected"
+],
+[
+"F4",
+"f4@x.io",
+"30",
+"USA",
+"invalid_country",
+"rejected"
+],
+[
+"F5",
+null,
+"30",
+"MA",
+"invalid_email",
+"rejected"
+]
+]
+}
+},
+{
+"__table__": {
+"columns": [
+"customer_id",
+"email",
+"age",
+"country",
+"reject_reason",
+"output"
+],
+"rows": [
+[
+"G1",
+"g1@x.io",
+null,
+"FR",
+null,
+"valid"
+],
+[
+"G2",
+"g2@x.io",
+"55",
+"FR",
+null,
+"valid"
+],
+[
+"G3",
+"g3@x.io",
+"1",
+"ES",
+null,
+"valid"
+]
+]
+}
+}
+]
+}

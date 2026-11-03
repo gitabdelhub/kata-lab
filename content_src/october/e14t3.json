@@ -1,0 +1,662 @@
+{
+"ID": "e14t3",
+"NAME": "Daily Store Sales Calendar",
+"LANG": "sql",
+"PARAMS": [],
+"ENTRY": null,
+"ORDERED": true,
+"DESC": "<p>The operations team builds a dashboard that plots daily sales per store. The chart must show every day of the reporting period for every store, including the days without any sale.</p>\n<h3>Tables</h3>\n<p><code>stores</code></p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>column</th>\n<th>type</th>\n<th>description</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>store_id</td>\n<td>INT</td>\n<td>primary key</td>\n</tr>\n<tr>\n<td>store_name</td>\n<td>VARCHAR(50)</td>\n<td>not null</td>\n</tr>\n</tbody>\n</table>\n<p><code>sales</code></p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>column</th>\n<th>type</th>\n<th>description</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>sale_id</td>\n<td>INT</td>\n<td>primary key</td>\n</tr>\n<tr>\n<td>store_id</td>\n<td>INT</td>\n<td>not null; may reference a store that does not exist in <code>stores</code></td>\n</tr>\n<tr>\n<td>sale_ts</td>\n<td>TIMESTAMP</td>\n<td>not null, date and time of the sale</td>\n</tr>\n<tr>\n<td>amount</td>\n<td>DECIMAL(10,2)</td>\n<td>not null, strictly positive</td>\n</tr>\n<tr>\n<td>status</td>\n<td>VARCHAR(20)</td>\n<td>not null, one of <code>'completed'</code>, <code>'pending'</code>, <code>'refunded'</code>, <code>'cancelled'</code></td>\n</tr>\n</tbody>\n</table>\n<h3>Rules</h3>\n<ol>\n<li>A valid sale has status <code>'completed'</code> and a <code>store_id</code> that exists in <code>stores</code>. Other sales are ignored everywhere, including in rule 2.</li>\n<li>The reporting period goes from the date of the earliest valid sale to the date of the latest valid sale, both inclusive. The date of a sale is the calendar date of <code>sale_ts</code>.</li>\n<li>Return one row for every store of <code>stores</code> and every day of the reporting period, even if the store has no sale that day.</li>\n<li><code>num_sales</code> is the number of valid sales of the store on that day, and <code>revenue</code> is the sum of their amounts; both are 0 when there is no sale.</li>\n<li>If there is no valid sale at all, return no rows.</li>\n</ol>\n<h3>Output</h3>\n<p>Exactly these columns, in this order:</p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>column</th>\n<th>type</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>store_id</td>\n<td>INT</td>\n</tr>\n<tr>\n<td>sale_date</td>\n<td>DATE</td>\n</tr>\n<tr>\n<td>num_sales</td>\n<td>INT (or BIGINT)</td>\n</tr>\n<tr>\n<td>revenue</td>\n<td>DECIMAL, 2 decimals</td>\n</tr>\n</tbody>\n</table>\n<p>Rows are sorted by <code>store_id</code> ascending, then <code>sale_date</code> ascending.</p>\n<h3>Example</h3>\n<p><code>stores</code></p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>store_id</th>\n<th>store_name</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>1</td>\n<td>Maarif</td>\n</tr>\n<tr>\n<td>2</td>\n<td>Gauthier</td>\n</tr>\n<tr>\n<td>3</td>\n<td>Agdal</td>\n</tr>\n</tbody>\n</table>\n<p><code>sales</code></p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>sale_id</th>\n<th>store_id</th>\n<th>sale_ts</th>\n<th>amount</th>\n<th>status</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>1</td>\n<td>1</td>\n<td>2024-03-01 09:15:00</td>\n<td>100.00</td>\n<td>completed</td>\n</tr>\n<tr>\n<td>2</td>\n<td>1</td>\n<td>2024-03-01 23:59:59</td>\n<td>50.00</td>\n<td>completed</td>\n</tr>\n<tr>\n<td>3</td>\n<td>2</td>\n<td>2024-03-02 10:00:00</td>\n<td>80.00</td>\n<td>refunded</td>\n</tr>\n<tr>\n<td>4</td>\n<td>2</td>\n<td>2024-03-03 00:00:00</td>\n<td>40.00</td>\n<td>completed</td>\n</tr>\n<tr>\n<td>5</td>\n<td>9</td>\n<td>2024-02-28 12:00:00</td>\n<td>70.00</td>\n<td>completed</td>\n</tr>\n<tr>\n<td>6</td>\n<td>2</td>\n<td>2024-03-04 08:30:00</td>\n<td>25.50</td>\n<td>cancelled</td>\n</tr>\n</tbody>\n</table>\n<p>Expected output</p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>store_id</th>\n<th>sale_date</th>\n<th>num_sales</th>\n<th>revenue</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>1</td>\n<td>2024-03-01</td>\n<td>2</td>\n<td>150.00</td>\n</tr>\n<tr>\n<td>1</td>\n<td>2024-03-02</td>\n<td>0</td>\n<td>0.00</td>\n</tr>\n<tr>\n<td>1</td>\n<td>2024-03-03</td>\n<td>0</td>\n<td>0.00</td>\n</tr>\n<tr>\n<td>2</td>\n<td>2024-03-01</td>\n<td>0</td>\n<td>0.00</td>\n</tr>\n<tr>\n<td>2</td>\n<td>2024-03-02</td>\n<td>0</td>\n<td>0.00</td>\n</tr>\n<tr>\n<td>2</td>\n<td>2024-03-03</td>\n<td>1</td>\n<td>40.00</td>\n</tr>\n<tr>\n<td>3</td>\n<td>2024-03-01</td>\n<td>0</td>\n<td>0.00</td>\n</tr>\n<tr>\n<td>3</td>\n<td>2024-03-02</td>\n<td>0</td>\n<td>0.00</td>\n</tr>\n<tr>\n<td>3</td>\n<td>2024-03-03</td>\n<td>0</td>\n<td>0.00</td>\n</tr>\n</tbody>\n</table>\n<h3>Constraints</h3>\n<ul>\n<li>Dialect: PostgreSQL.</li>\n<li>Write a single <code>SELECT</code> statement (CTEs allowed, including recursive CTEs). Do not create tables or views.</li>\n<li><code>stores</code> has up to 500 rows, <code>sales</code> up to 10^6 rows, and the reporting period is at most 366 days.</li>\n</ul><p class=\"muted\">Write a PostgreSQL query.</p>",
+"STARTER": "/* Write your PostgreSQL query here */\n",
+"SOLUTION": "WITH RECURSIVE valid_sales AS (\n    SELECT s.store_id,\n           CAST(s.sale_ts AS DATE) AS sale_date,\n           s.amount\n    FROM sales s\n    JOIN stores st\n      ON st.store_id = s.store_id\n    WHERE s.status = 'completed'\n),\nbounds AS (\n    SELECT MIN(sale_date) AS start_date,\n           MAX(sale_date) AS end_date\n    FROM valid_sales\n),\ncalendar AS (\n    SELECT start_date AS cal_date\n    FROM bounds\n    WHERE start_date IS NOT NULL\n    UNION ALL\n    SELECT c.cal_date + 1\n    FROM calendar c\n    JOIN bounds b\n      ON c.cal_date < b.end_date\n),\ndaily AS (\n    SELECT store_id,\n           sale_date,\n           COUNT(*) AS num_sales,\n           SUM(amount) AS revenue\n    FROM valid_sales\n    GROUP BY store_id, sale_date\n)\nSELECT st.store_id,\n       c.cal_date AS sale_date,\n       COALESCE(d.num_sales, 0) AS num_sales,\n       COALESCE(d.revenue, 0) AS revenue\nFROM stores st\nCROSS JOIN calendar c\nLEFT JOIN daily d\n       ON d.store_id = st.store_id\n      AND d.sale_date = c.cal_date\nORDER BY st.store_id, c.cal_date;\n",
+"WRAPPER": "",
+"MINUTES": 22,
+"SOURCE": "Examen d'entraînement d'octobre n°6, question 3",
+"TAGS": [],
+"VISIBLE": 1,
+"tests": [
+{
+"tables": {
+"stores": {
+"columns": [
+[
+"store_id",
+"INT"
+],
+[
+"store_name",
+"VARCHAR(50)"
+]
+],
+"rows": [
+[
+1,
+"Maarif"
+],
+[
+2,
+"Gauthier"
+],
+[
+3,
+"Agdal"
+]
+]
+},
+"sales": {
+"columns": [
+[
+"sale_id",
+"INT"
+],
+[
+"store_id",
+"INT"
+],
+[
+"sale_ts",
+"TIMESTAMP"
+],
+[
+"amount",
+"NUMERIC(10,2)"
+],
+[
+"status",
+"VARCHAR(20)"
+]
+],
+"rows": [
+[
+1,
+1,
+"2024-03-01 09:15:00",
+"100.00",
+"completed"
+],
+[
+2,
+1,
+"2024-03-01 23:59:59",
+"50.00",
+"completed"
+],
+[
+3,
+2,
+"2024-03-02 10:00:00",
+"80.00",
+"refunded"
+],
+[
+4,
+2,
+"2024-03-03 00:00:00",
+"40.00",
+"completed"
+],
+[
+5,
+9,
+"2024-02-28 12:00:00",
+"70.00",
+"completed"
+],
+[
+6,
+2,
+"2024-03-04 08:30:00",
+"25.50",
+"cancelled"
+]
+]
+}
+}
+},
+{
+"tables": {
+"stores": {
+"columns": [
+[
+"store_id",
+"INT"
+],
+[
+"store_name",
+"VARCHAR(50)"
+]
+],
+"rows": [
+[
+1,
+"Anfa"
+],
+[
+2,
+"Bourgogne"
+]
+]
+},
+"sales": {
+"columns": [
+[
+"sale_id",
+"INT"
+],
+[
+"store_id",
+"INT"
+],
+[
+"sale_ts",
+"TIMESTAMP"
+],
+[
+"amount",
+"NUMERIC(10,2)"
+],
+[
+"status",
+"VARCHAR(20)"
+]
+],
+"rows": [
+[
+1,
+2,
+"2024-04-10 00:00:00",
+"10.00",
+"completed"
+],
+[
+2,
+2,
+"2024-04-10 23:59:59",
+"5.25",
+"completed"
+],
+[
+3,
+1,
+"2024-04-11 00:00:00",
+"99.00",
+"pending"
+],
+[
+4,
+1,
+"2024-04-09 23:59:59",
+"1.00",
+"refunded"
+]
+]
+}
+}
+},
+{
+"tables": {
+"stores": {
+"columns": [
+[
+"store_id",
+"INT"
+],
+[
+"store_name",
+"VARCHAR(50)"
+]
+],
+"rows": [
+[
+1,
+"Anfa"
+],
+[
+2,
+"Ain Diab"
+]
+]
+},
+"sales": {
+"columns": [
+[
+"sale_id",
+"INT"
+],
+[
+"store_id",
+"INT"
+],
+[
+"sale_ts",
+"TIMESTAMP"
+],
+[
+"amount",
+"NUMERIC(10,2)"
+],
+[
+"status",
+"VARCHAR(20)"
+]
+],
+"rows": [
+[
+10,
+1,
+"2024-05-02 12:00:00",
+"20.00",
+"completed"
+],
+[
+11,
+1,
+"2024-05-06 18:45:00",
+"30.00",
+"completed"
+],
+[
+12,
+2,
+"2024-05-04 09:00:00",
+"12.10",
+"completed"
+],
+[
+13,
+2,
+"2024-05-04 21:00:00",
+"7.90",
+"completed"
+],
+[
+14,
+7,
+"2024-05-01 10:00:00",
+"500.00",
+"completed"
+],
+[
+15,
+7,
+"2024-05-08 10:00:00",
+"500.00",
+"completed"
+],
+[
+16,
+1,
+"2024-05-07 10:00:00",
+"15.00",
+"refunded"
+]
+]
+}
+}
+},
+{
+"tables": {
+"stores": {
+"columns": [
+[
+"store_id",
+"INT"
+],
+[
+"store_name",
+"VARCHAR(50)"
+]
+],
+"rows": [
+[
+5,
+"Hay Riad"
+],
+[
+6,
+"Souissi"
+]
+]
+},
+"sales": {
+"columns": [
+[
+"sale_id",
+"INT"
+],
+[
+"store_id",
+"INT"
+],
+[
+"sale_ts",
+"TIMESTAMP"
+],
+[
+"amount",
+"NUMERIC(10,2)"
+],
+[
+"status",
+"VARCHAR(20)"
+]
+],
+"rows": [
+[
+20,
+5,
+"2024-02-28 08:00:00",
+"10.00",
+"completed"
+],
+[
+21,
+6,
+"2024-03-01 22:00:00",
+"19.99",
+"completed"
+],
+[
+22,
+6,
+"2024-03-01 22:30:00",
+"0.01",
+"completed"
+],
+[
+23,
+5,
+"2024-02-29 12:00:00",
+"5.00",
+"completed"
+]
+]
+}
+}
+},
+{
+"tables": {
+"stores": {
+"columns": [
+[
+"store_id",
+"INT"
+],
+[
+"store_name",
+"VARCHAR(50)"
+]
+],
+"rows": [
+[
+1,
+"Anfa"
+]
+]
+},
+"sales": {
+"columns": [
+[
+"sale_id",
+"INT"
+],
+[
+"store_id",
+"INT"
+],
+[
+"sale_ts",
+"TIMESTAMP"
+],
+[
+"amount",
+"NUMERIC(10,2)"
+],
+[
+"status",
+"VARCHAR(20)"
+]
+],
+"rows": [
+[
+1,
+1,
+"2024-06-01 10:00:00",
+"10.00",
+"refunded"
+],
+[
+2,
+9,
+"2024-06-02 10:00:00",
+"10.00",
+"completed"
+]
+]
+}
+}
+}
+],
+"bank": [
+{
+"__table__": {
+"columns": [
+"store_id",
+"sale_date",
+"num_sales",
+"revenue"
+],
+"rows": [
+[
+1,
+"2024-03-01",
+2,
+150.0
+],
+[
+1,
+"2024-03-02",
+0,
+0.0
+],
+[
+1,
+"2024-03-03",
+0,
+0.0
+],
+[
+2,
+"2024-03-01",
+0,
+0.0
+],
+[
+2,
+"2024-03-02",
+0,
+0.0
+],
+[
+2,
+"2024-03-03",
+1,
+40.0
+],
+[
+3,
+"2024-03-01",
+0,
+0.0
+],
+[
+3,
+"2024-03-02",
+0,
+0.0
+],
+[
+3,
+"2024-03-03",
+0,
+0.0
+]
+]
+}
+},
+{
+"__table__": {
+"columns": [
+"store_id",
+"sale_date",
+"num_sales",
+"revenue"
+],
+"rows": [
+[
+1,
+"2024-04-10",
+0,
+0.0
+],
+[
+2,
+"2024-04-10",
+2,
+15.25
+]
+]
+}
+},
+{
+"__table__": {
+"columns": [
+"store_id",
+"sale_date",
+"num_sales",
+"revenue"
+],
+"rows": [
+[
+1,
+"2024-05-02",
+1,
+20.0
+],
+[
+1,
+"2024-05-03",
+0,
+0.0
+],
+[
+1,
+"2024-05-04",
+0,
+0.0
+],
+[
+1,
+"2024-05-05",
+0,
+0.0
+],
+[
+1,
+"2024-05-06",
+1,
+30.0
+],
+[
+2,
+"2024-05-02",
+0,
+0.0
+],
+[
+2,
+"2024-05-03",
+0,
+0.0
+],
+[
+2,
+"2024-05-04",
+2,
+20.0
+],
+[
+2,
+"2024-05-05",
+0,
+0.0
+],
+[
+2,
+"2024-05-06",
+0,
+0.0
+]
+]
+}
+},
+{
+"__table__": {
+"columns": [
+"store_id",
+"sale_date",
+"num_sales",
+"revenue"
+],
+"rows": [
+[
+5,
+"2024-02-28",
+1,
+10.0
+],
+[
+5,
+"2024-02-29",
+1,
+5.0
+],
+[
+5,
+"2024-03-01",
+0,
+0.0
+],
+[
+6,
+"2024-02-28",
+0,
+0.0
+],
+[
+6,
+"2024-02-29",
+0,
+0.0
+],
+[
+6,
+"2024-03-01",
+2,
+20.0
+]
+]
+}
+},
+{
+"__table__": {
+"columns": [
+"store_id",
+"sale_date",
+"num_sales",
+"revenue"
+],
+"rows": []
+}
+}
+]
+}

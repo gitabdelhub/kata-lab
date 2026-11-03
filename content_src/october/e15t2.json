@@ -1,0 +1,460 @@
+{
+"ID": "e15t2",
+"NAME": "Catalog Snapshot Diff",
+"LANG": "pyspark",
+"PARAMS": [
+"prev_df",
+"curr_df"
+],
+"ENTRY": "solve",
+"ORDERED": true,
+"DESC": "<p>The product catalog is exported every night as a full snapshot. Downstream systems only want the changes. You must compare yesterday's snapshot with today's and produce a change log.</p>\n<p>Implement <code>solve</code> so that it returns one row per changed product.</p>\n<h3>Input</h3>\n<p><code>prev_df</code> (yesterday) and <code>curr_df</code> (today) have the same schema:</p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>column</th>\n<th>type</th>\n<th>description</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>product_id</td>\n<td>string</td>\n<td>unique within a snapshot, never null</td>\n</tr>\n<tr>\n<td>name</td>\n<td>string</td>\n<td>may be null</td>\n</tr>\n<tr>\n<td>price</td>\n<td>double</td>\n<td>may be null</td>\n</tr>\n<tr>\n<td>stock</td>\n<td>int</td>\n<td>may be null</td>\n</tr>\n<tr>\n<td>category</td>\n<td>string</td>\n<td>may be null</td>\n</tr>\n</tbody>\n</table>\n<h3>Rules</h3>\n<ol>\n<li>A product present only in <code>curr_df</code> is an <code>INSERT</code>; a product present only in <code>prev_df</code> is a <code>DELETE</code>.</li>\n<li>A product present in both snapshots is an <code>UPDATE</code> if at least one of <code>name</code>, <code>price</code>, <code>stock</code>, <code>category</code> differs; otherwise it is unchanged and does not appear in the output.</li>\n<li>Values are compared exactly (no trimming, case-sensitive). Two nulls are equal; a null and a non-null value (an empty string included) are different.</li>\n<li><code>changed_columns</code> is, for an <code>UPDATE</code>, the names of the changed columns joined by <code>,</code> (no spaces), in the order <code>name</code>, <code>price</code>, <code>stock</code>, <code>category</code>. It is null for <code>INSERT</code> and <code>DELETE</code>.</li>\n<li><code>old_price</code> is the price in <code>prev_df</code> (null for an <code>INSERT</code>), <code>new_price</code> the price in <code>curr_df</code> (null for a <code>DELETE</code>).</li>\n</ol>\n<h3>Output</h3>\n<p>A DataFrame with exactly these columns, in this order:</p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>column</th>\n<th>type</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>product_id</td>\n<td>string</td>\n</tr>\n<tr>\n<td>change_type</td>\n<td>string</td>\n</tr>\n<tr>\n<td>changed_columns</td>\n<td>string</td>\n</tr>\n<tr>\n<td>old_price</td>\n<td>double</td>\n</tr>\n<tr>\n<td>new_price</td>\n<td>double</td>\n</tr>\n</tbody>\n</table>\n<p>Rows are sorted by <code>product_id</code> ascending.</p>\n<h3>Example</h3>\n<p><code>prev_df</code></p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>product_id</th>\n<th>name</th>\n<th>price</th>\n<th>stock</th>\n<th>category</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>P1</td>\n<td>Mint Tea</td>\n<td>12.5</td>\n<td>10</td>\n<td>drinks</td>\n</tr>\n<tr>\n<td>P2</td>\n<td>Couscous 1kg</td>\n<td>3.2</td>\n<td>null</td>\n<td>grocery</td>\n</tr>\n<tr>\n<td>P3</td>\n<td>Argan Oil</td>\n<td>25.0</td>\n<td>5</td>\n<td>null</td>\n</tr>\n<tr>\n<td>P4</td>\n<td>Dates 500g</td>\n<td>4.0</td>\n<td>20</td>\n<td>grocery</td>\n</tr>\n</tbody>\n</table>\n<p><code>curr_df</code></p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>product_id</th>\n<th>name</th>\n<th>price</th>\n<th>stock</th>\n<th>category</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>P1</td>\n<td>Mint Tea</td>\n<td>12.5</td>\n<td>10</td>\n<td>drinks</td>\n</tr>\n<tr>\n<td>P2</td>\n<td>Couscous 1kg</td>\n<td>3.5</td>\n<td>null</td>\n<td>grocery</td>\n</tr>\n<tr>\n<td>P3</td>\n<td>Argan Oil</td>\n<td>25.0</td>\n<td>5</td>\n<td>beauty</td>\n</tr>\n<tr>\n<td>P5</td>\n<td>Olive Oil 1L</td>\n<td>8.9</td>\n<td>30</td>\n<td>grocery</td>\n</tr>\n</tbody>\n</table>\n<p>Expected output</p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>product_id</th>\n<th>change_type</th>\n<th>changed_columns</th>\n<th>old_price</th>\n<th>new_price</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>P2</td>\n<td>UPDATE</td>\n<td>price</td>\n<td>3.2</td>\n<td>3.5</td>\n</tr>\n<tr>\n<td>P3</td>\n<td>UPDATE</td>\n<td>category</td>\n<td>25.0</td>\n<td>25.0</td>\n</tr>\n<tr>\n<td>P4</td>\n<td>DELETE</td>\n<td>null</td>\n<td>4.0</td>\n<td>null</td>\n</tr>\n<tr>\n<td>P5</td>\n<td>INSERT</td>\n<td>null</td>\n<td>null</td>\n<td>8.9</td>\n</tr>\n</tbody>\n</table>\n<h3>Function signature</h3>\n<pre><code class=\"language-python\">from pyspark.sql import DataFrame\n\ndef solve(prev_df: DataFrame, curr_df: DataFrame) -&gt; DataFrame:\n    ...\n</code></pre>\n<h3>Constraints</h3>\n<ul>\n<li>Use the PySpark DataFrame API. Do not convert to pandas, do not call <code>collect()</code> or <code>toPandas()</code> inside <code>solve</code>, and do not use Python UDFs.</li>\n<li>Each snapshot has up to 10^8 rows. Either snapshot may be empty.</li>\n<li>The returned DataFrame may be empty; its columns and types must still match the specification.</li>\n</ul>",
+"STARTER": "from pyspark.sql import DataFrame, Window\nfrom pyspark.sql import functions as F\n\n\ndef solve(prev_df: DataFrame, curr_df: DataFrame) -> DataFrame:\n    # write your code here\n    return prev_df\n",
+"SOLUTION": "from pyspark.sql import DataFrame\nfrom pyspark.sql import functions as F\n\nCOMPARED = [\"name\", \"price\", \"stock\", \"category\"]\n\n\ndef solve(prev_df: DataFrame, curr_df: DataFrame) -> DataFrame:\n    # 1. Préfixer les colonnes et ajouter un marqueur de présence : une ligne peut avoir\n    #    toutes ses colonnes à null, donc on ne peut pas déduire sa présence de ses valeurs.\n    prev = prev_df.select(\n        \"product_id\", F.lit(True).alias(\"in_prev\"),\n        *[F.col(c).alias(\"p_\" + c) for c in COMPARED])\n    curr = curr_df.select(\n        \"product_id\", F.lit(True).alias(\"in_curr\"),\n        *[F.col(c).alias(\"c_\" + c) for c in COMPARED])\n\n    # 2. Full outer join sur la clé (avec on=\"product_id\", Spark fusionne la clé des deux côtés).\n    joined = prev.join(curr, on=\"product_id\", how=\"full_outer\")\n\n    # 3. Comparaison null-safe : eqNullSafe (<=>) vaut true pour null/null, false pour null/valeur.\n    #    concat_ws ignore les null : seules les colonnes modifiées apparaissent, dans l'ordre du schéma.\n    changed = F.concat_ws(\",\", *[\n        F.when(~F.col(\"p_\" + c).eqNullSafe(F.col(\"c_\" + c)), F.lit(c)) for c in COMPARED\n    ])\n    change_type = (\n        F.when(F.col(\"in_prev\").isNull(), F.lit(\"INSERT\"))\n         .when(F.col(\"in_curr\").isNull(), F.lit(\"DELETE\"))\n         .otherwise(F.lit(\"UPDATE\"))\n    )\n\n    result = (\n        joined\n        .withColumn(\"change_type\", change_type)\n        .withColumn(\"changed\", changed)\n        .filter((F.col(\"change_type\") != \"UPDATE\") | (F.col(\"changed\") != \"\"))\n        .select(\n            \"product_id\",\n            \"change_type\",\n            F.when(F.col(\"change_type\") == \"UPDATE\", F.col(\"changed\")).alias(\"changed_columns\"),\n            F.col(\"p_price\").alias(\"old_price\"),\n            F.col(\"c_price\").alias(\"new_price\"),\n        )\n    )\n    return result.orderBy(\"product_id\")\n",
+"WRAPPER": "",
+"MINUTES": 22,
+"SOURCE": "Examen d'entraînement d'octobre n°7, question 2",
+"TAGS": [],
+"VISIBLE": 1,
+"tests": [
+{
+"prev_df": {
+"__df__": {
+"schema": "product_id string, name string, price double, stock int, category string",
+"rows": [
+[
+"P1",
+"Mint Tea",
+12.5,
+10,
+"drinks"
+],
+[
+"P2",
+"Couscous 1kg",
+3.2,
+null,
+"grocery"
+],
+[
+"P3",
+"Argan Oil",
+25.0,
+5,
+null
+],
+[
+"P4",
+"Dates 500g",
+4.0,
+20,
+"grocery"
+]
+]
+}
+},
+"curr_df": {
+"__df__": {
+"schema": "product_id string, name string, price double, stock int, category string",
+"rows": [
+[
+"P1",
+"Mint Tea",
+12.5,
+10,
+"drinks"
+],
+[
+"P2",
+"Couscous 1kg",
+3.5,
+null,
+"grocery"
+],
+[
+"P3",
+"Argan Oil",
+25.0,
+5,
+"beauty"
+],
+[
+"P5",
+"Olive Oil 1L",
+8.9,
+30,
+"grocery"
+]
+]
+}
+}
+},
+{
+"prev_df": {
+"__df__": {
+"schema": "product_id string, name string, price double, stock int, category string",
+"rows": [
+[
+"Q1",
+"Harira",
+2.0,
+5,
+"soup"
+],
+[
+"Q2",
+"Msemen",
+1.0,
+0,
+"bakery"
+],
+[
+"Q3",
+"Chebakia",
+null,
+3,
+"sweets"
+]
+]
+}
+},
+"curr_df": {
+"__df__": {
+"schema": "product_id string, name string, price double, stock int, category string",
+"rows": [
+[
+"Q3",
+"Chebakia",
+0.0,
+3,
+"sweets"
+],
+[
+"Q1",
+"Harira Mix",
+2.0,
+null,
+"soups"
+],
+[
+"Q2",
+"Msemen",
+1.0,
+0,
+"bakery"
+]
+]
+}
+}
+},
+{
+"prev_df": {
+"__df__": {
+"schema": "product_id string, name string, price double, stock int, category string",
+"rows": []
+}
+},
+"curr_df": {
+"__df__": {
+"schema": "product_id string, name string, price double, stock int, category string",
+"rows": [
+[
+"R10",
+"Amlou",
+null,
+4,
+"spreads"
+],
+[
+"R2",
+"Honey",
+9.5,
+2,
+"spreads"
+],
+[
+"R1",
+"Olives",
+3.0,
+null,
+null
+]
+]
+}
+}
+},
+{
+"prev_df": {
+"__df__": {
+"schema": "product_id string, name string, price double, stock int, category string",
+"rows": [
+[
+"S1",
+"Mint Tea",
+3.0,
+1,
+"drinks"
+],
+[
+"S2",
+null,
+null,
+null,
+null
+],
+[
+"S3",
+null,
+1.0,
+1,
+"misc"
+],
+[
+"S4",
+"Saffron",
+50.0,
+2,
+"spices"
+]
+]
+}
+},
+"curr_df": {
+"__df__": {
+"schema": "product_id string, name string, price double, stock int, category string",
+"rows": [
+[
+"S1",
+"Mint tea ",
+3.0,
+1,
+"drinks"
+],
+[
+"S2",
+null,
+null,
+null,
+null
+],
+[
+"S3",
+"",
+1.0,
+1,
+"misc"
+],
+[
+"S5",
+"Cumin",
+null,
+null,
+null
+]
+]
+}
+}
+},
+{
+"prev_df": {
+"__df__": {
+"schema": "product_id string, name string, price double, stock int, category string",
+"rows": [
+[
+"U1",
+"Tea",
+1.0,
+null,
+"x"
+],
+[
+"U2",
+null,
+2.0,
+3,
+null
+]
+]
+}
+},
+"curr_df": {
+"__df__": {
+"schema": "product_id string, name string, price double, stock int, category string",
+"rows": [
+[
+"U2",
+null,
+2.0,
+3,
+null
+],
+[
+"U1",
+"Tea",
+1.0,
+null,
+"x"
+]
+]
+}
+}
+}
+],
+"bank": [
+{
+"__table__": {
+"columns": [
+"product_id",
+"change_type",
+"changed_columns",
+"old_price",
+"new_price"
+],
+"rows": [
+[
+"P2",
+"UPDATE",
+"price",
+3.2,
+3.5
+],
+[
+"P3",
+"UPDATE",
+"category",
+25.0,
+25.0
+],
+[
+"P4",
+"DELETE",
+null,
+4.0,
+null
+],
+[
+"P5",
+"INSERT",
+null,
+null,
+8.9
+]
+]
+}
+},
+{
+"__table__": {
+"columns": [
+"product_id",
+"change_type",
+"changed_columns",
+"old_price",
+"new_price"
+],
+"rows": [
+[
+"Q1",
+"UPDATE",
+"name,stock,category",
+2.0,
+2.0
+],
+[
+"Q3",
+"UPDATE",
+"price",
+null,
+0.0
+]
+]
+}
+},
+{
+"__table__": {
+"columns": [
+"product_id",
+"change_type",
+"changed_columns",
+"old_price",
+"new_price"
+],
+"rows": [
+[
+"R1",
+"INSERT",
+null,
+null,
+3.0
+],
+[
+"R10",
+"INSERT",
+null,
+null,
+null
+],
+[
+"R2",
+"INSERT",
+null,
+null,
+9.5
+]
+]
+}
+},
+{
+"__table__": {
+"columns": [
+"product_id",
+"change_type",
+"changed_columns",
+"old_price",
+"new_price"
+],
+"rows": [
+[
+"S1",
+"UPDATE",
+"name",
+3.0,
+3.0
+],
+[
+"S3",
+"UPDATE",
+"name",
+1.0,
+1.0
+],
+[
+"S4",
+"DELETE",
+null,
+50.0,
+null
+],
+[
+"S5",
+"INSERT",
+null,
+null,
+null
+]
+]
+}
+},
+{
+"__table__": {
+"columns": [
+"product_id",
+"change_type",
+"changed_columns",
+"old_price",
+"new_price"
+],
+"rows": []
+}
+}
+]
+}

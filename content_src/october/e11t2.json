@@ -1,0 +1,377 @@
+{
+"ID": "e11t2",
+"NAME": "Payment Method Mix per Merchant",
+"LANG": "pyspark",
+"PARAMS": [
+"payments_df"
+],
+"ENTRY": "solve",
+"ORDERED": true,
+"DESC": "<p>A payment service provider wants a wide report with one row per merchant and one amount column per payment method, to feed a dashboard.</p>\n<h3>Input</h3>\n<p><code>payments_df</code></p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>column</th>\n<th>type</th>\n<th>description</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>payment_id</td>\n<td>string</td>\n<td>never null</td>\n</tr>\n<tr>\n<td>merchant_id</td>\n<td>string</td>\n<td>never null</td>\n</tr>\n<tr>\n<td>method</td>\n<td>string</td>\n<td>free text, e.g. <code>\"card\"</code>, <code>\" Card \"</code>, <code>\"WALLET\"</code>, <code>\"bank_transfer\"</code>, <code>\"crypto\"</code>; may be null</td>\n</tr>\n<tr>\n<td>amount</td>\n<td>double</td>\n<td>strictly positive, never null</td>\n</tr>\n<tr>\n<td>status</td>\n<td>string</td>\n<td><code>succeeded</code>, <code>failed</code> or <code>refunded</code> (always lowercase)</td>\n</tr>\n</tbody>\n</table>\n<p>Rows that share a <code>payment_id</code> are exact duplicates.</p>\n<h3>Rules</h3>\n<ol>\n<li>Only <code>succeeded</code> payments count. Each <code>payment_id</code> counts once.</li>\n<li>The method is trimmed and lowercased. <code>card</code>, <code>wallet</code> and <code>bank_transfer</code> are kept as they are; any other value, including null, becomes <code>other</code>.</li>\n<li>One output row per merchant with at least one counted payment. A merchant without any counted payment does not appear.</li>\n<li>The four amount columns always exist, even if no payment in the input uses that method; a method that a merchant did not use has an amount of <code>0.0</code>, not null.</li>\n<li>All amounts are rounded to 2 decimals. <code>card_share_pct</code> is <code>100 * card amount / total amount</code>, rounded to 1 decimal.</li>\n</ol>\n<h3>Output</h3>\n<p>Exactly these columns, in this order:</p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>column</th>\n<th>type</th>\n<th>description</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>merchant_id</td>\n<td>string</td>\n<td></td>\n</tr>\n<tr>\n<td>n_payments</td>\n<td>long</td>\n<td>number of counted payments</td>\n</tr>\n<tr>\n<td>card_amount</td>\n<td>double</td>\n<td></td>\n</tr>\n<tr>\n<td>wallet_amount</td>\n<td>double</td>\n<td></td>\n</tr>\n<tr>\n<td>bank_transfer_amount</td>\n<td>double</td>\n<td></td>\n</tr>\n<tr>\n<td>other_amount</td>\n<td>double</td>\n<td></td>\n</tr>\n<tr>\n<td>total_amount</td>\n<td>double</td>\n<td>sum of the four amounts</td>\n</tr>\n<tr>\n<td>card_share_pct</td>\n<td>double</td>\n<td></td>\n</tr>\n</tbody>\n</table>\n<p>Rows are sorted by <code>total_amount</code> descending, then <code>merchant_id</code> ascending.</p>\n<h3>Example</h3>\n<p><code>payments_df</code></p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>payment_id</th>\n<th>merchant_id</th>\n<th>method</th>\n<th>amount</th>\n<th>status</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>P1</td>\n<td>M1</td>\n<td>\"card\"</td>\n<td>100.0</td>\n<td>succeeded</td>\n</tr>\n<tr>\n<td>P2</td>\n<td>M1</td>\n<td>\" Card \"</td>\n<td>50.0</td>\n<td>succeeded</td>\n</tr>\n<tr>\n<td>P3</td>\n<td>M1</td>\n<td>\"wallet\"</td>\n<td>25.5</td>\n<td>succeeded</td>\n</tr>\n<tr>\n<td>P4</td>\n<td>M1</td>\n<td>\"card\"</td>\n<td>70.0</td>\n<td>failed</td>\n</tr>\n<tr>\n<td>P5</td>\n<td>M2</td>\n<td>\"bank_transfer\"</td>\n<td>300.0</td>\n<td>succeeded</td>\n</tr>\n<tr>\n<td>P6</td>\n<td>M2</td>\n<td>\"crypto\"</td>\n<td>20.0</td>\n<td>succeeded</td>\n</tr>\n<tr>\n<td>P7</td>\n<td>M2</td>\n<td>null</td>\n<td>10.0</td>\n<td>succeeded</td>\n</tr>\n<tr>\n<td>P8</td>\n<td>M3</td>\n<td>\"card\"</td>\n<td>40.0</td>\n<td>refunded</td>\n</tr>\n<tr>\n<td>P2</td>\n<td>M1</td>\n<td>\" Card \"</td>\n<td>50.0</td>\n<td>succeeded</td>\n</tr>\n</tbody>\n</table>\n<p>Expected output</p>\n<table class=\"mdt\">\n<thead>\n<tr>\n<th>merchant_id</th>\n<th>n_payments</th>\n<th>card_amount</th>\n<th>wallet_amount</th>\n<th>bank_transfer_amount</th>\n<th>other_amount</th>\n<th>total_amount</th>\n<th>card_share_pct</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>M2</td>\n<td>3</td>\n<td>0.0</td>\n<td>0.0</td>\n<td>300.0</td>\n<td>30.0</td>\n<td>330.0</td>\n<td>0.0</td>\n</tr>\n<tr>\n<td>M1</td>\n<td>3</td>\n<td>150.0</td>\n<td>25.5</td>\n<td>0.0</td>\n<td>0.0</td>\n<td>175.5</td>\n<td>85.5</td>\n</tr>\n</tbody>\n</table>\n<h3>Function signature</h3>\n<pre><code class=\"language-python\">from pyspark.sql import DataFrame\n\ndef solve(payments_df: DataFrame) -&gt; DataFrame:\n    ...\n</code></pre>\n<h3>Constraints</h3>\n<ul>\n<li>Use the PySpark DataFrame API. No pandas, no <code>collect()</code>, no Python UDFs.</li>\n<li><code>payments_df</code> has up to 10^7 rows.</li>\n<li>The returned DataFrame may be empty; its 8 columns and their types must still match the specification.</li>\n</ul>",
+"STARTER": "from pyspark.sql import DataFrame, Window\nfrom pyspark.sql import functions as F\n\n\ndef solve(payments_df: DataFrame) -> DataFrame:\n    # write your code here\n    return payments_df\n",
+"SOLUTION": "from pyspark.sql import DataFrame\nfrom pyspark.sql import functions as F\n\nMETHODS = [\"card\", \"wallet\", \"bank_transfer\", \"other\"]\n\n\ndef solve(payments_df: DataFrame) -> DataFrame:\n    # 1. Paiements réussis, doublons exacts supprimés, méthode normalisée.\n    m = F.lower(F.trim(F.col(\"method\")))\n    ok = (\n        payments_df\n        .filter(F.col(\"status\") == \"succeeded\")\n        .dropDuplicates([\"payment_id\"])\n        .withColumn(\"method_norm\",\n                    # isin(null) est null => otherwise : une méthode null tombe bien dans 'other'\n                    F.when(m.isin(\"card\", \"wallet\", \"bank_transfer\"), m).otherwise(F.lit(\"other\")))\n    )\n\n    # 2. Pivot avec la liste EXPLICITE des valeurs : les 4 colonnes existent toujours.\n    pivoted = (\n        ok.groupBy(\"merchant_id\")\n        .pivot(\"method_norm\", METHODS)\n        .agg(F.sum(\"amount\"))\n        .fillna(0.0, subset=METHODS)                     # combinaison absente => null => 0.0\n    )\n    counts = ok.groupBy(\"merchant_id\").agg(F.count(F.lit(1)).alias(\"n_payments\"))\n\n    total = F.col(\"card\") + F.col(\"wallet\") + F.col(\"bank_transfer\") + F.col(\"other\")\n    result = (\n        pivoted.join(counts, \"merchant_id\")\n        .withColumn(\"total\", total)\n        .select(\n            \"merchant_id\",\n            \"n_payments\",\n            F.round(\"card\", 2).alias(\"card_amount\"),\n            F.round(\"wallet\", 2).alias(\"wallet_amount\"),\n            F.round(\"bank_transfer\", 2).alias(\"bank_transfer_amount\"),\n            F.round(\"other\", 2).alias(\"other_amount\"),\n            F.round(\"total\", 2).alias(\"total_amount\"),\n            F.round(F.col(\"card\") * 100 / F.col(\"total\"), 1).alias(\"card_share_pct\"),\n        )\n    )\n    return result.orderBy(F.col(\"total_amount\").desc(), F.col(\"merchant_id\").asc())\n",
+"WRAPPER": "",
+"MINUTES": 22,
+"SOURCE": "Examen d'entraînement d'octobre n°3, question 2",
+"TAGS": [],
+"VISIBLE": 1,
+"tests": [
+{
+"payments_df": {
+"__df__": {
+"schema": "payment_id string, merchant_id string, method string, amount double, status string",
+"rows": [
+[
+"P1",
+"M1",
+"card",
+100.0,
+"succeeded"
+],
+[
+"P2",
+"M1",
+" Card ",
+50.0,
+"succeeded"
+],
+[
+"P3",
+"M1",
+"wallet",
+25.5,
+"succeeded"
+],
+[
+"P4",
+"M1",
+"card",
+70.0,
+"failed"
+],
+[
+"P5",
+"M2",
+"bank_transfer",
+300.0,
+"succeeded"
+],
+[
+"P6",
+"M2",
+"crypto",
+20.0,
+"succeeded"
+],
+[
+"P7",
+"M2",
+null,
+10.0,
+"succeeded"
+],
+[
+"P8",
+"M3",
+"card",
+40.0,
+"refunded"
+],
+[
+"P2",
+"M1",
+" Card ",
+50.0,
+"succeeded"
+]
+]
+}
+}
+},
+{
+"payments_df": {
+"__df__": {
+"schema": "payment_id string, merchant_id string, method string, amount double, status string",
+"rows": [
+[
+"X2",
+"Q6",
+"CARD",
+10.0,
+"succeeded"
+],
+[
+"X1",
+"Q2",
+"card",
+10.0,
+"succeeded"
+]
+]
+}
+}
+},
+{
+"payments_df": {
+"__df__": {
+"schema": "payment_id string, merchant_id string, method string, amount double, status string",
+"rows": [
+[
+"Y1",
+"R1",
+"card",
+0.1,
+"succeeded"
+],
+[
+"Y2",
+"R1",
+"card",
+0.2,
+"succeeded"
+],
+[
+"Y3",
+"R1",
+" WALLET",
+0.3,
+"succeeded"
+],
+[
+"Y4",
+"R1",
+"Bank_Transfer ",
+0.3,
+"succeeded"
+],
+[
+"Y5",
+"R2",
+"paypal",
+12.34,
+"succeeded"
+]
+]
+}
+}
+},
+{
+"payments_df": {
+"__df__": {
+"schema": "payment_id string, merchant_id string, method string, amount double, status string",
+"rows": [
+[
+"Z1",
+"N1",
+"card",
+20.0,
+"succeeded"
+],
+[
+"Z1",
+"N1",
+"card",
+20.0,
+"succeeded"
+],
+[
+"Z2",
+"N1",
+null,
+5.0,
+"succeeded"
+],
+[
+"Z3",
+"N1",
+"wallet",
+7.0,
+"failed"
+],
+[
+"Z4",
+"N2",
+"card",
+99.0,
+"failed"
+]
+]
+}
+}
+},
+{
+"payments_df": {
+"__df__": {
+"schema": "payment_id string, merchant_id string, method string, amount double, status string",
+"rows": [
+[
+"W1",
+"K1",
+"card",
+10.0,
+"failed"
+],
+[
+"W2",
+"K1",
+"wallet",
+5.0,
+"refunded"
+]
+]
+}
+}
+}
+],
+"bank": [
+{
+"__table__": {
+"columns": [
+"merchant_id",
+"n_payments",
+"card_amount",
+"wallet_amount",
+"bank_transfer_amount",
+"other_amount",
+"total_amount",
+"card_share_pct"
+],
+"rows": [
+[
+"M2",
+3,
+0.0,
+0.0,
+300.0,
+30.0,
+330.0,
+0.0
+],
+[
+"M1",
+3,
+150.0,
+25.5,
+0.0,
+0.0,
+175.5,
+85.5
+]
+]
+}
+},
+{
+"__table__": {
+"columns": [
+"merchant_id",
+"n_payments",
+"card_amount",
+"wallet_amount",
+"bank_transfer_amount",
+"other_amount",
+"total_amount",
+"card_share_pct"
+],
+"rows": [
+[
+"Q2",
+1,
+10.0,
+0.0,
+0.0,
+0.0,
+10.0,
+100.0
+],
+[
+"Q6",
+1,
+10.0,
+0.0,
+0.0,
+0.0,
+10.0,
+100.0
+]
+]
+}
+},
+{
+"__table__": {
+"columns": [
+"merchant_id",
+"n_payments",
+"card_amount",
+"wallet_amount",
+"bank_transfer_amount",
+"other_amount",
+"total_amount",
+"card_share_pct"
+],
+"rows": [
+[
+"R2",
+1,
+0.0,
+0.0,
+0.0,
+12.34,
+12.34,
+0.0
+],
+[
+"R1",
+4,
+0.3,
+0.3,
+0.3,
+0.0,
+0.9,
+33.3
+]
+]
+}
+},
+{
+"__table__": {
+"columns": [
+"merchant_id",
+"n_payments",
+"card_amount",
+"wallet_amount",
+"bank_transfer_amount",
+"other_amount",
+"total_amount",
+"card_share_pct"
+],
+"rows": [
+[
+"N1",
+2,
+20.0,
+0.0,
+0.0,
+5.0,
+25.0,
+80.0
+]
+]
+}
+},
+{
+"__table__": {
+"columns": [
+"merchant_id",
+"n_payments",
+"card_amount",
+"wallet_amount",
+"bank_transfer_amount",
+"other_amount",
+"total_amount",
+"card_share_pct"
+],
+"rows": []
+}
+}
+]
+}

@@ -10,7 +10,7 @@ const dec = (b) => JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(b), 
   KataEngines.Key.set("local");
   const cat = await (await fetch("../docs/content/catalog.json")).json();
   let bad = 0, n = 0;
-  for (const id of Object.keys(cat.tasks).sort()) {
+  for (const id of Object.keys(cat.tasks).sort().filter((k) => !q.get("only") || q.get("only").split(",").includes(k))) {
     const t = await (await fetch(`../docs/content/tasks/${id}.json`)).json();
     if (!langs.includes(t.lang)) continue;
     const tests = t.visible.concat(dec(t.hidden));
@@ -23,7 +23,7 @@ const dec = (b) => JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(b), 
     n++;
     if (ok !== tests.length || okS === tests.length) bad++;
     const firstBad = r.find((x) => !x.pass);
-    log(`${id} ${t.lang} solution ${ok}/${tests.length} starter ${okS}/${tests.length} ${Math.round(performance.now() - t0)}ms` + (firstBad ? "  ERR " + JSON.stringify(firstBad).slice(0, 400) : ""));
+    log(`${id} ${t.lang} solution ${ok}/${tests.length} starter ${okS}/${tests.length} ${Math.round(performance.now() - t0)}ms` + (firstBad ? "  ERR " + JSON.stringify(firstBad).slice(0, q.get("only") ? 100000 : 400) : ""));
   }
   log(`DONE ${n} tasks, ${bad} bad`);
 })().catch((e) => log("FATAL " + e.stack));

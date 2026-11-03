@@ -181,6 +181,8 @@ def run_pyspark(code, entry, params, inp):
 
 def run(task, code, inp):
     lang = task["lang"]
+    if task.get("wrapper") and lang != "sql":
+        code = code + "\n\n" + task["wrapper"]
     if lang == "python":
         return run_python(code, task["entry"], task["params"], inp)
     if lang == "sql":
@@ -280,6 +282,7 @@ def load_task(path):
         "tests_in": m.tests(), "mutants": getattr(m, "MUTANTS", []), "io": getattr(m, "IO", []),
         # Vérifications en plus pour les banques : réponses officielles et solutions indépendantes
         "bank": m.expected() if hasattr(m, "expected") else None, "alts": getattr(m, "ALT", []),
+        "wrapper": getattr(m, "WRAPPER", ""), "desc_raw": getattr(m, "DESC_RAW", False),
     }
     return t
 
@@ -300,7 +303,14 @@ def build_task(t):
             if want is None:
                 continue
             nb += 1
-            if not out_eq(x["expected"], {"value": want}, True):
+            if isinstance(want, dict) and "__table__" in want:
+                ok = out_eq(x["expected"], want["__table__"], t["ordered"])
+            elif isinstance(want, dict) and "__subset__" in want:
+                got = x["expected"].get("value")
+                ok = isinstance(got, dict) and all(k in got and val_eq(got[k], v) for k, v in want["__subset__"].items())
+            else:
+                ok = out_eq(x["expected"], {"value": want}, True)
+            if not ok:
                 problems.append(f"test {i + 1} : la solution donne {x['expected']} mais la banque attend {want!r}")
         t["bank_n"] = nb
     for k, alt in enumerate(t["alts"]):
@@ -336,6 +346,8 @@ def build_task(t):
             files = {"root": p, "files": v["__dir__"]}
     doc = {k: t[k] for k in ("id", "name", "lang", "entry", "params", "limit_s", "ordered", "desc", "starter",
                              "hints", "summary_fr", "tags", "minutes", "source")}
+    if t["wrapper"]:
+        doc["wrapper"] = t["wrapper"]
     doc.update(files=files, visible=vis, hidden_n=len(hid), hidden=b64(hid), solution=b64(t["solution"]))
     with open(os.path.join(OUT, "tasks", t["id"] + ".json"), "w", encoding="utf-8") as fh:
         json.dump(doc, fh, ensure_ascii=False, separators=(",", ":"))

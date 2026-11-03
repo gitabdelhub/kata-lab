@@ -3,7 +3,7 @@
 # 1) démarre le serveur de correction  2) rend le port 8765 public pour le site.
 cd "$(dirname "$0")/.."
 pkill -f "runner/server.py" 2>/dev/null || true
-nohup python runner/server.py > /tmp/kata-runner.log 2>&1 &
+setsid nohup python runner/server.py > /tmp/kata-runner.log 2>&1 < /dev/null &
 
 for i in $(seq 1 60); do
   curl -s http://localhost:8765/health >/dev/null && break

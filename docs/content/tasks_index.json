@@ -1,0 +1,414 @@
+[
+{
+"id": "e00t1",
+"name": "Late Deliveries per Courier",
+"lang": "pyspark",
+"tags": [
+"groupBy / agg",
+"when / otherwise",
+"dates",
+"null"
+],
+"minutes": 15,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "e00t2",
+"name": "Monthly Customer Retention",
+"lang": "sql",
+"tags": [
+"date_trunc",
+"LAG",
+"division entière",
+"NULLIF"
+],
+"minutes": 15,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "e01t1",
+"name": "Daily Revenue from Raw Ride Files",
+"lang": "pyspark",
+"tags": [
+"lire un dossier",
+"dédoublonnage",
+"Window",
+"nettoyage",
+"try_cast"
+],
+"minutes": 15,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "e01t2",
+"name": "Promo Code Settlement",
+"lang": "pyspark",
+"tags": [
+"join",
+"left join",
+"when / otherwise",
+"least",
+"groupBy / agg"
+],
+"minutes": 15,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "e01t3",
+"name": "Driver Payout Drops",
+"lang": "sql",
+"tags": [
+"LAG",
+"PARTITION BY",
+"division entière",
+"ROUND numeric"
+],
+"minutes": 15,
+"source": "Kata Lab",
+"tests": 9
+},
+{
+"id": "e01t4",
+"name": "Surge Window Detector",
+"lang": "python",
+"tags": [
+"comptage",
+"division",
+"dict",
+"bornes"
+],
+"minutes": 20,
+"source": "Kata Lab",
+"tests": 12
+},
+{
+"id": "e02t1",
+"name": "Latest Warehouse Snapshots",
+"lang": "pyspark",
+"tags": [
+"lire un dossier",
+"os.walk",
+"unionByName",
+"colonnes dans le désordre"
+],
+"minutes": 20,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "e02t2",
+"name": "Pallet Label Grid",
+"lang": "pyspark",
+"tags": [
+"grille",
+"posexplode",
+"collect_list ordonné",
+"split regex"
+],
+"minutes": 20,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "e02t3",
+"name": "Longest Stockout Streak",
+"lang": "sql",
+"tags": [
+"gaps and islands",
+"ROW_NUMBER",
+"dates",
+"PARTITION BY"
+],
+"minutes": 20,
+"source": "Kata Lab",
+"tests": 9
+},
+{
+"id": "e02t4",
+"name": "Backorder Simulator",
+"lang": "python",
+"tags": [
+"simulation",
+"file FIFO",
+"deque",
+"parsing"
+],
+"minutes": 25,
+"source": "Kata Lab",
+"tests": 12
+},
+{
+"id": "e03t1",
+"name": "No-Show Rate from Appointment Logs",
+"lang": "pyspark",
+"tags": [
+"JSON",
+"schéma qui change",
+"dernière version",
+"Window",
+"groupBy / agg"
+],
+"minutes": 20,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "e03t2",
+"name": "Patient Portal Sessions",
+"lang": "pyspark",
+"tags": [
+"sessions",
+"lag",
+"somme cumulée",
+"Window",
+"groupBy / agg"
+],
+"minutes": 20,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "e03t3",
+"name": "Top Doctors by Daily Utilization",
+"lang": "sql",
+"tags": [
+"LEFT JOIN",
+"NULLIF",
+"DENSE_RANK",
+"PARTITION BY",
+"division entière"
+],
+"minutes": 20,
+"source": "Kata Lab",
+"tests": 9
+},
+{
+"id": "e03t4",
+"name": "Consultation Room Scheduler",
+"lang": "python",
+"tags": [
+"heapq",
+"simulation",
+"tri",
+"deux tas"
+],
+"minutes": 25,
+"source": "Kata Lab",
+"tests": 12
+},
+{
+"id": "p1m1",
+"name": "Payment status",
+"lang": "pyspark",
+"tags": [
+"when / otherwise",
+"null"
+],
+"minutes": 5,
+"source": "Kata Lab",
+"tests": 7
+},
+{
+"id": "p1m2",
+"name": "Clean column names",
+"lang": "pyspark",
+"tags": [
+"nettoyage",
+"toDF",
+"trim"
+],
+"minutes": 5,
+"source": "Kata Lab",
+"tests": 5
+},
+{
+"id": "p1m3",
+"name": "Orders per customer",
+"lang": "pyspark",
+"tags": [
+"groupBy / agg",
+"orderBy"
+],
+"minutes": 5,
+"source": "Kata Lab",
+"tests": 6
+},
+{
+"id": "p1m4",
+"name": "Latest status per order",
+"lang": "pyspark",
+"tags": [
+"Window",
+"row_number"
+],
+"minutes": 5,
+"source": "Kata Lab",
+"tests": 6
+},
+{
+"id": "p1m5",
+"name": "Rows per file",
+"lang": "pyspark",
+"tags": [
+"lire un dossier",
+"_metadata.file_name"
+],
+"minutes": 5,
+"source": "Kata Lab",
+"tests": 5
+},
+{
+"id": "p1m6",
+"name": "Conversion rate per channel",
+"lang": "sql",
+"tags": [
+"division entière",
+"ROUND numeric",
+"COUNT FILTER"
+],
+"minutes": 5,
+"source": "Kata Lab",
+"tests": 6
+},
+{
+"id": "p1m7",
+"name": "Words with their position",
+"lang": "pyspark",
+"tags": [
+"split",
+"posexplode"
+],
+"minutes": 5,
+"source": "Kata Lab",
+"tests": 5
+},
+{
+"id": "p1m8",
+"name": "Top k words",
+"lang": "python",
+"tags": [
+"dict",
+"sorted key",
+"Counter"
+],
+"minutes": 5,
+"source": "Kata Lab",
+"tests": 9
+},
+{
+"id": "p1x1",
+"name": "Bucket rides by duration",
+"lang": "pyspark",
+"tags": [
+"when / otherwise",
+"null",
+"between"
+],
+"minutes": 15,
+"source": "Kata Lab",
+"tests": 7
+},
+{
+"id": "p1x2",
+"name": "Clean order amounts",
+"lang": "pyspark",
+"tags": [
+"nettoyage",
+"regexp_replace",
+"try_cast",
+"lower / trim"
+],
+"minutes": 15,
+"source": "Kata Lab",
+"tests": 7
+},
+{
+"id": "p1x3",
+"name": "City ride KPIs",
+"lang": "pyspark",
+"tags": [
+"groupBy / agg",
+"sum(when)",
+"countDistinct",
+"division"
+],
+"minutes": 15,
+"source": "Kata Lab",
+"tests": 7
+},
+{
+"id": "p1x4",
+"name": "Deduplicate rides and driver gaps",
+"lang": "pyspark",
+"tags": [
+"Window",
+"row_number",
+"lag",
+"dédoublonnage"
+],
+"minutes": 20,
+"source": "Kata Lab",
+"tests": 7
+},
+{
+"id": "p1x5",
+"name": "Daily revenue from city files",
+"lang": "pyspark",
+"tags": [
+"lire un dossier",
+"regexp_extract",
+"to_date",
+"toDF",
+"groupBy / agg"
+],
+"minutes": 20,
+"source": "Kata Lab",
+"tests": 6
+},
+{
+"id": "p1x6",
+"name": "Product share of category revenue",
+"lang": "sql",
+"tags": [
+"PARTITION BY",
+"division entière",
+"CASE WHEN",
+"JOIN"
+],
+"minutes": 15,
+"source": "Kata Lab",
+"tests": 7
+},
+{
+"id": "p1x7",
+"name": "Vertical notebook decoder",
+"lang": "pyspark",
+"tags": [
+"split",
+"posexplode",
+"collect_list ordonné",
+"grille"
+],
+"minutes": 20,
+"source": "Kata Lab",
+"tests": 7
+},
+{
+"id": "p1x8",
+"name": "Sessionize click events",
+"lang": "python",
+"tags": [
+"tri",
+"dict",
+"boucle",
+"sessions"
+],
+"minutes": 20,
+"source": "Kata Lab",
+"tests": 9
+}
+]

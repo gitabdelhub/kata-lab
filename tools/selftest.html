@@ -1,0 +1,30 @@
+<!doctype html><meta charset="utf-8"><title>selftest</title>
+<pre id="out">running…</pre>
+<script src="../docs/assets/engines.js"></script>
+<script>
+const out = document.getElementById("out"); const log = (s) => (out.textContent += "\n" + s);
+const dec = (b) => JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(b), (c) => c.charCodeAt(0))));
+(async () => {
+  const q = new URLSearchParams(location.search); const langs = (q.get("langs") || "python,sql,pyspark").split(",");
+  sessionStorage.setItem("kata.spark", JSON.stringify({ url: "http://localhost:8765", name: "local" }));
+  KataEngines.Key.set("local");
+  const cat = await (await fetch("../docs/content/catalog.json")).json();
+  let bad = 0, n = 0;
+  for (const id of Object.keys(cat.tasks).sort()) {
+    const t = await (await fetch(`../docs/content/tasks/${id}.json`)).json();
+    if (!langs.includes(t.lang)) continue;
+    const tests = t.visible.concat(dec(t.hidden));
+    const sol = dec(t.solution);
+    const t0 = performance.now();
+    const r = await KataEngines.runTests(t, sol, tests);
+    const ok = r.filter((x) => x.pass).length;
+    const rs = await KataEngines.runTests(t, t.starter, tests);
+    const okS = rs.filter((x) => x.pass).length;
+    n++;
+    if (ok !== tests.length || okS === tests.length) bad++;
+    const firstBad = r.find((x) => !x.pass);
+    log(`${id} ${t.lang} solution ${ok}/${tests.length} starter ${okS}/${tests.length} ${Math.round(performance.now() - t0)}ms` + (firstBad ? "  ERR " + JSON.stringify(firstBad).slice(0, 400) : ""));
+  }
+  log(`DONE ${n} tasks, ${bad} bad`);
+})().catch((e) => log("FATAL " + e.stack));
+</script>

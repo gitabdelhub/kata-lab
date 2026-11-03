@@ -1,0 +1,15 @@
+{
+  "name": "Kata Lab (Spark)",
+  "image": "mcr.microsoft.com/devcontainers/python:1-3.12-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/java:1": { "version": "17" },
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  "postCreateCommand": "pip install --user -r runner/requirements.txt",
+  "postStartCommand": "bash runner/start.sh",
+  "forwardPorts": [8765],
+  "portsAttributes": {
+    "8765": { "label": "Kata Lab : correction", "onAutoForward": "silent" }
+  },
+  "hostRequirements": { "cpus": 2 }
+}

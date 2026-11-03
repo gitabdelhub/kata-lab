@@ -1,0 +1,961 @@
+/* Kata Lab : le site (parcours guidé, bibliothèque, espace d'examen, progression). */
+(function () {
+  "use strict";
+  const $ = (s, el) => (el || document).querySelector(s);
+  const $$ = (s, el) => Array.from((el || document).querySelectorAll(s));
+  const E = window.KataEngines;
+  const esc = (s) => String(s === undefined || s === null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const dec = (b) => JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(b), (c) => c.charCodeAt(0))));
+  const LANG = { pyspark: "PySpark", sql: "PostgreSQL", python: "Python 3" };
+  const SHORT = { pyspark: "PySpark", sql: "SQL", python: "Python" };
+  const FILE = { pyspark: "solution.py", sql: "query.sql", python: "solution.py" };
+  const INTERVALS = [2, 5, 12, 30];
+
+  /* ============================================================ stockage */
+  const LS = "kata.v1", LSA = "kata.attempt";
+  const load = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (_) { return d; } };
+  const save = (k, v) => { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); } catch (_) {} };
+  const P0 = () => ({ v: 1, done: {}, sessCount: 0, cur: null, cards: {}, tasks: {}, exams: {}, review: [], errors: {}, notes: {}, days: [], ump: true, dur: 70 });
+  let P = Object.assign(P0(), load(LS, {}));
+  const persist = () => save(LS, P);
+
+  const pad = (n) => String(n).padStart(2, "0");
+  const today = () => { const d = new Date(); return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); };
+  const frDate = (d) => (d || new Date()).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  function markDay() { const t = today(); if (!P.days.includes(t)) { P.days.push(t); P.days = P.days.slice(-400); persist(); } }
+  function streak() {
+    const set = new Set(P.days); let n = 0; const d = new Date();
+    if (!set.has(today())) d.setDate(d.getDate() - 1);
+    for (;;) { const k = d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); if (!set.has(k)) break; n++; d.setDate(d.getDate() - 1); }
+    return n;
+  }
+
+  let CAT = null;
+  const TASKS = {};
+  async function getTask(id) {
+    if (!TASKS[id]) {
+      const r = await fetch("content/tasks/" + id + ".json", { cache: "no-cache" });
+      if (!r.ok) throw new Error("task introuvable : " + id);
+      TASKS[id] = await r.json();
+    }
+    return TASKS[id];
+  }
+  const hiddenOf = (t) => (t._hidden || (t._hidden = dec(t.hidden)));
+  const solutionOf = (t) => dec(t.solution);
+  const reflex = (id) => CAT.reflexes.find((r) => r.id === id);
+  const exam = (id) => CAT.exams.find((e) => e.id === id);
+
+  /* ============================================================ parcours */
+  function phaseDone(p) { return p.sessions.length > 0 && p.sessions.every((s) => P.done[s.id]); }
+  function phaseOpen(i) { if (i === 0) return true; return phaseDone(CAT.phases[i - 1]) || today() >= CAT.phases[i].opens; }
+  function findSession(id) {
+    for (let i = 0; i < CAT.phases.length; i++) {
+      const j = CAT.phases[i].sessions.findIndex((s) => s.id === id);
+      if (j >= 0) return Object.assign({ pi: i, si: j, phase: CAT.phases[i] }, CAT.phases[i].sessions[j]);
+    }
+    return null;
+  }
+  function nextSession() {
+    for (let i = 0; i < CAT.phases.length; i++) {
+      if (!phaseOpen(i)) continue;
+      for (const s of CAT.phases[i].sessions) if (!P.done[s.id]) return findSession(s.id);
+    }
+    return null;
+  }
+  function currentSession() { return P.cur ? findSession(P.cur.id) : nextSession(); }
+  function stepHash(st) {
+    return st.type === "review" ? "revision" : st.type === "learn" ? "reflexe-" + st.reflex : st.type === "exo" ? "exo-" + st.task : st.type === "exam" ? "exam-" + st.exam : "analyse-" + st.exam;
+  }
+  function goHash(h) { if (location.hash === "#" + h) route(); else location.hash = h; }
+  function startSession() {
+    const s = currentSession();
+    if (!s) { goHash("accueil"); return; }
+    if (!P.cur) { P.cur = { id: s.id, step: 0 }; persist(); }
+    goHash(stepHash(s.steps[P.cur.step]));
+  }
+  function introduceCards(rid) {
+    const r = reflex(rid); if (!r) return;
+    r.cards.forEach((_, j) => { const id = rid + "-" + j; if (!P.cards[id]) P.cards[id] = { due: P.sessCount + 1, lvl: 0 }; });
+  }
+  function sessNext() {
+    if (!P.cur) return;
+    const s = findSession(P.cur.id);
+    const st = s.steps[P.cur.step];
+    if (st.type === "learn") introduceCards(st.reflex);
+    if (P.cur.step < s.steps.length - 1) {
+      P.cur.step++; persist();
+      goHash(stepHash(s.steps[P.cur.step]));
+    } else {
+      P.done[s.id] = { at: today() };
+      P.sessCount++;
+      P.cur = null; persist();
+      flash = "Séance terminée. Bravo, c'est comme ça qu'on progresse : une séance après l'autre.";
+      goHash("accueil");
+    }
+  }
+  let flash = "";
+  function inSessionStep(hash) {
+    if (!P.cur) return false;
+    const s = findSession(P.cur.id);
+    return s && stepHash(s.steps[P.cur.step]) === hash;
+  }
+  function nextLabel() {
+    const s = findSession(P.cur.id);
+    if (P.cur.step >= s.steps.length - 1) return "Terminer la séance ✓";
+    return "Étape suivante : " + s.steps[P.cur.step + 1].title;
+  }
+
+  /* ============================================================ cartes et révisions */
+  function seedMethodCards() {
+    CAT.method_cards.forEach((_, j) => { const id = "m-" + j; if (!P.cards[id]) P.cards[id] = { due: 0, lvl: 0 }; });
+  }
+  function cardText(id) {
+    if (id.startsWith("m-")) return CAT.method_cards[+id.slice(2)];
+    const [rid, j] = id.split("-");
+    const r = reflex(rid); return r ? r.cards[+j] : null;
+  }
+  function dueCards(n) {
+    return Object.entries(P.cards).filter(([id, c]) => c.due <= P.sessCount && cardText(id)).sort((a, b) => a[1].due - b[1].due || a[1].lvl - b[1].lvl).slice(0, n).map(([id]) => id);
+  }
+  function gradeCard(id, knew) {
+    const c = P.cards[id];
+    if (knew) { c.lvl = Math.min(c.lvl + 1, INTERVALS.length - 1); c.due = P.sessCount + INTERVALS[c.lvl - 1 < 0 ? 0 : c.lvl - 1]; }
+    else { c.lvl = 0; c.due = P.sessCount + 1; }
+    persist();
+  }
+  function dueReviews() { return P.review.filter((r) => r.due <= P.sessCount); }
+  function recordTask(tid, score, inReview) {
+    const t = P.tasks[tid] || (P.tasks[tid] = { best: 0, last: 0, n: 0, hist: [] });
+    t.best = Math.max(t.best, score); t.last = score; t.n++; t.hist.push({ at: today(), score }); t.hist = t.hist.slice(-20);
+    const item = P.review.find((r) => r.task === tid);
+    if (score < 80) {
+      if (item) { item.stage = 0; item.due = P.sessCount + INTERVALS[0]; }
+      else P.review.push({ task: tid, stage: 0, due: P.sessCount + INTERVALS[0] });
+    } else if (item && item.due <= P.sessCount) {
+      item.stage++;
+      if (item.stage >= 3) P.review = P.review.filter((r) => r !== item);
+      else item.due = P.sessCount + INTERVALS[item.stage];
+    }
+    persist();
+  }
+  function recordErrors(tags) { tags.forEach((g) => (P.errors[g] = (P.errors[g] || 0) + 1)); persist(); }
+
+  /* ============================================================ rendu : outils */
+  const view = () => $("#view");
+  function band(title, tabsHtml, extra) {
+    return `<div class="pband"><div class="wrap">${extra || ""}<h1 class="ptitle">${title}</h1>${tabsHtml || '<div style="height:18px"></div>'}</div></div>`;
+  }
+  const bib = (on) => `<div class="biblinks"><a href="#exos" class="${on === "exos" ? "on" : ""}">Exos</a><a href="#examens" class="${on === "examens" ? "on" : ""}">Examens</a><a href="#apprendre" class="${on === "apprendre" ? "on" : ""}">Réflexes</a></div>`;
+  function fmtVal(v, top) {
+    if (v === null || v === undefined) return "null";
+    if (typeof v === "string") return top === "cell" ? v : JSON.stringify(v);
+    if (typeof v === "number" || typeof v === "boolean") return String(v);
+    if (Array.isArray(v)) return "[" + v.map((x) => fmtVal(x)).join(", ") + "]";
+    return "{" + Object.entries(v).map(([k, x]) => JSON.stringify(k) + ": " + fmtVal(x)).join(", ") + "}";
+  }
+  function codeBlock(code) { return `<pre class="code">${esc(code)}</pre>`; }
+  function minitimer(id, sec) { return `<span class="minitimer"><span id="${id}T">${pad(Math.floor(sec / 60))}:${pad(sec % 60)}</span><button id="${id}B" data-s="${sec}">Démarrer</button></span>`; }
+  function bindMinitimer(id, onEnd) {
+    const b = $("#" + id + "B"); if (!b) return;
+    let end = null, tk = null; const sec = +b.dataset.s;
+    const show = (ms) => { const t = Math.max(0, Math.ceil(ms / 1000)); $("#" + id + "T").textContent = pad(Math.floor(t / 60)) + ":" + pad(t % 60); };
+    b.onclick = () => {
+      if (tk) { clearInterval(tk); tk = null; show(sec * 1000); b.textContent = "Démarrer"; return; }
+      end = Date.now() + sec * 1000; b.textContent = "Arrêter";
+      tk = setInterval(() => { const l = end - Date.now(); show(l); if (l <= 0) { clearInterval(tk); tk = null; b.textContent = "Recommencer"; if (onEnd) onEnd(); } }, 250);
+      timers.push(() => clearInterval(tk));
+    };
+  }
+  let timers = [];
+  function clearTimers() { timers.forEach((f) => f()); timers = []; }
+
+  /* ============================================================ alertes */
+  function renderAlerts() {
+    const a = [];
+    const key = E.Key.get(), exp = E.Key.expiry();
+    if (!key) a.push(`<div class="alert">Pour les exos PySpark, colle ta clé GitHub une seule fois dans <a href="#connexion">Connexion</a>. SQL et Python marchent déjà sans clé.</div>`);
+    else if (exp) {
+      const days = Math.round((new Date(exp + "T00:00:00") - new Date(today() + "T00:00:00")) / 86400000);
+      if (days < 0) a.push(`<div class="alert ko">Ta clé GitHub a expiré le ${esc(exp)}. PySpark ne peut plus démarrer. <a href="#connexion">Créer une nouvelle clé</a> (5 minutes).</div>`);
+      else if (days <= 21) a.push(`<div class="alert">Ta clé GitHub expire dans ${days} jour${days > 1 ? "s" : ""} (${esc(exp)}). <a href="#connexion">Crée la nouvelle clé maintenant</a> pour ne pas être bloqué.</div>`);
+    }
+    $("#alerts").innerHTML = a.join("");
+  }
+
+  /* ============================================================ accueil */
+  function renderHome() {
+    const s = currentSession();
+    const allDone = !s;
+    const p1 = CAT.phases[0];
+    let left = "", card = "";
+    if (s) {
+      const steps = s.steps.map((st, i) => {
+        const cls = P.cur && P.cur.id === s.id ? (i < P.cur.step ? "done" : i === P.cur.step ? "cur" : "") : "";
+        let sub = st.sub;
+        if (st.type === "learn") sub = "Exemple guidé, puis mini-exo de mémoire";
+        if (st.type === "exo") sub = esc(TITLE[st.task] || "") + " · note sur 100";
+        return `<li class="${cls}"><span class="num">${i + 1}</span><div><b>${esc(st.title)}</b><span>${sub}</span></div><em>${st.min} min</em></li>`;
+      }).join("");
+      const total = s.steps.reduce((a, b) => a + b.min, 0);
+      left = `<span class="eyebrow">${esc(s.phase.name)} · séance ${s.si + 1} sur ${s.phase.sessions.length}</span>
+        <h1 class="ptitle" style="margin-bottom:14px">Bonjour AB, voici ta séance.</h1>
+        <p class="lead">${esc(frDate())} · ${total} min. Fais les étapes dans l'ordre : le site te guide de l'une à l'autre.</p>
+        ${flash ? `<p class="sc-done" style="margin-top:16px">✓ ${esc(flash)}</p>` : ""}`;
+      card = `<div class="sesscard"><div class="sc-head"><b>Séance ${s.si + 1} · ${esc(s.title)}</b><span class="muted">${total} min</span></div>
+        <ol class="steps3">${steps}</ol>
+        <button class="pill big" id="startSess">${P.cur ? "Reprendre l'étape " + (P.cur.step + 1) : "Commencer la séance"}</button></div>`;
+    } else {
+      left = `<span class="eyebrow">Phase 1 terminée</span><h1 class="ptitle" style="margin-bottom:14px">Bravo AB, la phase 1 est faite.</h1>
+        <p class="lead">${esc(frDate())}. La phase 2 arrive avec la prochaine mise à jour du site. En attendant, refais un examen complet dans la Bibliothèque, ou les exos que tu as ratés.</p>`;
+      card = `<div class="sesscard"><div class="sc-head"><b>En attendant la phase 2</b></div><p class="muted" style="margin:0">1 examen complet par semaine, en mode strict, puis l'analyse guidée.</p><a class="pill big" href="#examens">Choisir un examen</a></div>`;
+    }
+    flash = "";
+    const phases = CAT.phases.map((p, i) => {
+      const open = phaseOpen(i), done = p.sessions.filter((x) => P.done[x.id]).length, n = p.sessions.length;
+      const cur = s && s.phase.id === p.id;
+      let units = "";
+      if (p.sessions.length) {
+        units = `<div class="units">` + p.sessions.map((x, j) => {
+          const isNow = s && s.id === x.id;
+          const st = P.done[x.id] ? "done" : isNow ? "now" : "lock";
+          return `<div class="unit ${st}"><span class="u-st">${st === "done" ? "✓" : st === "now" ? "●" : "🔒"}</span><b>${esc(x.title)}</b><span>${isNow ? "Aujourd'hui" : "Séance " + (j + 1)}</span></div>`;
+        }).join("") + `</div>`;
+      }
+      const prog = n ? `<span class="ph-prog">${done} / ${n}</span>` : `<span class="ph-prog">${open ? "" : "🔒"}</span>`;
+      const note = !n && open ? p.note + " Elle arrive avec la prochaine mise à jour du site." : p.note;
+      return `<div class="phase ${cur ? "cur" : open && n ? "" : "lock"}"><div class="ph-head"><span class="ph-dot"></span><div><b>${esc(p.name)}</b><span>${esc(p.dates)}</span></div>${prog}</div>
+        ${n ? `<div class="ph-track"><i style="width:${Math.round((100 * done) / n)}%"></i></div>` : ""}${units || `<p class="ph-note">${esc(note)}</p>`}</div>`;
+    }).join("");
+    const nb = Object.values(P.exams).reduce((a, e) => a + (e.hist || []).filter((h) => !h.mini).length, 0);
+    const rv = dueReviews().length;
+    view().innerHTML = `<section class="ws on"><div class="pband"><div class="wrap"><div class="today"><div class="today-l">${left}</div>${card}</div></div></div>
+      <div class="wrap"><div class="sect">
+        ${rv ? `<div class="alert" style="margin:0 0 18px">${rv} exo${rv > 1 ? "s" : ""} raté${rv > 1 ? "s" : ""} à refaire : ils sont dans la révision éclair de ta prochaine séance.</div>` : ""}
+        <h2>Ton parcours jusqu'au jour J</h2>
+        <p class="sub">Tu avances séance par séance, jamais bloqué par la date : une phase s'ouvre quand la précédente est finie, ou quand sa date arrive. Les exos ratés reviennent seuls 2, 5 puis 12 séances plus tard.</p>
+        <div class="phases">${phases}
+          <div class="phase goal"><div class="ph-head"><span class="ph-dot"></span><div><b>Fin avril · Tu repostules</b><span>Avec des examens complets passés au chrono (${nb} pour l'instant)</span></div><span class="ph-prog">🎯</span></div></div>
+        </div></div></div></section>`;
+    const b = $("#startSess"); if (b) b.onclick = startSession;
+  }
+  let TITLE = {};
+
+  /* ============================================================ révision éclair */
+  function renderRevision() {
+    seedMethodCards();
+    const ids = dueCards(4);
+    const reviews = dueReviews();
+    let i = 0;
+    const box = () => $("#flash");
+    const insess = inSessionStep("revision");
+    view().innerHTML = `<section class="ws on">${band("Révision éclair", `<p class="lead" style="padding-bottom:28px">Écris la réponse de mémoire avant de la regarder : c'est ce qui la fait rester. 5 minutes.</p>`)}
+      <div class="wrap"><div class="sect"><div class="btnrow" style="margin-bottom:18px">${minitimer("rv", 300)}<span class="muted" id="rvCount"></span></div>
+      <div class="card flash" id="flash"></div>
+      ${reviews.length ? `<div class="card" style="margin-top:18px"><h3>Exos à refaire</h3><p class="muted">Tu les avais ratés. Refais-les sans regarder le corrigé.</p><div class="list">${reviews.map((r) => `<div class="row" style="grid-template-columns:1fr auto"><div class="t"><b>${esc(TITLE[r.task] || r.task)}</b><span>${esc(SHORT[(CAT.tasks[r.task] || {}).lang] || "")} · meilleure note ${(P.tasks[r.task] || {}).best || 0}/100</span></div><a class="pill sm" href="#exo-${r.task}">Refaire</a></div>`).join("")}</div></div>` : ""}
+      </div></div></section>`;
+    bindMinitimer("rv");
+    const draw = () => {
+      $("#rvCount").textContent = ids.length ? "Carte " + Math.min(i + 1, ids.length) + " sur " + ids.length : "";
+      if (!ids.length) { box().innerHTML = `<p class="q">Aucune carte à revoir aujourd'hui.</p><p class="meta">Les cartes de chaque réflexe arrivent ici à partir de la séance suivante.</p>${insess ? "" : '<a class="pill sm" href="#accueil">Retour au parcours</a>'}`; return; }
+      if (i >= ids.length) { box().innerHTML = `<p class="q">✓ Révision faite.</p><p class="meta">Les cartes « à revoir » reviendront à la prochaine séance, les autres plus tard.</p>`; return; }
+      const [q, a] = cardText(ids[i]);
+      box().innerHTML = `<span class="meta">${ids[i].startsWith("m-") ? "Méthode" : esc((reflex(ids[i].split("-")[0]) || {}).title || "")}</span><p class="q">${esc(q)}</p>
+        <div class="field"><label for="ans">Ta réponse, de mémoire</label><textarea id="ans" placeholder="Écris ce dont tu te souviens…"></textarea></div>
+        <div class="btnrow" id="fb"><button class="pill sm" id="see">Voir la réponse</button></div>`;
+      $("#see").onclick = () => {
+        $("#fb").outerHTML = `<div class="a">${esc(a)}</div><div class="btnrow"><button class="pill sm mint" id="yes">Je savais ✓</button><button class="pill sm ghost" id="no">À revoir</button></div>`;
+        $("#yes").onclick = () => { gradeCard(ids[i], true); i++; draw(); };
+        $("#no").onclick = () => { gradeCard(ids[i], false); i++; draw(); };
+      };
+    };
+    draw();
+  }
+
+  /* ============================================================ réflexes */
+  function renderReflexes() {
+    view().innerHTML = `<section class="ws on">${band("Réflexes", `<p class="lead" style="padding-bottom:28px">Les gestes à connaître par cœur. Chaque réflexe : un exemple guidé, les pièges, un mini-exo de mémoire.</p>`, bib("apprendre"))}
+      <div class="wrap"><div class="sect"><div class="grid3">${CAT.reflexes.map((r, i) => {
+        const m = P.tasks[r.mini];
+        return `<div class="ex"><span class="src">Réflexe ${i + 1} · ${esc(r.lang)}</span><h3>${esc(r.title)}</h3><span class="muted">${esc(r.why)}</span>${m && m.best >= 80 ? '<span class="done-badge">✓ mini-exo réussi</span>' : ""}<a class="pill sm" href="#reflexe-${r.id}">Ouvrir</a></div>`;
+      }).join("")}</div></div></div></section>`;
+  }
+  function renderLesson(rid) {
+    const r = reflex(rid);
+    if (!r) return goHash("apprendre");
+    const insess = inSessionStep("reflexe-" + rid);
+    const toc = CAT.reflexes.map((x, i) => `<a href="#reflexe-${x.id}" class="${x.id === rid ? "on" : ""}">${esc(x.title)} <span>${i + 1}</span></a>`).join("");
+    const mini = CAT.tasks[r.mini];
+    view().innerHTML = `<section class="ws on">${band(esc(r.title), `<p class="lead" style="padding-bottom:28px">${esc(r.why)}</p>`, insess ? "" : bib("apprendre"))}
+      <div class="wrap"><div class="sect learn"><aside class="toc"><span class="lbl">Réflexes</span>${toc}</aside>
+      <div class="panel lesson"><span class="chip">${esc(r.lang)}</span>
+        <h2 style="font-size:28px;margin:12px 0 10px">Le geste</h2>
+        <ul>${r.body.map((x) => `<li>${x}</li>`).join("")}</ul>
+        <h3 style="margin-top:18px">Exemple guidé</h3>${codeBlock(r.code)}
+        <h3>Les pièges</h3><ul class="traps">${r.traps.map((x) => `<li>${x}</li>`).join("")}</ul>
+        <div class="card" style="margin-top:20px;background:var(--mint-soft);border-color:transparent">
+          <h3>Mini-exo de mémoire · ${mini ? mini.minutes : 5} min</h3>
+          <p class="muted" style="margin:0 0 12px">L'éditeur s'ouvre sans l'exemple : écris le geste de mémoire. Si tu bloques, les indices sont dans l'énoncé.</p>
+          <div class="btnrow"><a class="pill sm" href="#exo-${r.mini}">Faire le mini-exo : ${esc(mini ? mini.name : "")}</a>${P.tasks[r.mini] ? `<span class="muted">Ta meilleure note : ${P.tasks[r.mini].best}/100</span>` : ""}</div>
+        </div>
+        <div class="btnrow" style="margin-top:20px">${(() => {
+          const d = r.cards.map((c) => `<li><b>${esc(c[0])}</b><br><span class="muted">${esc(c[1])}</span></li>`).join("");
+          return `<details><summary style="cursor:pointer;font-weight:500">Les 4 cartes de ce réflexe (elles reviendront en révision)</summary><ul style="margin-top:10px">${d}</ul></details>`;
+        })()}</div>
+      </div></div></div></section>`;
+  }
+
+  /* ============================================================ bibliothèque */
+  let exoFilter = "all";
+  function renderExos() {
+    const ids = CAT.library;
+    const cnt = (l) => ids.filter((id) => l === "all" || CAT.tasks[id].lang === l).length;
+    const tabs = `<div class="ptabs filters" role="group" aria-label="Langage">${[["all", "Tous"], ["pyspark", "PySpark"], ["sql", "SQL"], ["python", "Python"]].map(([k, n]) => `<button data-f="${k}" class="${exoFilter === k ? "on" : ""}">${n} <span class="cnt">${cnt(k)}</span></button>`).join("")}</div>`;
+    const cards = ids.filter((id) => exoFilter === "all" || CAT.tasks[id].lang === exoFilter).map((id) => {
+      const t = CAT.tasks[id], pr = P.tasks[id];
+      return `<div class="ex"><span class="src">${esc(t.source)} · ${SHORT[t.lang]}</span><h3>${esc(t.name)}</h3><div class="tagrow">${t.tags.slice(0, 3).map((g) => `<span class="tag">${esc(g)}</span>`).join("")}</div>
+        <span class="muted">Chrono ${t.minutes} min · ${t.tests} tests</span>${pr ? `<span class="${pr.best >= 80 ? "done-badge" : "muted"}">${pr.best >= 80 ? "✓ validé" : "Meilleure note"} · ${pr.best}/100</span>` : ""}<a class="pill sm" href="#exo-${id}">Ouvrir</a></div>`;
+    }).join("");
+    view().innerHTML = `<section class="ws on">${band("Exos", tabs, bib("exos"))}<div class="wrap"><div class="sect">
+      <p class="sub">Choix libre. Ton parcours, lui, te donne les exos dans le bon ordre. Les tasks des examens restent dans les examens, pour qu'elles soient neuves le jour où tu les passes.</p>
+      <div class="grid3">${cards}</div>
+      <h2 style="font-size:26px;margin-top:40px">Pour aller plus loin, ailleurs</h2><p class="sub">Sites gratuits, à faire en plus quand le parcours est à jour.</p>
+      <div class="grid3">${CAT.links.map((l) => `<div class="ex"><span class="src">Lien externe</span><h3>${esc(l.name)}</h3><span class="muted">${esc(l.what)}</span><a class="pill sm ghost" href="${esc(l.url)}" target="_blank" rel="noopener">Ouvrir ↗</a></div>`).join("")}</div>
+      </div></div></section>`;
+    $$(".ptabs button").forEach((b) => (b.onclick = () => { exoFilter = b.dataset.f; renderExos(); }));
+  }
+  let examTab = "todo";
+  function renderExams() {
+    const list = CAT.exams;
+    const doneIds = list.filter((e) => (P.exams[e.id] || {}).hist && P.exams[e.id].hist.length);
+    const tabs = `<div class="ptabs" role="tablist"><button data-t="todo" class="${examTab === "todo" ? "on" : ""}">À faire <span class="cnt">${list.length - doneIds.length}</span></button><button data-t="done" class="${examTab === "done" ? "on" : ""}">Terminés <span class="cnt">${doneIds.length}</span></button></div>`;
+    const rows = list.filter((e) => (examTab === "done") === doneIds.includes(e)).map((e, i) => {
+      const h = (P.exams[e.id] || {}).hist || [];
+      const last = h[h.length - 1];
+      const langs = e.tasks.map((t) => SHORT[CAT.tasks[t].lang]).join(" · ");
+      const n = e.mini ? "mini" : "#" + pad(CAT.exams.filter((x) => !x.mini).indexOf(e) + 1);
+      return `<div class="row"><span class="n">${n}</span><div class="t"><b>${esc(e.title.replace("Practice Assessment · ", ""))}</b><span>${langs} · ${e.minutes} min</span></div>
+        ${last ? `<span class="chip">${last.scores.join(" · ")}</span>` : '<span class="score muted">Pas encore fait</span>'}
+        <div class="btnrow">${last ? `<a class="pill sm ghost" href="#analyse-${e.id}">Analyse</a>` : ""}<a class="pill sm ${last ? "ghost" : ""}" href="#exam-${e.id}">${attemptFor("exam", e.id) ? "Reprendre" : last ? "Recommencer" : "Start"}</a></div></div>`;
+    }).join("") || `<p class="empty">${examTab === "done" ? "Aucun examen terminé pour l'instant." : "Tu as fait tous les examens disponibles. Refais-les dans l'onglet Terminés."}</p>`;
+    view().innerHTML = `<section class="ws on">${band("Examens", tabs, bib("examens"))}<div class="wrap"><div class="sect">
+      <p class="sub">Format du vrai test : 4 tasks, 70 minutes, chaque task notée sur 100. Les premiers sont plus abordables, les suivants sont au niveau du vrai test. Les autres examens arrivent avec les prochaines mises à jour.</p>
+      <div class="list">${rows}</div></div></div></section>`;
+    $$(".ptabs button").forEach((b) => (b.onclick = () => { examTab = b.dataset.t; renderExams(); }));
+  }
+
+  /* ============================================================ analyse guidée */
+  async function renderAnalysis(eid) {
+    const e = exam(eid); if (!e) return goHash("examens");
+    const h = ((P.exams[eid] || {}).hist || []).slice(-1)[0];
+    const tasks = await Promise.all(e.tasks.map(getTask));
+    const notes = P.notes[eid] || (P.notes[eid] = {});
+    const Q = [["q1", "Quelle task t'a pris le plus de temps, et pourquoi ?"], ["q2", "Pour chaque test raté : quelle règle de la consigne as-tu mal lue ou oubliée ?"], ["q3", "Qu'est-ce que tu fais différemment au prochain examen ?"]];
+    view().innerHTML = `<section class="ws on">${band("Analyse guidée", `<p class="lead" style="padding-bottom:28px">${esc(e.title)}. 15 minutes pour transformer tes erreurs en points au prochain examen.</p>`)}
+      <div class="wrap"><div class="sect"><div class="btnrow" style="margin-bottom:18px">${minitimer("an", 900)}</div>
+      ${h ? "" : '<div class="alert" style="margin:0 0 18px">Tu n\'as pas encore terminé cet examen. Fais-le d\'abord : le corrigé reste caché jusque-là.</div>'}
+      <div class="card"><h3>1. Tes notes</h3><table class="tbl"><tr><th>Task</th><th>Note</th><th></th></tr>
+        ${tasks.map((t, i) => `<tr><td>Task ${i + 1} · ${esc(t.name)} <span class="muted">(${SHORT[t.lang]})</span></td><td class="score-chip">${h ? h.scores[i] : "-"}/100</td><td><div class="btnrow">${h ? `<button class="pill sm ghost" data-sol="${i}">Corrigé</button>` : ""}<a class="pill sm ghost" href="#exo-${t.id}">Refaire</a></div></td></tr><tr hidden id="sol${i}"><td colspan="3"></td></tr>`).join("")}</table></div>
+      <div class="card" style="margin-top:18px"><h3>2. Réponds par écrit</h3>${Q.map(([k, q]) => `<div class="field"><label for="${k}">${q}</label><textarea id="${k}" data-k="${k}">${esc(notes[k] || "")}</textarea></div>`).join("")}<span class="muted">Tes réponses sont gardées dans ce navigateur.</span></div>
+      <div class="card" style="margin-top:18px"><h3>3. Refais ce que tu as raté</h3><p class="muted" style="margin:0">Les tasks sous 80/100 reviennent seules dans tes prochaines séances (2, 5 puis 12 séances plus tard). Tu peux aussi les refaire maintenant avec le bouton Refaire.</p></div>
+      </div></div></section>`;
+    bindMinitimer("an");
+    $$("textarea[data-k]").forEach((ta) => (ta.oninput = () => { notes[ta.dataset.k] = ta.value; persist(); }));
+    $$("[data-sol]").forEach((b) => (b.onclick = () => {
+      const i = +b.dataset.sol, row = $("#sol" + i);
+      row.hidden = !row.hidden;
+      if (!row.hidden) row.firstElementChild.innerHTML = codeBlock(solutionOf(tasks[i]));
+    }));
+  }
+
+  /* ============================================================ progression */
+  let progTab = "exams";
+  function renderProgress() {
+    const ex = [];
+    CAT.exams.forEach((e) => ((P.exams[e.id] || {}).hist || []).forEach((h) => ex.push({ e, h })));
+    ex.sort((a, b) => (a.h.ts || 0) - (b.h.ts || 0));
+    const taskIds = Object.keys(P.tasks);
+    const errs = Object.entries(P.errors).sort((a, b) => b[1] - a[1]);
+    const tabs = `<div class="ptabs" role="tablist">${[["exams", "Examens", ex.length], ["exos", "Exos", taskIds.length], ["errors", "Erreurs", errs.length], ["save", "Sauvegarde", ""]].map(([k, n, c]) => `<button data-t="${k}" class="${progTab === k ? "on" : ""}">${n} ${c !== "" ? `<span class="cnt">${c}</span>` : ""}</button>`).join("")}</div>`;
+    let body = "";
+    if (progTab === "exams") {
+      if (!ex.length) body = `<p class="empty">Ta courbe apparaîtra après ton premier examen.</p>`;
+      else {
+        const pts = ex.slice(-10).map((x) => Math.round(x.h.scores.reduce((a, b) => a + b, 0) / x.h.scores.length));
+        const W = 520, H = 200, x0 = 50, x1 = 500, y = (v) => 170 - v * 1.5;
+        const xs = pts.map((_, i) => (pts.length === 1 ? (x0 + x1) / 2 : x0 + ((x1 - x0) * i) / (pts.length - 1)));
+        const line = pts.map((v, i) => (i ? "L" : "M") + xs[i].toFixed(0) + " " + y(v).toFixed(0)).join(" ");
+        body = `<div class="prog"><div class="panel"><h3>Score moyen par task (sur 100)</h3>
+          <svg class="spark" viewBox="0 0 ${W} ${H}" role="img" aria-label="Scores moyens : ${pts.join(", ")}">
+          <g stroke="var(--line)"><line x1="40" y1="20" x2="510" y2="20"/><line x1="40" y1="95" x2="510" y2="95"/><line x1="40" y1="170" x2="510" y2="170"/></g>
+          <g fill="var(--ink-soft)" font-size="11" font-family="JetBrains Mono, monospace"><text x="4" y="24">100</text><text x="12" y="99">50</text><text x="20" y="174">0</text></g>
+          <path d="${line}" fill="none" stroke="var(--mint)" stroke-width="3"/>${pts.map((v, i) => `<circle cx="${xs[i].toFixed(0)}" cy="${y(v).toFixed(0)}" r="5" fill="var(--mint)"><title>${v}</title></circle><text x="${xs[i].toFixed(0)}" y="${(y(v) - 10).toFixed(0)}" text-anchor="middle" font-size="12" font-weight="700" fill="var(--ink)">${v}</text>`).join("")}</svg></div>
+          <div class="panel"><h3>Derniers examens</h3>${ex.slice(-8).reverse().map((x) => `<div class="err"><span>${esc(x.e.title.replace("Practice Assessment · ", ""))}<br><span class="muted">${esc(x.h.at)}${x.h.restarted ? " · recommencé" : ""}</span></span><span class="score-chip">${x.h.scores.join(" · ")}</span></div>`).join("")}</div></div>`;
+      }
+    } else if (progTab === "exos") {
+      body = taskIds.length ? `<div class="card"><table class="tbl"><tr><th>Exo</th><th>Meilleure</th><th>Dernière</th><th>Essais</th><th></th></tr>${taskIds.map((id) => { const t = P.tasks[id]; return `<tr><td>${esc(TITLE[id] || id)}</td><td class="score-chip ${t.best >= 80 ? "ok-t" : ""}">${t.best}/100</td><td class="score-chip">${t.last}/100</td><td>${t.n}</td><td><a class="pill sm ghost" href="#exo-${id}">Refaire</a></td></tr>`; }).join("")}</table></div>` : `<p class="empty">Aucun exo soumis pour l'instant.</p>`;
+    } else if (progTab === "errors") {
+      body = errs.length ? `<div class="panel"><h3>Les thèmes où tu perds des points</h3><p class="muted">Compté à chaque soumission sous 80/100. Relis le réflexe du thème qui revient le plus.</p>${errs.map(([g, n]) => `<div class="err"><span>${esc(g)}</span><span class="chip ko">${n} fois</span></div>`).join("")}</div>` : `<p class="empty">Rien pour l'instant.</p>`;
+    } else {
+      body = `<div class="card"><h3>Ta progression est dans ce navigateur</h3><p class="muted">Elle reste sur cet ordinateur, dans Chrome. Exporte-la de temps en temps : si tu changes d'ordinateur ou si tu vides Chrome, tu pourras la réimporter.</p>
+        <div class="btnrow"><button class="pill sm" id="exp">Exporter (fichier .json)</button><label class="pill sm ghost" style="cursor:pointer">Importer<input type="file" id="imp" accept="application/json,.json" hidden></label><button class="pill sm ghost" id="rst">Tout remettre à zéro</button></div><p id="saveMsg" class="muted"></p></div>`;
+    }
+    view().innerHTML = `<section class="ws on">${band("Progression", tabs)}<div class="wrap"><div class="sect">${body}</div></div></section>`;
+    $$(".ptabs button").forEach((b) => (b.onclick = () => { progTab = b.dataset.t; renderProgress(); }));
+    if (progTab === "save") {
+      $("#exp").onclick = () => {
+        const blob = new Blob([JSON.stringify({ kata: P, attempt: load(LSA, null) }, null, 1)], { type: "application/json" });
+        const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "kata-lab-progression-" + today() + ".json"; a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      };
+      $("#imp").onchange = async (ev) => {
+        try {
+          const j = JSON.parse(await ev.target.files[0].text());
+          if (!j.kata || !j.kata.v) throw new Error("fichier inconnu");
+          P = Object.assign(P0(), j.kata); persist(); if (j.attempt) save(LSA, j.attempt);
+          $("#saveMsg").textContent = "✓ Progression importée.";
+        } catch (e) { $("#saveMsg").textContent = "Ce fichier ne ressemble pas à une sauvegarde Kata Lab."; }
+      };
+      $("#rst").onclick = () => { if (confirm("Effacer toute ta progression ? Exporte-la d'abord si tu veux la garder.")) { P = P0(); persist(); save(LSA, null); renderProgress(); } };
+    }
+  }
+
+  /* ============================================================ connexion */
+  function renderConnexion() {
+    const key = E.Key.get(), exp = E.Key.expiry();
+    view().innerHTML = `<section class="ws on">${band("Connexion", `<p class="lead" style="padding-bottom:28px">La clé GitHub permet au site d'allumer ton Codespace, où tourne le vrai Spark. Tu la colles une seule fois : elle reste dans ce navigateur, sur ton ordinateur.</p>`)}
+      <div class="wrap"><div class="sect" style="display:grid;gap:18px">
+      <div class="card"><h3>Ta clé</h3>
+        <div class="kv"><b>Clé enregistrée</b><span>${key ? "Oui (" + esc(key.slice(0, 11)) + "…)" : "Non"}</span><b>Expire le</b><span>${exp ? esc(exp) : "Pas indiqué"}</span><b>Compte GitHub</b><span id="who">-</span></div>
+        <div class="field"><label for="k">${key ? "Remplacer la clé" : "Colle ta clé ici"} (elle commence par <code>github_pat_</code>)</label><input id="k" type="password" autocomplete="off" placeholder="github_pat_…"></div>
+        <div class="field"><label for="kexp">Date d'expiration de la clé (affichée par GitHub quand tu la crées)</label><input id="kexp" type="date" value="${esc(exp)}" style="max-width:220px"></div>
+        <div class="btnrow"><button class="pill sm" id="ksave">Enregistrer et tester</button>${key ? '<button class="pill sm ghost" id="ktest">Tester</button><button class="pill sm ghost" id="kdel">Effacer la clé</button>' : ""}</div>
+        <p id="kmsg" class="muted"></p></div>
+      <div class="card"><h3>Ton Codespace (le vrai Spark)</h3>
+        <p class="muted" style="margin-top:0">Il s'allume tout seul quand tu ouvres un exo PySpark et s'éteint seul après 30 minutes sans utilisation. S'il a été supprimé (après 30 jours sans servir), le site le recrée : la première fois, compte environ 5 minutes.</p>
+        <div class="kv" id="csinfo"><b>État</b><span>-</span></div>
+        <div class="btnrow" style="margin-top:12px"><button class="pill sm ghost" id="csCheck">Vérifier</button><button class="pill sm ghost" id="csOn">Allumer maintenant</button><button class="pill sm ghost" id="csOff">Éteindre</button><button class="pill sm ghost" id="csNew">Recréer le Codespace</button></div>
+        <p id="csmsg" class="muted"></p></div>
+      <div class="card"><h3>Créer une nouvelle clé (5 minutes)</h3>
+        <ol class="steps-guide">
+          <li>Ouvre <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">github.com/settings/personal-access-tokens/new</a> (connecté à ton compte <b>gitabdelhub</b>).</li>
+          <li><b>Token name</b> : <code>kata-lab</code>. <b>Expiration</b> : choisis la plus longue durée proposée (ou « No expiration » si GitHub la propose).</li>
+          <li><b>Repository access</b> : <i>Only select repositories</i>, puis choisis <code>gitabdelhub/kata-lab</code>.</li>
+          <li><b>Permissions</b>, partie <i>Repositories</i> : <code>Codespaces</code> = Read and write, <code>Codespaces lifecycle admin</code> = Read and write, <code>Codespaces metadata</code> = Read-only.</li>
+          <li>Partie <i>Account</i> (si elle est proposée) : <code>Codespaces</code> = Read and write, <code>Codespaces user secrets</code> : rien.</li>
+          <li>Clique <b>Generate token</b>, copie la clé, colle-la ci-dessus avec sa date d'expiration, puis <b>Enregistrer et tester</b>.</li>
+          <li>Ne l'envoie à personne. Si tu penses qu'elle a fuité : supprime-la sur GitHub et crée-en une autre.</li>
+        </ol></div>
+      </div></div></section>`;
+    const msg = (id, t, ok) => { const el = $("#" + id); el.textContent = t; el.className = ok === true ? "ok-t" : ok === false ? "ko-t" : "muted"; };
+    const test = async () => {
+      msg("kmsg", "Test en cours…");
+      try { const u = await E.whoami(); $("#who").textContent = u.login; msg("kmsg", "✓ GitHub accepte ta clé (compte " + u.login + ").", true); renderAlerts(); return true; }
+      catch (e) { msg("kmsg", e.message, false); return false; }
+    };
+    $("#ksave").onclick = async () => {
+      const v = $("#k").value.trim();
+      if (v) E.Key.set(v);
+      E.Key.setExpiry($("#kexp").value);
+      if (!E.Key.get()) return msg("kmsg", "Colle d'abord ta clé.", false);
+      await test(); renderAlerts();
+    };
+    if ($("#ktest")) $("#ktest").onclick = test;
+    if ($("#kdel")) $("#kdel").onclick = () => { if (confirm("Effacer la clé de ce navigateur ?")) { E.Key.clear(); renderConnexion(); renderAlerts(); } };
+    const STATES = { Available: "Allumé", Shutdown: "Éteint", Starting: "En train de s'allumer", ShuttingDown: "En train de s'éteindre", Provisioning: "En création", Queued: "En file d'attente", Rebuilding: "En reconstruction", Failed: "En erreur" };
+    const check = async () => {
+      msg("csmsg", "Vérification…");
+      try {
+        const s = await E.codespaceStatus();
+        $("#csinfo").innerHTML = s.exists ? `<b>État</b><span>${esc(STATES[s.state] || s.state)}</span><b>Nom</b><span>${esc(s.name)}</span><b>Correction Spark</b><span>${s.runner ? (s.runner.ready ? "Prête (Spark " + esc(s.runner.spark) + ")" : "Spark démarre") : s.state === "Available" ? "Ne répond pas encore" : "-"}</span><b>Ouvrir</b><span><a href="${esc(s.webUrl)}" target="_blank" rel="noopener">dans VS Code (navigateur) ↗</a></span>` : `<b>État</b><span>Pas encore créé : il sera créé à ton premier exo PySpark.</span>`;
+        msg("csmsg", "");
+      } catch (e) { msg("csmsg", e.message, false); }
+    };
+    $("#csCheck").onclick = check;
+    $("#csOn").onclick = async () => { try { await E.ensureSpark((t) => msg("csmsg", t + "…")); msg("csmsg", "✓ Spark est prêt.", true); check(); } catch (e) { msg("csmsg", e.message, false); } };
+    $("#csOff").onclick = async () => { try { msg("csmsg", "Extinction…"); await E.stopCodespace(); msg("csmsg", "✓ Demande d'extinction envoyée.", true); setTimeout(check, 4000); } catch (e) { msg("csmsg", e.message, false); } };
+    $("#csNew").onclick = async () => {
+      if (!confirm("Supprimer le Codespace actuel et en créer un neuf ? (À faire seulement s'il est en erreur.)")) return;
+      try { msg("csmsg", "Suppression…"); await E.deleteCodespace(); msg("csmsg", "Création du nouveau Codespace (environ 5 minutes)…"); await E.ensureSpark((t) => msg("csmsg", t + "…")); msg("csmsg", "✓ Nouveau Codespace prêt.", true); check(); } catch (e) { msg("csmsg", e.message, false); }
+    };
+    if (key) { test(); check(); }
+  }
+
+  /* ============================================================ espace d'examen */
+  let cm = null, cmSilent = false;
+  const W = { on: false };
+  function attemptFor(mode, id) { const a = load(LSA, null); return a && a.key === mode + ":" + id && !a.finished ? a : null; }
+  function saveAttempt() {
+    if (!W.on) return;
+    save(LSA, { key: W.key, mode: W.mode, id: W.id, drafts: W.drafts, results: W.results, clock: W.clock, recorded: W.recorded, lastSub: W.lastSub, at: Date.now() });
+  }
+  let saveT = null;
+  const saveSoon = () => { clearTimeout(saveT); saveT = setTimeout(saveAttempt, 400); };
+
+  function ensureCM() {
+    if (cm) return;
+    cm = CodeMirror($("#cm"), {
+      lineNumbers: true, indentUnit: 4, tabSize: 4, indentWithTabs: false, matchBrackets: true, autoCloseBrackets: true, viewportMargin: 30,
+      extraKeys: {
+        Tab: (c) => (c.somethingSelected() ? c.indentSelection("add") : c.replaceSelection("    ", "end")),
+        "Shift-Tab": (c) => c.indentSelection("subtract"),
+        "Ctrl-Enter": () => runTests(false), "Cmd-Enter": () => runTests(false),
+      },
+    });
+    cm.on("change", () => { if (cmSilent || cm.getOption("readOnly")) return; W.drafts[W.cur] = cm.getValue(); saveSoon(); });
+  }
+  function setEditor(text, readOnly, lang) {
+    cmSilent = true;
+    cm.setOption("mode", lang === "sql" ? "text/x-pgsql" : lang === "text" ? null : "python");
+    cm.setOption("readOnly", readOnly ? "nocursor" : false);
+    cm.getWrapperElement().classList.toggle("cm-readonly", !!readOnly);
+    cm.setValue(text); cm.clearHistory();
+    cmSilent = false;
+    setTimeout(() => cm.refresh(), 0);
+  }
+
+  async function openWorkspace(mode, id, force) {
+    const key = mode + ":" + id;
+    if (W.on && W.key === key && !force) return;
+    stopClock();
+    let ids, title, minutes;
+    if (mode === "exam") {
+      const e = exam(id); if (!e) return goHash("examens");
+      ids = e.tasks; title = e.title; minutes = e.mini ? e.minutes : P.dur || 70;
+    } else {
+      if (!CAT.tasks[id]) return goHash("exos");
+      ids = [id]; title = "Exo · " + CAT.tasks[id].name; minutes = CAT.tasks[id].minutes;
+    }
+    const tasks = await Promise.all(ids.map(getTask));
+    const prev = force ? null : attemptFor(mode, id);
+    if (force) {
+      const old = load(LSA, null);
+      if (old && old.key === key && mode === "exam" && !old.recorded && old.lastSub && Object.keys(old.lastSub).length) {
+        recordExam(id, tasks.map((_, i) => old.lastSub[i] || 0), true);
+      }
+      save(LSA, null);
+    }
+    Object.assign(W, {
+      on: true, key, mode, id, tasks, title, cur: 0, side: "desc", open: {}, showDiff: false, busy: false, recorded: false,
+      drafts: prev ? prev.drafts : tasks.map((t) => t.starter),
+      results: prev ? prev.results : {},
+      clock: prev ? prev.clock : { endsAt: null, pausedLeft: null, mode: mode === "exam" ? "strict" : "train", baseMin: minutes, dur: minutes * 60000 },
+      hints: {}, fr: false,
+    });
+    W.lastSub = (prev && prev.lastSub) || {};
+    if (prev) W.recorded = !!prev.recorded;
+    ensureCM();
+    $("#asmTitle").textContent = title;
+    $("#modal").hidden = true; $("#morebox").hidden = true; $("#umpire").hidden = true;
+    $("#diff").textContent = "VIEW DIFF";
+    $$(".asm-side button").forEach((x) => x.classList.toggle("on", x.dataset.side === "desc"));
+    $("#showSol").hidden = mode !== "exo";
+    showTask(0);
+    renderClock();
+    markDay();
+    await prepare(!!(prev && (prev.clock.endsAt || prev.clock.pausedLeft != null)));
+  }
+  function closeWorkspace() { W.on = false; stopClock(); clearInterval(pingT); $("#ov").hidden = true; }
+
+  function treeHtml(t) {
+    if (!t.files) return "";
+    const root = t.files.root;
+    const paths = Object.keys(t.files.files).sort();
+    const seen = new Set(); let h = `<div class="lbl">Files</div><div class="dir">▾ ${esc(root)}/</div>`;
+    paths.forEach((p, i) => {
+      const parts = p.split("/");
+      for (let d = 1; d < parts.length; d++) {
+        const k = parts.slice(0, d).join("/");
+        if (!seen.has(k)) { seen.add(k); h += `<div class="dir in${Math.min(d, 2)}">▾ ${esc(parts[d - 1])}/</div>`; }
+      }
+      h += `<button class="in${Math.min(parts.length, 2)} ${W.fileOpen === p ? "on" : ""}" data-p="${esc(p)}">${esc(parts[parts.length - 1])}</button>`;
+    });
+    h += `<button class="${W.fileOpen === null ? "on" : ""}" data-p="">${FILE[t.lang]}</button>`;
+    return h;
+  }
+  function renderFiles() {
+    const t = W.tasks[W.cur];
+    $("#ed").classList.toggle("nofiles", !t.files);
+    if (!t.files) return;
+    const f = $("#files"); f.innerHTML = treeHtml(t);
+    $$("button", f).forEach((b) => (b.onclick = () => {
+      const p = b.dataset.p || null; W.fileOpen = p;
+      if (p) { $("#ftab").textContent = p.split("/").pop(); setEditor(t.files.files[p], true, "text"); }
+      else { $("#ftab").textContent = FILE[t.lang]; setEditor(W.drafts[W.cur], false, t.lang); }
+      renderFiles();
+    }));
+  }
+  function renderTaskTabs() {
+    const el = $("#tasks");
+    if (W.mode !== "exam") { el.innerHTML = ""; return; }
+    el.innerHTML = W.tasks.map((t, i) => { return `<button role="tab" data-q="${i}" class="${i === W.cur ? "on" : ""} ${W.lastSub[i] != null ? (W.lastSub[i] === 100 ? "full" : "part") : ""}">TASK ${i + 1}</button>`; }).join("");
+    $$("button", el).forEach((b) => (b.onclick = () => showTask(+b.dataset.q)));
+  }
+  function showTask(i) {
+    W.cur = i; W.fileOpen = null;
+    const t = W.tasks[i];
+    $("#ftab").textContent = FILE[t.lang]; $("#lang").textContent = LANG[t.lang];
+    setEditor(W.drafts[i], false, t.lang);
+    renderFiles(); renderTaskTabs(); renderPaper(); renderTests(); updScore();
+  }
+  function renderPaper() {
+    const t = W.tasks[W.cur], p = $("#paper"), exo = W.mode === "exo";
+    if (W.side === "desc") {
+      let extra = "";
+      if (exo) {
+        const hs = t.hints || [];
+        extra = `<div class="hintbox">${t.summary_fr ? '<button data-fr="1">Aide à la lecture (FR)</button>' : ""}${hs.map((_, k) => `<button data-h="${k}">Indice ${k + 1}</button>`).join("")}</div>`;
+        if (W.fr) extra += `<div class="fr"><b>En français :</b> ${esc(t.summary_fr)}</div>`;
+        const shown = W.hints[W.cur] || [];
+        shown.forEach((k) => (extra += `<div class="hinttxt"><b>Indice ${k + 1} :</b> ${esc(hs[k])}</div>`));
+      }
+      p.innerHTML = `<h2>${W.mode === "exam" ? "Task " + (W.cur + 1) + " · " : ""}${esc(t.name)}</h2>` + t.desc + extra;
+      $$("[data-h]", p).forEach((b) => (b.onclick = () => { const a = W.hints[W.cur] || (W.hints[W.cur] = []); const k = +b.dataset.h; if (!a.includes(k)) a.push(k); renderPaper(); }));
+      const fr = $("[data-fr]", p); if (fr) fr.onclick = () => { W.fr = !W.fr; renderPaper(); };
+    } else if (W.side === "info") {
+      const total = t.visible.length + t.hidden_n;
+      let strat = "";
+      if (W.mode === "exam") {
+        const plan = CAT.plan70, sum = plan.reduce((a, b) => a + b, 0), base = W.clock.baseMin;
+        const per = W.tasks.map((_, i) => Math.round((plan[i % plan.length] * (base - 3)) / sum));
+        strat = `<h4>Stratégie</h4><ol><li>Les 2 premières minutes : lis les ${W.tasks.length} tasks, sans coder.</li><li>Temps conseillé : ${per.map((m, i) => "task " + (i + 1) + " ≈ " + m + " min").join(", ")}.</li><li>Pour chaque task : une version simple qui passe quelques tests, <b>SUBMIT tout de suite</b>, puis améliore et resoumets. Jamais 0.</li><li>Bloqué plus de 10 minutes : soumets ce qui marche, passe à la suivante, reviens à la fin.</li></ol>`;
+      }
+      p.innerHTML = `<h2>${W.mode === "exam" ? "Task " + (W.cur + 1) + " · " : ""}${esc(t.name)}</h2>
+        <p>Cette task est notée sur 100. Ta note dépend uniquement des tests réussis : ${t.visible.length} tests visibles avec RUN TESTS, et ${t.hidden_n} tests cachés qui comptent seulement au SUBMIT (${total} tests au total).</p>
+        <p>Tu peux soumettre plusieurs fois : ta note est celle de ta dernière soumission.</p>${strat}
+        <h4>Ton chrono</h4><p>Il suit l'heure réelle : il ne ralentit pas si tu changes d'onglet, et il continue si tu fermes la page. ${W.clock.mode === "strict" ? "Mode strict : pas de pause, comme le vrai test." : "Mode entraînement : pause et temps en plus permis (SETTINGS)."} À 0, l'examen se termine et tes dernières soumissions sont notées.</p>
+        <h4>Raccourci</h4><p><code>Ctrl + Entrée</code> lance RUN TESTS.</p>`;
+    } else {
+      const c = W.clock;
+      p.innerHTML = `<h2>Settings</h2><h4>Mode du chrono</h4><div class="opt"><button id="sStrict" class="${c.mode === "strict" ? "on" : ""}">Strict, comme le vrai test</button><button id="sTrain" class="${c.mode === "train" ? "on" : ""}">Entraînement, pause permise</button>${c.mode === "train" ? `<button id="sPause">${c.pausedLeft == null ? "Mettre en pause" : "Reprendre"}</button><button id="sAdd5">Ajouter 5 min</button><button id="sAdd10">Ajouter 10 min</button>` : ""}</div>${c.mode === "strict" ? `<p style="font-size:14px;color:var(--as-dim)">Passe en mode entraînement pour mettre en pause ou ajouter du temps.</p>` : ""}
+        ${W.mode === "exam" && !exam(W.id).mini ? `<h4>Durée au départ</h4><div class="opt" style="grid-template-columns:repeat(3,1fr)">${[60, 70, 90].map((d) => `<button data-dur="${d}" class="${(P.dur || 70) === d ? "on" : ""}">${d} min</button>`).join("")}</div><p style="font-size:14px;color:var(--as-dim)">La durée choisie s'applique quand tu recommences.</p>` : ""}
+        ${W.mode === "exo" ? `<h4>Fiche UMPIRE</h4><div class="opt"><button id="sUmp" class="${P.ump ? "on" : ""}">${P.ump ? "Affichée avant chaque exo (conseillé)" : "Masquée"}</button></div>` : ""}
+        <h4>${W.mode === "exam" ? "Examen" : "Exo"}</h4><div class="opt"><button id="sRestart">Recommencer depuis le début</button></div>`;
+      const on = (id, f) => { const b = $("#" + id); if (b) b.onclick = f; };
+      on("sAdd5", () => addTime(5)); on("sAdd10", () => addTime(10));
+      on("sStrict", () => { setMode("strict"); renderPaper(); }); on("sTrain", () => { setMode("train"); renderPaper(); });
+      on("sPause", () => { togglePause(); renderPaper(); });
+      on("sUmp", () => { P.ump = !P.ump; persist(); renderPaper(); });
+      on("sRestart", restart);
+      $$("[data-dur]", p).forEach((b) => (b.onclick = () => { P.dur = +b.dataset.dur; persist(); renderPaper(); }));
+    }
+    p.scrollTop = 0;
+  }
+
+  /* ---- tests ---- */
+  function tbl(o, ref, diff) {
+    if (!o) return `<div class="val">-</div>`;
+    if (!("columns" in o)) return `<div class="val ${diff && ref && !E.valEq(o.value, ref.value) ? "diff" : ""}">${esc(fmtVal(o.value))}</div>`;
+    const bad = (i, j, c) => diff && ref && (!ref.rows || !ref.rows[i] || !E.valEq(c, ref.rows[i][j]));
+    const colsBad = diff && ref && ref.columns && ref.columns.join("|") !== o.columns.join("|");
+    return `<table class="gtab"><tr>${o.columns.map((c, j) => `<th class="${colsBad && ref.columns[j] !== c ? "diff" : ""}">${esc(c)}</th>`).join("")}</tr>${o.rows.map((r, i) => `<tr>${r.map((c, j) => `<td class="${bad(i, j, c) ? "diff" : ""}">${esc(fmtVal(c, "cell"))}</td>`).join("")}</tr>`).join("")}${o.rows.length ? "" : `<tr><td colspan="${o.columns.length || 1}" style="color:var(--as-dim)">(empty)</td></tr>`}</table>`;
+  }
+  function inputHtml(t, inp) {
+    if (t.lang === "sql") return Object.entries(inp.tables).map(([n, tb]) => `<h5>${esc(n)}</h5>` + tbl({ columns: tb.columns.map((c) => c[0]), rows: tb.rows })).join("");
+    return t.params.filter((p) => p !== "spark").map((p) => {
+      const v = inp[p];
+      if (v && typeof v === "object" && v.__df__) {
+        const cols = v.__df__.schema.split(/,(?![^(]*\))/).map((s) => s.trim().split(/\s+/)[0].replace(/`/g, ""));
+        return `<h5>${esc(p)}</h5>` + tbl({ columns: cols, rows: v.__df__.rows });
+      }
+      if (v && typeof v === "object" && v.__dir__) return `<h5>${esc(p)}</h5>` + Object.entries(v.__dir__).map(([f, c]) => `<div style="font:600 14px var(--f-mono);margin:8px 0 4px">${esc(p)}/${esc(f)}</div><pre class="exv">${esc(c)}</pre>`).join("");
+      return `<h5>${esc(p)}</h5><div class="val">${esc(fmtVal(v))}</div>`;
+    }).join("");
+  }
+  function verdict(r) {
+    if (!r) return ["lock", "-"];
+    if (r.pass) return ["ok", "Passed ✓"];
+    if (r.tle) return ["ko", "Execution time limit exceeded ✗"];
+    if (!r.ok) return ["ko", "Runtime error ✗"];
+    return ["ko", "Wrong answer ✗"];
+  }
+  function renderTests() {
+    const t = W.tasks[W.cur], R = W.results[W.cur], box = $("#tscroll");
+    if (W.busy) return;
+    if (!R) { box.innerHTML = `<div class="asm-status idle">Run sample tests to see output</div>`; return; }
+    if (R.error) { box.innerHTML = `<div class="asm-status bad">⚠ ${esc(R.error)}</div>${R.retry ? '<button class="btn-blue" id="retryEnv">Rallumer et relancer</button>' : ""}`; const b = $("#retryEnv"); if (b) b.onclick = async () => { await prepare(true); runTests(R.sub); }; return; }
+    const pass = R.res.filter((x) => x.pass).length, tot = R.res.length;
+    let h = `<div class="asm-status ${pass === tot ? "good" : "bad"}">${pass === tot ? "✓" : "⚠"} Tests passed: ${pass}/${tot}.${R.sub ? `<span class="sub">Submitted · score ${R.score}/100</span>` : ""}</div>`;
+    t.visible.forEach((x, i) => {
+      const r = R.res[i], k = W.cur + "-" + i;
+      if (W.open[k] == null) W.open[k] = !r.pass && !R.res.slice(0, i).some((y) => !y.pass);
+      const pane = W.open[k + "p"] || "ret";
+      const [cls, lab] = verdict(r);
+      const ret = r.ok ? `<div class="twocol"><div><h5 class="blue">Expected return value</h5>${tbl(x.expected)}</div><div><h5 class="blue">Your return value</h5>${tbl(r.output, x.expected, W.showDiff)}</div></div>`
+        : `<h5 class="blue">Expected return value</h5>${tbl(x.expected)}<h5 class="blue">Your return value</h5><div class="errbox">${esc(r.error)}</div>`;
+      h += `<div class="tcase ${W.open[k] ? "" : "closed"}"><button data-k="${k}"><span class="car">▾</span>Test ${i + 1}<span class="res ${cls}">${lab}</span></button>
+        <div class="tin"><nav><button data-p="${k}" data-v="in" class="${pane === "in" ? "on" : ""}">Input</button><button data-p="${k}" data-v="ret" class="${pane === "ret" ? "on" : ""}">Return Value</button><button data-p="${k}" data-v="con" class="${pane === "con" ? "on" : ""}">Console Output</button></nav>
+        <div class="pane">${pane === "in" ? inputHtml(t, x.input) : pane === "con" ? `<div class="val">${r.stdout ? esc(r.stdout) : "Empty"}</div>` : ret}</div></div></div>`;
+    });
+    if (R.sub) {
+      R.res.slice(t.visible.length).forEach((r, j) => {
+        const [cls, lab] = verdict(r);
+        h += `<div class="tcase closed hiddenT"><button disabled><span class="car">▾</span>Test ${t.visible.length + j + 1} <span style="font-weight:500;color:var(--as-dim);font-size:15px">· hidden</span><span class="res ${cls}">${lab}</span></button></div>`;
+      });
+    }
+    box.innerHTML = h;
+    $$("[data-k]", box).forEach((b) => (b.onclick = () => { W.open[b.dataset.k] = !W.open[b.dataset.k]; renderTests(); }));
+    $$("[data-p]", box).forEach((b) => (b.onclick = () => { W.open[b.dataset.p + "p"] = b.dataset.v; renderTests(); }));
+  }
+  function updScore() { $("#scoreb").textContent = taskScore(W.cur) + "/100"; }
+  const slim = (r) => ({ pass: r.pass, ok: r.ok, tle: !!r.tle, error: r.error, stdout: r.stdout, output: r.output });
+
+  async function runTests(submit) {
+    if (!W.on || W.busy) return;
+    if (W.clock.endsAt && left() <= 0) return;
+    const ti = W.cur, t = W.tasks[ti];
+    const code = W.drafts[ti];
+    const tests = submit ? t.visible.concat(hiddenOf(t)) : t.visible;
+    W.busy = true;
+    $("#run").disabled = true; $("#submit").disabled = true;
+    $("#tscroll").innerHTML = `<div class="asm-status idle">${submit ? "Submitting… hidden tests running" : "Running tests…"}</div>`;
+    let R;
+    try {
+      const res = await E.runTests(t, code, tests);
+      const passed = res.filter((x) => x.pass).length;
+      R = { sub: submit, res: res.map(slim), score: Math.round((100 * passed) / tests.length) };
+    } catch (e) {
+      R = { sub: false, error: e.message, retry: ["lost", "warming", "nokey", "port", "spark"].includes(e.code) && t.lang === "pyspark" };
+      if (e.code === "nokey" || e.code === "badkey") R.error += " Va dans Connexion (bouton ? en bas).";
+    }
+    W.busy = false;
+    $("#run").disabled = false; $("#submit").disabled = false;
+    if (!W.on) return;
+    W.results[ti] = R;
+    if (submit && !R.error) {
+      W.lastSub[ti] = R.score;
+      if (W.mode === "exo") {
+        recordTask(t.id, R.score);
+        if (R.score < 80) recordErrors(t.tags);
+        $("#showSol").hidden = false;
+      }
+    }
+    if (W.cur === ti) { renderTests(); updScore(); }
+    renderTaskTabs();
+    saveAttempt();
+  }
+  function taskScore(i) { return W.lastSub[i] || 0; }
+
+  /* ---- chrono réel (heure de l'appareil) ---- */
+  let tick = null;
+  const left = () => { const c = W.clock; return c.pausedLeft != null ? c.pausedLeft : c.endsAt ? c.endsAt - Date.now() : c.dur; };
+  function fmtLeft(ms) { ms = Math.max(0, ms); if (ms >= 10 * 60000) return Math.ceil(ms / 60000) + "m left"; const t = Math.ceil(ms / 1000); return Math.floor(t / 60) + "m " + pad(t % 60) + "s left"; }
+  function renderClock() {
+    if (!W.on) return;
+    const l = left(), c = W.clock;
+    $("#time").textContent = (c.pausedLeft != null ? "Paused · " : "") + fmtLeft(l);
+    $("#timer").classList.toggle("low", l < 5 * 60000);
+    $("#timer").classList.toggle("paused", c.pausedLeft != null);
+    if (c.endsAt && c.pausedLeft == null && l <= 0) { stopClock(); finishScreen(true); }
+  }
+  function startClock(fresh) {
+    const c = W.clock;
+    if (fresh || (!c.endsAt && c.pausedLeft == null)) { c.endsAt = Date.now() + c.dur; c.pausedLeft = null; }
+    clearInterval(tick); tick = setInterval(renderClock, 250); renderClock(); saveAttempt();
+  }
+  function stopClock() { clearInterval(tick); tick = null; }
+  function addTime(min) { const c = W.clock; if (c.mode !== "train") return; if (c.pausedLeft != null) c.pausedLeft += min * 60000; else if (c.endsAt) c.endsAt += min * 60000; renderClock(); saveAttempt(); }
+  function setMode(m) { const c = W.clock; c.mode = m; if (m === "strict" && c.pausedLeft != null) { c.endsAt = Date.now() + c.pausedLeft; c.pausedLeft = null; } renderClock(); saveAttempt(); }
+  function togglePause() { const c = W.clock; if (c.mode !== "train" || !c.endsAt) return; if (c.pausedLeft == null) c.pausedLeft = c.endsAt - Date.now(); else { c.endsAt = Date.now() + c.pausedLeft; c.pausedLeft = null; } renderClock(); saveAttempt(); }
+
+  /* ---- préparation de l'environnement ---- */
+  let pingT = null;
+  async function prepare(resume) {
+    const langs = new Set(W.tasks.map((t) => t.lang));
+    const steps = [];
+    if (langs.has("pyspark")) steps.push(["spark", "Allumage de ton Codespace et de Spark"]);
+    if (langs.has("sql")) steps.push(["sql", "Démarrage de PostgreSQL"]);
+    if (langs.has("python")) steps.push(["python", "Démarrage de Python"]);
+    steps.push(["load", W.mode === "exam" ? "Chargement de l'examen" : "Chargement de l'exo"]);
+    const ov = $("#ov"); ov.hidden = false;
+    $("#ovt").textContent = "Préparation de l'environnement";
+    $("#ovsub").textContent = resume ? "Ton chrono continue : il suit l'heure réelle." : "Le chrono démarre quand tout est prêt.";
+    $("#ovextra").innerHTML = "";
+    const state = {};
+    const draw = (sub) => {
+      $("#steps").innerHTML = steps.map(([k, n]) => `<div class="${state[k] === "done" ? "done" : state[k] === "cur" ? "cur" : ""}"><span class="dot"></span>${esc(n)}${state[k] === "cur" && k === "spark" && sub ? ` <span class="muted">· ${esc(sub)}</span>` : ""}</div>`).join("");
+      $("#bar").style.width = Math.round((100 * steps.filter(([k]) => state[k] === "done").length) / steps.length) + "%";
+    };
+    draw();
+    const jobs = [];
+    let sparkErr = null;
+    if (langs.has("pyspark")) {
+      state.spark = "cur";
+      jobs.push(E.ensureSpark((txt) => draw(txt)).then(() => { state.spark = "done"; draw(); }).catch((e) => { sparkErr = e; state.spark = "err"; draw(); }));
+    }
+    for (const l of ["sql", "python"]) if (langs.has(l)) { state[l] = "cur"; jobs.push(E.warm(l).then(() => { state[l] = "done"; draw(); }).catch(() => { state[l] = "done"; draw(); })); }
+    draw();
+    await Promise.all(jobs);
+    if (!W.on) return;
+    state.load = "done"; draw();
+    if (sparkErr) {
+      const e = sparkErr;
+      const conn = ["nokey", "badkey", "perm"].includes(e.code);
+      $("#ovt").textContent = "PySpark n'est pas prêt";
+      $("#ovextra").innerHTML = `<p class="err">${esc(e.message)}</p>${e.code === "port" ? '<p class="muted" style="margin:0">Ouvre le Codespace une fois dans un nouvel onglet (il se connecte en 30 secondes), puis reviens ici et clique Réessayer.</p>' : ""}
+        <div class="btnrow"><button class="pill sm" id="ovRetry">Réessayer</button>${e.webUrl || (e.cs && e.cs.web_url) ? `<a class="pill sm ghost" target="_blank" rel="noopener" href="${esc(e.webUrl || e.cs.web_url)}">Ouvrir le Codespace ↗</a>` : ""}${conn ? '<a class="pill sm ghost" href="#connexion">Connexion</a>' : ""}<button class="pill sm ghost" id="ovGo">Commencer quand même</button></div>
+        <p class="muted" style="margin:0;font-size:13px">« Commencer quand même » : tu peux lire et écrire, mais les tests PySpark ne tourneront qu'une fois Spark prêt.</p>`;
+      $("#ovRetry").onclick = () => prepare(resume);
+      $("#ovGo").onclick = () => { ov.hidden = true; afterPrepare(resume); };
+      return;
+    }
+    setTimeout(() => { if (!W.on) return; ov.hidden = true; afterPrepare(resume); }, 300);
+  }
+  function afterPrepare(resume) {
+    clearInterval(pingT);
+    if (W.tasks.some((t) => t.lang === "pyspark")) pingT = setInterval(E.ping, 90000);
+    if (resume) { startClock(false); return; }
+    if (W.mode === "exo" && P.ump && phaseUmp()) showUmpire(); else startClock(true);
+  }
+  const phaseUmp = () => true;
+  function showUmpire() {
+    const u = $("#umpire"); u.hidden = false;
+    const t = W.tasks[0];
+    u.innerHTML = `<div class="box"><div class="top"><h3>Avant de coder : UMPIRE, 2 min</h3>${minitimer("ump", 120)}</div>
+      <p class="muted" style="margin:0">Lis l'énoncé à gauche, puis réponds en quelques mots. Ton chrono démarre quand tu cliques « Je commence ».</p>
+      ${[["U", "Understand", "Entrée exacte, sortie exacte (colonnes, tri) ?"], ["M", "Match", "Quel réflexe ? (when, groupBy, Window, fichiers…)"], ["P", "Plan", "Les étapes, dans l'ordre"], ["E", "Evaluate", "Cas limites : null, vide, égalité, bornes"]].map(([k, n, ph]) => `<div class="row"><b>${k} · ${n}</b><textarea placeholder="${ph}"></textarea></div>`).join("")}
+      <p class="muted" style="margin:0;font-size:13px">Implement et Review, c'est pendant et après le code : relis la consigne avant SUBMIT.</p>
+      <div class="btnrow" style="justify-content:flex-end"><button class="btn-blue" id="umpGo">Je commence</button></div></div>`;
+    bindMinitimer("ump");
+    $("#umpB").click();
+    $("#umpGo").onclick = () => { u.hidden = true; clearTimers(); startClock(true); cm.focus(); };
+  }
+
+  /* ---- fin ---- */
+  function recordExam(eid, scores, restarted) {
+    const e = P.exams[eid] || (P.exams[eid] = { hist: [] });
+    e.hist.push({ at: today(), ts: Date.now(), scores, strict: W.clock && W.clock.mode === "strict", min: W.clock && W.clock.baseMin, restarted: !!restarted, mini: !!exam(eid).mini });
+    e.hist = e.hist.slice(-30);
+    persist();
+  }
+  function finishScreen(timeUp) {
+    const m = $("#modal"), b = $("#mbox");
+    if (!timeUp && W.clock.endsAt && left() > 0) {
+      b.className = "box";
+      b.innerHTML = `<h3>${W.mode === "exam" ? "Finish test?" : "Terminer l'exo ?"}</h3><p style="margin:0;color:var(--as-dim)">Il te reste ${fmtLeft(left())}. ${W.mode === "exam" ? "Les tasks non soumises comptent 0." : "Ta note est celle de ta dernière soumission."}</p><div class="row2"><button id="mNo">Continuer</button><button class="primary" id="mYes">${W.mode === "exam" ? "Finish test" : "Terminer"}</button></div>`;
+      m.hidden = false; $("#mNo").onclick = () => (m.hidden = true); $("#mYes").onclick = () => finishScreen(true);
+      return;
+    }
+    stopClock();
+    const scores = W.tasks.map((_, i) => taskScore(i));
+    if (!W.recorded) {
+      W.recorded = true;
+      if (W.mode === "exam") {
+        recordExam(W.id, scores);
+        W.tasks.forEach((t, i) => { if (scores[i] < 80) { recordTask(t.id, scores[i]); recordErrors(t.tags); } else recordTask(t.id, scores[i]); });
+      } else if (W.lastSub[0] == null) {
+        recordTask(W.tasks[0].id, 0);
+      }
+    }
+    save(LSA, null);
+    const hash = (W.mode === "exam" ? "exam-" : "exo-") + W.id;
+    const insess = P.cur && (inSessionStep(hash) || isMiniOfStep(W.id));
+    const outOfTime = W.clock.endsAt && left() <= 0;
+    b.className = "box";
+    b.innerHTML = `<h3>${outOfTime ? "Time is up" : "Résultat"}</h3>${W.tasks.map((t, i) => `<div class="r"><span>${W.mode === "exam" ? "Task " + (i + 1) + " · " : ""}${esc(t.name)}</span><b>${scores[i]}/100</b></div>`).join("")}
+      <p style="margin:0;color:var(--as-dim);font-size:14px">${W.mode === "exam" ? "L'analyse guidée te montre le corrigé de chaque task et t'aide à comprendre tes erreurs." : scores[0] >= 80 ? "Validé (80 ou plus). Il reviendra quand même plus tard pour l'ancrer." : "Sous 80 : cet exo reviendra dans 2 séances. Regarde le corrigé, puis refais-le demain de mémoire."}</p>
+      <div class="row2"><button id="mBack">Retour au site</button><button id="mAgain">Recommencer</button>${W.mode === "exo" ? '<button id="mSol">Voir le corrigé</button>' : `<button ${insess ? "" : 'class="primary"'} id="mAna">Analyse guidée</button>`}${insess ? `<button class="primary" id="mNext">${isMiniOfStep(W.id) ? "Retour à la leçon" : esc(nextLabel())}</button>` : ""}</div>`;
+    m.hidden = false;
+    $("#mBack").onclick = () => { m.hidden = true; closeWorkspace(); goHash(P.cur ? "accueil" : W.mode === "exo" ? "exos" : "examens"); };
+    $("#mAgain").onclick = () => { m.hidden = true; restart(true); };
+    if ($("#mSol")) $("#mSol").onclick = () => showSolution();
+    if ($("#mAna")) $("#mAna").onclick = () => { m.hidden = true; closeWorkspace(); goHash("analyse-" + W.id); };
+    if ($("#mNext")) $("#mNext").onclick = () => { m.hidden = true; closeWorkspace(); if (isMiniOfStep(W.id)) goHash("reflexe-" + findSession(P.cur.id).steps[P.cur.step].reflex); else sessNext(); };
+  }
+  function isMiniOfStep(tid) {
+    if (!P.cur) return false;
+    const st = findSession(P.cur.id).steps[P.cur.step];
+    return st.type === "learn" && reflex(st.reflex).mini === tid;
+  }
+  function showSolution() {
+    const t = W.tasks[W.cur], m = $("#modal"), b = $("#mbox");
+    const sub = Object.keys(W.lastSub).length > 0;
+    if (!sub && W.clock.endsAt && left() > 0 && !confirm("Tu n'as pas encore soumis. Regarder le corrigé maintenant ? (Conseil : soumets d'abord, même incomplet.)")) return;
+    b.className = "box wide";
+    b.innerHTML = `<h3>Corrigé · ${esc(t.name)}</h3>${codeBlock(solutionOf(t))}<p style="margin:0;color:var(--as-dim);font-size:14px">Ne le recopie pas : ferme-le et réécris la solution de mémoire, puis SUBMIT.</p><div class="row2"><button class="primary" id="mClose">Fermer</button></div>`;
+    m.hidden = false; $("#mClose").onclick = () => { m.hidden = true; if (!W.clock.endsAt || left() <= 0) finishScreen(true); };
+  }
+  function restart(noConfirm) {
+    if (!noConfirm && !confirm("Recommencer depuis le début ? Ton code actuel sera remis à zéro. Tes notes passées restent dans ta Progression.")) return;
+    if (W.mode === "exam" && !W.recorded && Object.keys(W.lastSub).length) { recordExam(W.id, W.tasks.map((_, i) => taskScore(i)), true); W.recorded = true; }
+    const mode = W.mode, id = W.id;
+    save(LSA, null); W.on = false;
+    openWorkspace(mode, id, true);
+  }
+
+  /* ---- boutons fixes de l'espace d'examen ---- */
+  function bindWorkspace() {
+    $$(".asm-side button").forEach((b) => (b.onclick = () => { W.side = b.dataset.side; $$(".asm-side button").forEach((x) => x.classList.toggle("on", x === b)); renderPaper(); }));
+    $("#run").onclick = () => runTests(false);
+    $("#submit").onclick = () => runTests(true);
+    $("#diff").onclick = () => { W.showDiff = !W.showDiff; $("#diff").textContent = W.showDiff ? "HIDE DIFF" : "VIEW DIFF"; renderTests(); };
+    $("#moreBtn").onclick = () => { const d = $("#morebox"); d.hidden = !d.hidden; $("#moreBtn").setAttribute("aria-expanded", String(!d.hidden)); };
+    $("#restart").onclick = () => { $("#morebox").hidden = true; restart(); };
+    $("#finish").onclick = () => { $("#morebox").hidden = true; finishScreen(false); };
+    $("#showSol").onclick = () => { $("#morebox").hidden = true; showSolution(); };
+    $("#leave").onclick = () => {
+      saveAttempt();
+      const running = W.clock.endsAt && left() > 0;
+      if (running && !confirm("Quitter l'espace ? Ton code est gardé et le chrono continue (il suit l'heure réelle). Tu pourras reprendre.")) return;
+      closeWorkspace();
+      goHash(P.cur ? "accueil" : W.mode === "exo" ? "exos" : "examens");
+    };
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") $("#morebox").hidden = true; });
+    window.addEventListener("beforeunload", saveAttempt);
+  }
+
+  /* ============================================================ barre de séance + routage */
+  function renderSessbar(asm) {
+    const bar = $("#sessbar");
+    bar.hidden = !P.cur || asm;
+    if (!P.cur) return;
+    const s = findSession(P.cur.id);
+    $("#sdots").innerHTML = s.steps.map((_, i) => `<i class="${i <= P.cur.step ? "on" : ""}"></i>`).join("");
+    $("#stxt").textContent = "Séance " + (s.si + 1) + " · Étape " + (P.cur.step + 1) + " sur " + s.steps.length + " : " + s.steps[P.cur.step].title;
+    const here = inSessionStep((location.hash || "#").slice(1));
+    $("#snext").textContent = here ? nextLabel() : "Revenir à l'étape " + (P.cur.step + 1);
+    $("#snext").onclick = () => (here ? sessNext() : goHash(stepHash(s.steps[P.cur.step])));
+  }
+  function route() {
+    clearTimers();
+    let h = (location.hash || "#accueil").slice(1);
+    let m;
+    const asm = /^(exam|exo)-/.test(h);
+    $("#v-examen").classList.toggle("on", asm);
+    document.body.classList.toggle("in-asm", asm);
+    const nv = /^(exos|examens|apprendre|reflexe-)/.test(h) ? "bib" : h === "progression" ? "progression" : h === "connexion" ? "connexion" : "accueil";
+    $$("[data-nav]").forEach((a) => a.classList.toggle("on", a.dataset.nav === nv));
+    $("#streakN").textContent = streak() + (streak() > 1 ? " jours" : " jour");
+    renderSessbar(asm);
+    renderAlerts();
+    if (!asm && W.on) closeWorkspace();
+    if (!asm) window.scrollTo(0, 0);
+    if ((m = h.match(/^exam-(\w+)$/))) return openWorkspace("exam", m[1]);
+    if ((m = h.match(/^exo-(\w+)$/))) return openWorkspace("exo", m[1]);
+    if ((m = h.match(/^reflexe-(\w+)$/))) return renderLesson(m[1]);
+    if ((m = h.match(/^analyse-(\w+)$/))) return renderAnalysis(m[1]);
+    if (h === "seance") return startSession();
+    if (h === "revision") return renderRevision();
+    if (h === "exos") return renderExos();
+    if (h === "examens") return renderExams();
+    if (h === "apprendre") return renderReflexes();
+    if (h === "progression") return renderProgress();
+    if (h === "connexion") return renderConnexion();
+    renderHome();
+  }
+
+  async function init() {
+    try {
+      CAT = await (await fetch("content/catalog.json", { cache: "no-cache" })).json();
+    } catch (e) {
+      view().innerHTML = `<div class="wrap"><p class="alert ko">Le site n'a pas pu charger ses exercices. Vérifie ta connexion puis recharge la page.</p></div>`;
+      return;
+    }
+    TITLE = Object.fromEntries(Object.entries(CAT.tasks).map(([k, v]) => [k, v.name]));
+    seedMethodCards(); persist();
+    bindWorkspace();
+    $("#navStart").onclick = (e) => { e.preventDefault(); startSession(); };
+    window.addEventListener("hashchange", route);
+    route();
+  }
+  init();
+})();

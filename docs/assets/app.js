@@ -15,7 +15,7 @@
   const LS = "kata.v1", LSA = "kata.attempt";
   const load = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (_) { return d; } };
   const save = (k, v) => { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); } catch (_) {} };
-  const P0 = () => ({ v: 1, done: {}, sessCount: 0, cur: null, cards: {}, tasks: {}, exams: {}, review: [], errors: {}, notes: {}, days: [], ump: true, dur: 70 });
+  const P0 = () => ({ v: 1, done: {}, sessCount: 0, cur: null, cards: {}, tasks: {}, exams: {}, review: [], errors: {}, notes: {}, days: [], ump: true, dur: 70, live: [] });
   let P = Object.assign(P0(), load(LS, {}));
   const persist = () => save(LS, P);
 
@@ -928,6 +928,132 @@
     $("#snext").textContent = here ? nextLabel() : "Revenir à l'étape " + (P.cur.step + 1);
     $("#snext").onclick = () => (here ? sessNext() : goHash(stepHash(s.steps[P.cur.step])));
   }
+  /* ============================================================ live coding */
+  const LSL = "kata.live";
+  const REC = { mr: null, chunks: [], url: null, name: "", stream: null, t0: 0 };
+  function liveQ(id) { return ((CAT.live || {}).questions || []).find((q) => q.id === id); }
+  function liveHist(id) { return (P.live || []).filter((h) => h.id === id); }
+  function recBox() {
+    const on = REC.mr && REC.mr.state === "recording";
+    const can = !!(navigator.mediaDevices && window.MediaRecorder);
+    return `<div class="card lv-rec"><div class="lv-rec-row"><b>${on ? '<span class="lv-dot"></span>Enregistrement en cours' : "Enregistre ta voix"}</b>
+      ${can ? `<button class="pill sm ${on ? "ghost" : ""}" id="lvRec">${on ? "Arrêter l'enregistrement" : "Démarrer l'enregistrement"}</button>` : `<span class="muted">Ton navigateur ne permet pas l'enregistrement ici : utilise le dictaphone de ton téléphone.</span>`}</div>
+      <p class="muted" style="margin:8px 0 0;font-size:14px">L'audio reste sur ton appareil, rien n'est envoyé. Réécoute-le après : on entend tout de suite les silences et les phrases floues.</p>
+      ${REC.url && !on ? `<audio controls src="${REC.url}" style="width:100%;margin-top:12px"></audio><a class="pill sm ghost" style="margin-top:10px" download="${REC.name}" href="${REC.url}">Télécharger l'audio</a>` : ""}</div>`;
+  }
+  async function toggleRec(redraw) {
+    if (REC.mr && REC.mr.state === "recording") { REC.mr.stop(); return; }
+    try {
+      REC.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (e) { alert("Micro refusé ou indisponible. Autorise le micro pour ce site, ou enregistre-toi avec ton téléphone."); return; }
+    REC.chunks = []; REC.mr = new MediaRecorder(REC.stream);
+    REC.mr.ondataavailable = (e) => { if (e.data.size) REC.chunks.push(e.data); };
+    REC.mr.onstop = () => {
+      if (REC.url) URL.revokeObjectURL(REC.url);
+      const type = REC.mr.mimeType || "audio/webm";
+      REC.url = URL.createObjectURL(new Blob(REC.chunks, { type }));
+      REC.name = "live-coding-" + today() + (type.includes("mp4") ? ".m4a" : ".webm");
+      REC.stream.getTracks().forEach((t) => t.stop());
+      redraw();
+    };
+    REC.mr.start(1000); redraw();
+  }
+  function renderLiveList() {
+    const L = CAT.live;
+    if (!L) return goHash("accueil");
+    const hist = (P.live || []).slice().reverse();
+    view().innerHTML = `<section class="ws on">${band("Live coding", `<p class="lead" style="padding-bottom:28px">Après le test en ligne viennent l'entretien RH, le live coding, puis l'entretien final. Ici tu t'entraînes au live : une consigne dite à l'oral, tu clarifies, tu annonces ton plan, tu codes en parlant, puis tu réponds aux relances. Une fois par semaine, 40 min, et tu t'enregistres.</p>`)}
+      <div class="wrap"><div class="sect">${flash ? `<p class="sc-done" style="margin:0 0 16px">✓ ${esc(flash)}</p>` : ""}
+        <div class="card" style="margin-bottom:20px"><h3 style="margin-bottom:10px">Comment ça se passe</h3>
+          <ol class="lv-how">${L.phases.map((p) => `<li><b>${esc(p.title)} · ${p.min} min.</b> ${esc(p.say)}</li>`).join("")}</ol>
+          <div class="btnrow" style="margin-top:14px"><button class="pill" id="lvRand">Tirer une question au hasard</button><span class="muted">La consigne est en anglais, comme en entretien. Réponds en anglais si tu peux, sinon en français.</span></div></div>
+        <div class="grid3">${L.questions.map((q) => {
+          const h = liveHist(q.id), last = h[h.length - 1];
+          return `<div class="ex"><span class="src">${esc(q.lang)}</span><h3>${esc(q.title)}</h3><span class="muted">${esc(q.prompt.slice(0, 120))}${q.prompt.length > 120 ? "…" : ""}</span>${last ? `<span class="done-badge">✓ fait ${h.length} fois · dernière grille ${last.score}/${L.rubric.length}</span>` : ""}<a class="pill sm" href="#live-${q.id}">Commencer</a></div>`;
+        }).join("")}</div>
+        ${hist.length ? `<div class="card" style="margin-top:20px"><h3 style="margin-bottom:10px">Tes lives</h3><table class="tbl"><tr><th>Date</th><th>Question</th><th>Grille</th><th>À améliorer</th></tr>${hist.slice(0, 20).map((h) => `<tr><td>${esc(h.at)}</td><td>${esc((liveQ(h.id) || {}).title || h.id)}</td><td>${h.score}/${L.rubric.length}</td><td>${esc(h.note || "")}</td></tr>`).join("")}</table></div>` : ""}
+      </div></div></section>`;
+    flash = "";
+    $("#lvRand").onclick = () => {
+      const qs = L.questions, n = (q) => liveHist(q.id).length, min = Math.min(...qs.map(n));
+      const pool = qs.filter((q) => n(q) === min);
+      goHash("live-" + pool[Math.floor(Math.random() * pool.length)].id);
+    };
+  }
+  function renderLive(id) {
+    const L = CAT.live, q = L && liveQ(id);
+    if (!q) return goHash("live");
+    let run = load(LSL, null);
+    if (!run || run.id !== id) { run = { id, phase: 0, ends: Date.now() + L.phases[0].min * 60000, t0: Date.now(), fu: 0, shown: {} }; save(LSL, run); }
+    const task = CAT.tasks[q.task] || {};
+    const draw = () => {
+      clearTimers();
+      const end = run.phase >= L.phases.length;
+      const ph = L.phases[Math.min(run.phase, L.phases.length - 1)];
+      const steps = L.phases.map((p, i) => `<span class="lv-step ${i < run.phase ? "done" : i === run.phase ? "on" : ""}">${i + 1}. ${esc(p.title)} <small>${p.min} min</small></span>`).join("") + `<span class="lv-step ${end ? "on" : ""}">Bilan</span>`;
+      const quote = `<blockquote class="lv-quote"><span class="lbl">L'intervieweur</span>${esc(q.prompt)}</blockquote>`;
+      let body = "";
+      if (end) {
+        body = `<h3>Bilan : coche ce qui est vrai, honnêtement</h3><div class="lv-rubric">${L.rubric.map((r, i) => `<label><input type="checkbox" data-r="${i}"> ${esc(r)}</label>`).join("")}</div>
+          <label class="field" style="margin-top:12px"><span>La chose que je ferai mieux au prochain live</span><textarea id="lvNote" rows="2" placeholder="Ex. : annoncer la complexité avant de coder"></textarea></label>
+          <div class="btnrow" style="margin-top:12px"><button class="pill" id="lvSave">Enregistrer mon bilan</button></div>`;
+      } else if (ph.id === "clarify") {
+        body = quote + `<p class="muted">Ne lis pas encore l'énoncé complet. Pose tes questions à voix haute, comme si l'intervieweur était en face.</p>
+          <button class="pill sm ghost" id="lvShowQ">${run.shown.clarify ? "Masquer" : "Voir"} les questions qu'un bon candidat pose</button>
+          ${run.shown.clarify ? `<ul class="lv-qa">${q.clarify.map(([a, b]) => `<li><b>${esc(a)}</b><br><span class="muted">${esc(b)}</span></li>`).join("")}</ul>` : ""}`;
+      } else if (ph.id === "plan") {
+        body = quote + `<ul class="lv-check"><li><b>U</b>nderstand : reformule en une phrase.</li><li><b>M</b>atch : quel pattern (fenêtre, tas, pile, BFS, îlots, jointure as-of…) ?</li><li><b>P</b>lan : les étapes, dans l'ordre, à voix haute.</li><li>Annonce la complexité en temps et en mémoire.</li><li>Demande « Est-ce que ce plan vous va ? » avant de coder.</li></ul>`;
+      } else if (ph.id === "code") {
+        body = quote + `<p>Code dans l'éditeur avec les vrais tests. Il s'ouvre dans un nouvel onglet : garde cet onglet pour le chrono et l'enregistrement.</p>
+          <div class="btnrow"><a class="pill" href="#exo-${q.task}" target="_blank" rel="noopener">Ouvrir l'éditeur : ${esc(task.name || q.task)}</a></div>
+          <p class="muted" style="margin-top:10px">Parle en codant : « je groupe par…, je trie par… parce que… ». Un silence de plus de 30 secondes, c'est le signal pour dire où tu en es.</p>`;
+      } else if (ph.id === "test") {
+        body = quote + `<ul class="lv-check"><li>Déroule ton code à la main sur l'exemple, ligne par ligne.</li><li>Un cas vide ou nul : que renvoie ton code ?</li><li>Un cas d'égalité ou de doublon : quel départage ?</li><li>Lance les tests seulement maintenant, et commente chaque échec à voix haute.</li></ul>`;
+      } else {
+        const f = q.followups, k = Math.min(run.fu, f.length - 1);
+        body = `<p class="muted">Relance ${k + 1} sur ${f.length}. Réponds à voix haute avant de regarder les points clés.</p>
+          <blockquote class="lv-quote"><span class="lbl">L'intervieweur</span>${esc(f[k][0])}</blockquote>
+          ${run.shown["f" + k] ? `<div class="reveal">${esc(f[k][1])}</div>` : `<button class="pill sm ghost" id="lvShowF">Voir les points clés d'une bonne réponse</button>`}
+          ${k < f.length - 1 ? `<div class="btnrow" style="margin-top:12px"><button class="pill sm" id="lvNextF">Relance suivante</button></div>` : ""}`;
+      }
+      view().innerHTML = `<section class="ws on">${band("Live · " + esc(q.title), `<p class="lead" style="padding-bottom:28px">${esc(q.lang)} · 40 min · tout à voix haute</p>`, `<div class="biblinks"><a href="#live">‹ Toutes les questions</a></div>`)}
+        <div class="wrap"><div class="sect">
+          <div class="lv-steps">${steps}</div>
+          <div class="lv-grid"><div class="card">
+            ${end ? "" : `<div class="lv-head"><div><span class="eyebrow">Phase ${run.phase + 1} sur ${L.phases.length}</span><h2 style="margin:4px 0 6px">${esc(ph.title)}</h2><p class="muted" style="margin:0">${esc(ph.say)}</p></div><div class="lv-clock" id="lvClock">--:--</div></div>`}
+            <div class="lv-body">${body}</div>
+            <div class="btnrow" style="margin-top:20px">${run.phase > 0 ? `<button class="pill sm ghost" id="lvPrev">Phase précédente</button>` : ""}${end ? "" : `<button class="pill sm" id="lvNext">${run.phase === L.phases.length - 1 ? "Terminer et faire mon bilan" : "Phase suivante : " + esc(L.phases[run.phase + 1].title)}</button>`}<button class="pill sm ghost" id="lvReset">Recommencer</button></div>
+          </div><div>${recBox()}<div class="card" style="margin-top:16px"><span class="muted" style="font-size:14px">Temps total</span><div class="lv-total" id="lvTotal">0 min</div></div></div></div>
+        </div></div></section>`;
+      const tick = () => {
+        const c = $("#lvClock"); if (c) {
+          const left = Math.round((run.ends - Date.now()) / 1000), a = Math.abs(left);
+          c.textContent = (left < 0 ? "+" : "") + pad(Math.floor(a / 60)) + ":" + pad(a % 60);
+          c.classList.toggle("over", left < 0);
+        }
+        const t = $("#lvTotal"); if (t) t.textContent = Math.floor((Date.now() - run.t0) / 60000) + " min";
+      };
+      tick(); const iv = setInterval(tick, 1000); timers.push(() => clearInterval(iv));
+      const go = (i) => { run.phase = i; run.ends = Date.now() + (L.phases[i] ? L.phases[i].min * 60000 : 0); save(LSL, run); draw(); };
+      const on = (s, f) => { const e = $(s); if (e) e.onclick = f; };
+      on("#lvNext", () => go(run.phase + 1));
+      on("#lvPrev", () => go(run.phase - 1));
+      on("#lvReset", () => { if (confirm("Recommencer ce live depuis le début ?")) { run = { id, phase: 0, ends: Date.now() + L.phases[0].min * 60000, t0: Date.now(), fu: 0, shown: {} }; save(LSL, run); draw(); } });
+      on("#lvShowQ", () => { run.shown.clarify = !run.shown.clarify; save(LSL, run); draw(); });
+      on("#lvShowF", () => { run.shown["f" + Math.min(run.fu, q.followups.length - 1)] = true; save(LSL, run); draw(); });
+      on("#lvNextF", () => { run.fu++; save(LSL, run); draw(); });
+      on("#lvRec", () => toggleRec(draw));
+      on("#lvSave", () => {
+        const score = $$("[data-r]").filter((x) => x.checked).length;
+        (P.live = P.live || []).push({ at: today(), id, score, note: ($("#lvNote").value || "").trim().slice(0, 200), min: Math.round((Date.now() - run.t0) / 60000) });
+        markDay(); persist(); save(LSL, null);
+        flash = "Live enregistré. Réécoute ton audio aujourd'hui, et note une phrase que tu dirais autrement.";
+        goHash("live");
+      });
+    };
+    draw();
+  }
+
   function route() {
     clearTimers();
     let h = (location.hash || "#accueil").slice(1);
@@ -935,7 +1061,7 @@
     const asm = /^(exam|exo)-/.test(h);
     $("#v-examen").classList.toggle("on", asm);
     document.body.classList.toggle("in-asm", asm);
-    const nv = /^(exos|examens|apprendre|reflexe-)/.test(h) ? "bib" : h === "progression" ? "progression" : h === "connexion" ? "connexion" : "accueil";
+    const nv = /^(exos|examens|apprendre|reflexe-)/.test(h) ? "bib" : /^live/.test(h) ? "live" : h === "progression" ? "progression" : h === "connexion" ? "connexion" : "accueil";
     $$("[data-nav]").forEach((a) => a.classList.toggle("on", a.dataset.nav === nv));
     $("#streakN").textContent = streak() + (streak() > 1 ? " jours" : " jour");
     renderSessbar(asm);
@@ -953,6 +1079,8 @@
     if (h === "apprendre") return renderReflexes();
     if (h === "progression") return renderProgress();
     if (h === "connexion") return renderConnexion();
+    if ((m = h.match(/^live-(\w+)$/))) return renderLive(m[1]);
+    if (h === "live") return renderLiveList();
     renderHome();
   }
 

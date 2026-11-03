@@ -423,3 +423,31 @@ pre.code{background:var(--code-bg);border:1px solid var(--line);border-radius:10
 }
 button.unit{font:inherit;text-align:left;color:inherit;cursor:pointer}
 button.unit:hover{border-color:var(--mint)}
+/* live coding */
+.lv-how{margin:0;padding-left:20px;display:grid;gap:6px}
+.lv-steps{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.lv-step{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-size:14px;color:var(--ink-soft)}
+.lv-step small{opacity:.7}
+.lv-step.done{color:var(--ok);border-color:var(--ok)}
+.lv-step.on{background:var(--mint);border-color:var(--mint);color:#fff;font-weight:700}
+.lv-grid{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:16px;align-items:start}
+@media (max-width:860px){.lv-grid{grid-template-columns:1fr}}
+.lv-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:16px}
+.lv-clock{font-family:var(--f-mono);font-size:34px;font-weight:700;background:var(--mint-soft);border-radius:12px;padding:8px 14px;white-space:nowrap}
+.lv-clock.over{background:#fff4e0;color:var(--warn)}
+.lv-total{font-family:var(--f-display);font-weight:800;font-size:26px}
+.lv-quote{margin:0 0 14px;background:var(--bg2);border-left:4px solid var(--mint);border-radius:10px;padding:14px 16px;font-size:17px;line-height:1.5}
+.lv-quote .lbl{display:block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);margin-bottom:6px}
+.lv-qa,.lv-check{margin:12px 0 0;padding-left:20px;display:grid;gap:10px}
+.lv-rubric{display:grid;gap:10px;margin-top:10px}
+.lv-rubric label{display:flex;gap:10px;align-items:flex-start;cursor:pointer}
+.lv-rubric input{width:18px;height:18px;margin-top:3px;flex:none}
+.lv-rec-row{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.lv-dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--ko);margin-right:8px;animation:lvp 1s infinite}
+@keyframes lvp{50%{opacity:.3}}
+.field textarea{width:100%;font:inherit;border:1px solid var(--line);border-radius:10px;padding:10px}
+.links a{padding:12px 12px;font-size:16px;gap:8px}.links a svg{width:20px;height:20px}
+@media (max-width:1100px){.links a{padding:10px 9px;font-size:15px}}
+@media (max-width:1240px){.links a svg{display:none}}
+@media (max-width:900px){.links a{padding:10px 10px;font-size:15px}}
+@media (max-width:1000px){.streak{display:none}.links a{padding:10px 8px}}

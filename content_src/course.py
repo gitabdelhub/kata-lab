@@ -179,11 +179,40 @@ SESSIONS_P1.append({"id": "p1s9", "title": "Mini-examen", "steps": [
     {"type": "analysis", "exam": "e00", "title": "Analyse guidée", "sub": "Comprendre tes erreurs, 10 min", "min": 10},
 ]})
 
+# ---------------- Phase 2 : tasks au format examen, indices qui s'effacent ----------------
+# 6 semaines x 3 séances : A = PySpark (fichiers), B = SQL + Python (banques), C = examen complet (week-end)
+P2_SPARK = ["p2x1", "p2x2", "p2x3", "p2x4", "p2x5", "p2x6"]
+P2_SQL = ["bs03", "bs05", "bs04", "bs01", "bs07", "bs06"]
+P2_PY = ["bp08", "bp01", "bp02", "bp05", "bp07", "bp03"]
+P2_EXAMS = ["e04", "e05", "e06", "e07", "e08", "e09"]
+REVIEW = {"type": "review", "title": "Révision éclair", "sub": "Cartes et exos ratés, de mémoire", "min": 5}
+
+
+def _hints(w):
+    return None if w < 2 else 1 if w < 4 else 0
+
+
+SESSIONS_P2 = []
+for w in range(6):
+    h = _hints(w)
+    lab = "tous les indices" if h is None else "1 indice" if h == 1 else "sans indice"
+    SESSIONS_P2.append({"id": f"p2s{3 * w + 1}", "title": f"Semaine {w + 1} · PySpark fichiers", "steps": [
+        dict(REVIEW),
+        {"type": "exo", "task": P2_SPARK[w], "hints": h, "title": "Task PySpark chronométrée", "sub": "Format examen, " + lab, "min": 22}]})
+    SESSIONS_P2.append({"id": f"p2s{3 * w + 2}", "title": f"Semaine {w + 1} · SQL et Python", "steps": [
+        dict(REVIEW),
+        {"type": "exo", "task": P2_SQL[w], "hints": h, "title": "Task SQL chronométrée", "sub": "Banque Beyond-LeetCode-SQL, " + lab, "min": 13},
+        {"type": "exo", "task": P2_PY[w], "hints": h, "title": "Task Python chronométrée", "sub": "Banque exercism, " + lab, "min": 12}]})
+    SESSIONS_P2.append({"id": f"p2s{3 * w + 3}", "title": f"Semaine {w + 1} · Examen complet", "steps": [
+        dict(REVIEW),
+        {"type": "exam", "exam": P2_EXAMS[w], "title": "Examen complet chronométré", "sub": "4 tasks, au niveau du vrai test", "min": 70},
+        {"type": "analysis", "exam": P2_EXAMS[w], "title": "Analyse guidée", "sub": "Comprendre tes erreurs, 15 min", "min": 15}]})
+
 PHASES = [
     {"id": "p1", "name": "Phase 1 · Réflexes", "dates": "15 au 31 janvier · 3 séances de 30 min par semaine", "opens": "2027-01-15",
      "note": "Un geste par séance : exemple guidé, mini-exo de mémoire, puis un exo chronométré.", "sessions": SESSIONS_P1},
     {"id": "p2", "name": "Phase 2 · Tasks guidées sous chrono", "dates": "1er février au 15 mars · 3 × 30 min par semaine, pendant ton PFE", "opens": "2027-02-01",
-     "note": "Une task au format de l'examen par séance, PySpark, SQL et Python mélangés, avec des indices qui disparaissent peu à peu.", "sessions": []},
+     "note": "Une task au format de l'examen par séance, PySpark, SQL et Python mélangés, avec des indices qui disparaissent peu à peu.", "sessions": SESSIONS_P2},
     {"id": "p3", "name": "Phase 3 · Examens complets", "dates": "16 mars au 30 avril · 1 examen de 70 min par semaine", "opens": "2027-03-16",
      "note": "Un examen complet en mode strict, puis une analyse guidée et une séance pour refaire tes tests ratés.", "sessions": []},
 ]
@@ -193,6 +222,12 @@ EXAMS = [
     {"id": "e01", "title": "Practice Assessment · Ride Hailing Ops", "minutes": 70, "tasks": ["e01t1", "e01t2", "e01t3", "e01t4"]},
     {"id": "e02", "title": "Practice Assessment · Warehouse Files", "minutes": 70, "tasks": ["e02t1", "e02t2", "e02t3", "e02t4"]},
     {"id": "e03", "title": "Practice Assessment · Clinic Appointments", "minutes": 70, "tasks": ["e03t1", "e03t2", "e03t3", "e03t4"]},
+    {"id": "e04", "title": "Practice Assessment · Food Delivery Ops", "minutes": 70, "tasks": ["e04t1", "e04t2", "e04t3", "e04t4"]},
+    {"id": "e05", "title": "Practice Assessment · Payments Reconciliation", "minutes": 70, "tasks": ["e05t1", "e05t2", "e05t3", "e05t4"]},
+    {"id": "e06", "title": "Practice Assessment · Service Logs", "minutes": 70, "tasks": ["e06t1", "e06t2", "e06t3", "e06t4"]},
+    {"id": "e07", "title": "Practice Assessment · Energy Meters", "minutes": 70, "tasks": ["e07t1", "e07t2", "e07t3", "e07t4"]},
+    {"id": "e08", "title": "Practice Assessment · Marketplace Catalog", "minutes": 70, "tasks": ["e08t1", "e08t2", "e08t3", "e08t4"]},
+    {"id": "e09", "title": "Practice Assessment · Airline Operations", "minutes": 70, "tasks": ["e09t1", "e09t2", "e09t3", "e09t4"]},
 ]
 
 # Temps conseillé par task (stratégie d'examen), en minutes, pour 70 min
@@ -210,10 +245,14 @@ def write(out, index):
     for ex in EXAMS:
         for t in ex["tasks"]:
             assert t in index, f"task manquante : {t}"
-    for s in SESSIONS_P1:
-        for st in s["steps"]:
-            if st.get("task"):
-                assert st["task"] in index, st["task"]
+    exams = {e["id"] for e in EXAMS}
+    for ph in PHASES:
+        for s in ph["sessions"]:
+            for st in s["steps"]:
+                if st.get("task"):
+                    assert st["task"] in index, st["task"]
+                if st.get("exam"):
+                    assert st["exam"] in exams, st["exam"]
     exam_tasks = {t for e in EXAMS for t in e["tasks"]}
     cat = {
         "version": 1,

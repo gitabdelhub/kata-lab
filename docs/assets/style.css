@@ -421,3 +421,5 @@ pre.code{background:var(--code-bg);border:1px solid var(--line);border-radius:10
   nav.top .pill#navStart{margin-left:auto}
   .alert{margin-left:16px;margin-right:16px}
 }
+button.unit{font:inherit;text-align:left;color:inherit;cursor:pointer}
+button.unit:hover{border-color:var(--mint)}

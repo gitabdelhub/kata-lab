@@ -47,7 +47,8 @@
 
   /* ============================================================ parcours */
   function phaseDone(p) { return p.sessions.length > 0 && p.sessions.every((s) => P.done[s.id]); }
-  function phaseOpen(i) { if (i === 0) return true; return phaseDone(CAT.phases[i - 1]) || today() >= CAT.phases[i].opens; }
+  // Tout est ouvert : le parcours conseille un ordre mais ne bloque rien (demande d'AB).
+  function phaseOpen() { return true; }
   function findSession(id) {
     for (let i = 0; i < CAT.phases.length; i++) {
       const j = CAT.phases[i].sessions.findIndex((s) => s.id === id);
@@ -205,9 +206,9 @@
         <ol class="steps3">${steps}</ol>
         <button class="pill big" id="startSess">${P.cur ? "Reprendre l'étape " + (P.cur.step + 1) : "Commencer la séance"}</button></div>`;
     } else {
-      left = `<span class="eyebrow">Phase 1 terminée</span><h1 class="ptitle" style="margin-bottom:14px">Bravo AB, la phase 1 est faite.</h1>
-        <p class="lead">${esc(frDate())}. La phase 2 arrive avec la prochaine mise à jour du site. En attendant, refais un examen complet dans la Bibliothèque, ou les exos que tu as ratés.</p>`;
-      card = `<div class="sesscard"><div class="sc-head"><b>En attendant la phase 2</b></div><p class="muted" style="margin:0">1 examen complet par semaine, en mode strict, puis l'analyse guidée.</p><a class="pill big" href="#examens">Choisir un examen</a></div>`;
+      left = `<span class="eyebrow">Parcours terminé</span><h1 class="ptitle" style="margin-bottom:14px">Bravo AB, tout le parcours est fait.</h1>
+        <p class="lead">${esc(frDate())}. Continue avec 1 examen complet par semaine en mode strict, et refais les exos que tu as ratés.</p>`;
+      card = `<div class="sesscard"><div class="sc-head"><b>Pour rester prêt</b></div><p class="muted" style="margin:0">1 examen complet par semaine, en mode strict, puis l'analyse guidée.</p><a class="pill big" href="#examens">Choisir un examen</a></div>`;
     }
     flash = "";
     const phases = CAT.phases.map((p, i) => {
@@ -217,11 +218,11 @@
       if (p.sessions.length) {
         units = `<div class="units">` + p.sessions.map((x, j) => {
           const isNow = s && s.id === x.id;
-          const st = P.done[x.id] ? "done" : isNow ? "now" : "lock";
-          return `<div class="unit ${st}"><span class="u-st">${st === "done" ? "✓" : st === "now" ? "●" : "🔒"}</span><b>${esc(x.title)}</b><span>${isNow ? "Aujourd'hui" : "Séance " + (j + 1)}</span></div>`;
+          const st = P.done[x.id] ? "done" : isNow ? "now" : "todo";
+          return `<button class="unit ${st}" data-sess="${x.id}"><span class="u-st">${st === "done" ? "✓" : st === "now" ? "●" : "○"}</span><b>${esc(x.title)}</b><span>${isNow ? "Conseillée" : "Séance " + (j + 1)}</span></button>`;
         }).join("") + `</div>`;
       }
-      const prog = n ? `<span class="ph-prog">${done} / ${n}</span>` : `<span class="ph-prog">${open ? "" : "🔒"}</span>`;
+      const prog = n ? `<span class="ph-prog">${done} / ${n}</span>` : `<span class="ph-prog"></span>`;
       const note = !n && open ? p.note + " Elle arrive avec la prochaine mise à jour du site." : p.note;
       return `<div class="phase ${cur ? "cur" : open && n ? "" : "lock"}"><div class="ph-head"><span class="ph-dot"></span><div><b>${esc(p.name)}</b><span>${esc(p.dates)}</span></div>${prog}</div>
         ${n ? `<div class="ph-track"><i style="width:${Math.round((100 * done) / n)}%"></i></div>` : ""}${units || `<p class="ph-note">${esc(note)}</p>`}</div>`;
@@ -232,11 +233,17 @@
       <div class="wrap"><div class="sect">
         ${rv ? `<div class="alert" style="margin:0 0 18px">${rv} exo${rv > 1 ? "s" : ""} raté${rv > 1 ? "s" : ""} à refaire : ils sont dans la révision éclair de ta prochaine séance.</div>` : ""}
         <h2>Ton parcours jusqu'au jour J</h2>
-        <p class="sub">Tu avances séance par séance, jamais bloqué par la date : une phase s'ouvre quand la précédente est finie, ou quand sa date arrive. Les exos ratés reviennent seuls 2, 5 puis 12 séances plus tard.</p>
+        <p class="sub">Tout est ouvert : clique sur n'importe quelle séance pour la faire maintenant. La séance conseillée est mise en avant, les dates ne sont que des repères. Les exos ratés reviennent seuls 2, 5 puis 12 séances plus tard.</p>
         <div class="phases">${phases}
           <div class="phase goal"><div class="ph-head"><span class="ph-dot"></span><div><b>Fin avril · Tu repostules</b><span>Avec des examens complets passés au chrono (${nb} pour l'instant)</span></div><span class="ph-prog">🎯</span></div></div>
         </div></div></div></section>`;
     const b = $("#startSess"); if (b) b.onclick = startSession;
+    $$("[data-sess]").forEach((u) => (u.onclick = () => {
+      const id = u.dataset.sess;
+      if (P.cur && P.cur.id === id) return startSession();
+      if (P.cur && P.cur.step > 0 && !confirm("Tu as une séance en cours. Passer à celle-ci ? Tu pourras reprendre l'autre plus tard.")) return;
+      P.cur = { id, step: 0 }; persist(); startSession();
+    }));
   }
   let TITLE = {};
 
@@ -539,8 +546,12 @@
       drafts: prev ? prev.drafts : tasks.map((t) => t.starter),
       results: prev ? prev.results : {},
       clock: prev ? prev.clock : { endsAt: null, pausedLeft: null, mode: mode === "exam" ? "strict" : "train", baseMin: minutes, dur: minutes * 60000 },
-      hints: {}, fr: false,
+      hints: {}, fr: false, maxHints: null,
     });
+    if (mode === "exo" && P.cur) {
+      const cs = findSession(P.cur.id), st = cs && cs.steps[P.cur.step];
+      if (st && st.type === "exo" && st.task === id && st.hints != null) W.maxHints = st.hints;
+    }
     W.lastSub = (prev && prev.lastSub) || {};
     if (prev) W.recorded = !!prev.recorded;
     ensureCM();
@@ -602,8 +613,10 @@
     if (W.side === "desc") {
       let extra = "";
       if (exo) {
-        const hs = t.hints || [];
-        extra = `<div class="hintbox">${t.summary_fr ? '<button data-fr="1">Aide à la lecture (FR)</button>' : ""}${hs.map((_, k) => `<button data-h="${k}">Indice ${k + 1}</button>`).join("")}</div>`;
+        const all = t.hints || [], lim = W.maxHints == null ? all.length : W.maxHints;
+        const hs = all.slice(0, lim), fr = t.summary_fr && lim > 0;
+        extra = `<div class="hintbox">${fr ? '<button data-fr="1">Aide à la lecture (FR)</button>' : ""}${hs.map((_, k) => `<button data-h="${k}">Indice ${k + 1}</button>`).join("")}</div>`;
+        if (W.maxHints != null && lim < all.length) extra += `<p class="muted" style="margin:6px 0 0">${lim === 0 ? "Pas d'indice dans cette séance : tu t'entraînes comme le jour J." : "Les indices s'effacent : " + lim + " indice dans cette séance."} Tu les retrouveras en refaisant l'exo depuis la Bibliothèque.</p>`;
         if (W.fr) extra += `<div class="fr"><b>En français :</b> ${esc(t.summary_fr)}</div>`;
         const shown = W.hints[W.cur] || [];
         shown.forEach((k) => (extra += `<div class="hinttxt"><b>Indice ${k + 1} :</b> ${esc(hs[k])}</div>`));

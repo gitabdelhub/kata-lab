@@ -1,5 +1,272 @@
 [
 {
+"id": "bp01",
+"name": "Balanced Brackets",
+"lang": "python",
+"tags": [
+"pile (stack)",
+"dict",
+"cas limites"
+],
+"minutes": 12,
+"source": "exercism/problem-specifications (MIT) · matching-brackets",
+"tests": 26
+},
+{
+"id": "bp02",
+"name": "Run-Length Encoding",
+"lang": "python",
+"tags": [
+"parcours de chaîne",
+"compteur",
+"dernier groupe"
+],
+"minutes": 12,
+"source": "exercism/problem-specifications (MIT) · run-length-encoding",
+"tests": 11
+},
+{
+"id": "bp03",
+"name": "Transpose Text Columns",
+"lang": "python",
+"tags": [
+"grille",
+"lignes de longueurs différentes",
+"colonnes verticales"
+],
+"minutes": 15,
+"source": "exercism/problem-specifications (MIT) · transpose",
+"tests": 17
+},
+{
+"id": "bp04",
+"name": "Square Code",
+"lang": "python",
+"tags": [
+"nettoyage",
+"grille",
+"lire en colonnes",
+"math.ceil"
+],
+"minutes": 15,
+"source": "exercism/problem-specifications (MIT) · crypto-square",
+"tests": 13
+},
+{
+"id": "bp05",
+"name": "Sensor Grid Counts",
+"lang": "python",
+"tags": [
+"grille",
+"8 voisins",
+"bornes"
+],
+"minutes": 15,
+"source": "exercism/problem-specifications (MIT) · flower-field",
+"tests": 18
+},
+{
+"id": "bp06",
+"name": "Spiral Shelf Numbering",
+"lang": "python",
+"tags": [
+"grille",
+"directions",
+"simulation"
+],
+"minutes": 15,
+"source": "exercism/problem-specifications (MIT) · spiral-matrix",
+"tests": 10
+},
+{
+"id": "bp07",
+"name": "League Standings Report",
+"lang": "python",
+"tags": [
+"dict d'agrégats",
+"tri multi-clés",
+"formatage f-string"
+],
+"minutes": 20,
+"source": "exercism/problem-specifications (MIT) · tournament",
+"tests": 17
+},
+{
+"id": "bp08",
+"name": "Invert the Score Mapping",
+"lang": "python",
+"tags": [
+"dict",
+"inverser une table",
+"minuscules"
+],
+"minutes": 8,
+"source": "exercism/problem-specifications (MIT) · etl",
+"tests": 7
+},
+{
+"id": "bp09",
+"name": "Mini grep over Log Files",
+"lang": "python",
+"tags": [
+"fichiers",
+"options",
+"ordre de sortie",
+"lecture de consigne longue"
+],
+"minutes": 20,
+"source": "exercism/problem-specifications (MIT) · grep",
+"tests": 30
+},
+{
+"id": "bp10",
+"name": "Zigzag Rails",
+"lang": "python",
+"tags": [
+"grille en zigzag",
+"indices",
+"encoder et décoder"
+],
+"minutes": 20,
+"source": "exercism/problem-specifications (MIT) · rail-fence-cipher",
+"tests": 12
+},
+{
+"id": "bs01",
+"name": "Advertiser Daily Status",
+"lang": "sql",
+"tags": [
+"FULL JOIN",
+"CASE WHEN",
+"nouveaux utilisateurs"
+],
+"minutes": 15,
+"source": "shawlu95/Beyond-LeetCode-SQL (MIT) · Advertiser Status",
+"tests": 8
+},
+{
+"id": "bs02",
+"name": "Lifetime Listening Counts",
+"lang": "sql",
+"tags": [
+"agrégat puis jointure",
+"FULL JOIN",
+"COALESCE",
+"filtre sur le dernier jour"
+],
+"minutes": 15,
+"source": "shawlu95/Beyond-LeetCode-SQL (MIT) · Listening History",
+"tests": 8
+},
+{
+"id": "bs03",
+"name": "Monthly Active Users",
+"lang": "sql",
+"tags": [
+"filtre de dates",
+"GROUP BY",
+"dépendance fonctionnelle"
+],
+"minutes": 12,
+"source": "shawlu95/Beyond-LeetCode-SQL (MIT) · Monthly Active User",
+"tests": 8
+},
+{
+"id": "bs04",
+"name": "Quarterly Expense Pivot",
+"lang": "sql",
+"tags": [
+"pivot",
+"SUM(CASE WHEN)",
+"COALESCE",
+"0 si absent"
+],
+"minutes": 15,
+"source": "shawlu95/Beyond-LeetCode-SQL (MIT) · Pivoting Numeric Data",
+"tests": 8
+},
+{
+"id": "bs05",
+"name": "Credit Limit Bands",
+"lang": "sql",
+"tags": [
+"classes (bins)",
+"CASE WHEN",
+"bornes décimales",
+"LEFT JOIN pour les classes vides"
+],
+"minutes": 12,
+"source": "shawlu95/Beyond-LeetCode-SQL (MIT) · Group by Bins",
+"tests": 8
+},
+{
+"id": "bs06",
+"name": "Three-Day Login Streaks",
+"lang": "sql",
+"tags": [
+"gaps and islands",
+"DISTINCT avant fenêtre",
+"date - ROW_NUMBER"
+],
+"minutes": 15,
+"source": "shawlu95/Beyond-LeetCode-SQL (MIT) · Consecutive Active Users",
+"tests": 8
+},
+{
+"id": "bs07",
+"name": "Zero-Result Search Rate",
+"lang": "sql",
+"tags": [
+"moyenne pondérée",
+"NULL dans les agrégats",
+"NULLIF",
+"ROUND"
+],
+"minutes": 15,
+"source": "shawlu95/Beyond-LeetCode-SQL (MIT) · Invalid Search",
+"tests": 8
+},
+{
+"id": "bs08",
+"name": "Second-Day Confirmations",
+"lang": "sql",
+"tags": [
+"dates relatives",
+"LOWER pour comparer",
+"EXISTS / NOT EXISTS"
+],
+"minutes": 15,
+"source": "shawlu95/Beyond-LeetCode-SQL (MIT) · Text Confirmation",
+"tests": 8
+},
+{
+"id": "bs09",
+"name": "Daily Cancellation Rate",
+"lang": "sql",
+"tags": [
+"double jointure",
+"filtre bannis",
+"division entière",
+"ROUND"
+],
+"minutes": 18,
+"source": "shawlu95/Beyond-LeetCode-SQL (MIT) · Trips and Users (LeetCode 262)",
+"tests": 8
+},
+{
+"id": "bs10",
+"name": "Crowded Gate Streaks",
+"lang": "sql",
+"tags": [
+"gaps and islands",
+"id consécutifs",
+"COUNT OVER (PARTITION BY groupe)"
+],
+"minutes": 18,
+"source": "shawlu95/Beyond-LeetCode-SQL (MIT) · Human Traffic of Stadium (LeetCode 601)",
+"tests": 9
+},
+{
 "id": "e00t1",
 "name": "Late Deliveries per Courier",
 "lang": "pyspark",
@@ -197,6 +464,343 @@
 "deux tas"
 ],
 "minutes": 25,
+"source": "Kata Lab",
+"tests": 12
+},
+{
+"id": "e04t1",
+"name": "Courier Delivery Logs",
+"lang": "pyspark",
+"tags": [
+"lire un dossier",
+"parser du texte",
+"pivot pickup/dropoff",
+"lignes invalides"
+],
+"minutes": 20,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "e04t2",
+"name": "Top Rated Restaurants per City",
+"lang": "pyspark",
+"tags": [
+"dédoublonnage",
+"seuil HAVING",
+"dense_rank",
+"égalités"
+],
+"minutes": 18,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "e04t3",
+"name": "Monthly Cohort Retention",
+"lang": "sql",
+"tags": [
+"cohorte",
+"date_trunc",
+"LEFT JOIN",
+"division entière",
+"statut annulé"
+],
+"minutes": 15,
+"source": "Kata Lab",
+"tests": 9
+},
+{
+"id": "e04t4",
+"name": "Courier Shift Hours",
+"lang": "python",
+"tags": [
+"fusion d'intervalles",
+"tri",
+"parsing HH:MM",
+"passage de minuit"
+],
+"minutes": 20,
+"source": "Kata Lab",
+"tests": 11
+},
+{
+"id": "e05t1",
+"name": "Bank Statement Files",
+"lang": "pyspark",
+"tags": [
+"deux formats de fichiers",
+"séparateur ;",
+"virgule décimale",
+"dates dd/MM/yyyy"
+],
+"minutes": 20,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "e05t2",
+"name": "Payment Reconciliation",
+"lang": "pyspark",
+"tags": [
+"left join",
+"clé normalisée",
+"tolérance",
+"statut CASE"
+],
+"minutes": 20,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "e05t3",
+"name": "First Overdraft per Account",
+"lang": "sql",
+"tags": [
+"somme cumulée",
+"SUM OVER ORDER BY",
+"départage par id",
+"première occurrence"
+],
+"minutes": 15,
+"source": "Kata Lab",
+"tests": 9
+},
+{
+"id": "e05t4",
+"name": "Card Velocity Alerts",
+"lang": "python",
+"tags": [
+"fenêtre glissante",
+"deux pointeurs",
+"tri par carte",
+"bornes incluses"
+],
+"minutes": 22,
+"source": "Kata Lab",
+"tests": 11
+},
+{
+"id": "e06t1",
+"name": "Service Log Health",
+"lang": "pyspark",
+"tags": [
+"dossiers imbriqués",
+"regexp_extract",
+"date_trunc heure",
+"moyenne avec NULL"
+],
+"minutes": 20,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "e06t2",
+"name": "Daily Checkout Funnel",
+"lang": "pyspark",
+"tags": [
+"entonnoir",
+"ordre des étapes",
+"min par étape",
+"comptage distinct"
+],
+"minutes": 20,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "e06t3",
+"name": "Slowest Endpoints p90",
+"lang": "sql",
+"tags": [
+"PERCENTILE_CONT",
+"HAVING",
+"FILTER",
+"ROUND numeric"
+],
+"minutes": 15,
+"source": "Kata Lab",
+"tests": 9
+},
+{
+"id": "e06t4",
+"name": "Cache Simulator",
+"lang": "python",
+"tags": [
+"LRU",
+"OrderedDict",
+"simulation",
+"lecture de consigne"
+],
+"minutes": 22,
+"source": "Kata Lab",
+"tests": 11
+},
+{
+"id": "e07t1",
+"name": "Fixed-Width Meter Files",
+"lang": "pyspark",
+"tags": [
+"largeur fixe",
+"substring",
+"en-tête et fin de fichier",
+"rejeter un fichier entier"
+],
+"minutes": 22,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "e07t2",
+"name": "Consumption from Counters",
+"lang": "pyspark",
+"tags": [
+"lag",
+"remise à zéro du compteur",
+"doublons",
+"agrégat par jour"
+],
+"minutes": 20,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "e07t3",
+"name": "Tiered Electricity Bills",
+"lang": "sql",
+"tags": [
+"jointure sur intervalle",
+"LEAST / GREATEST",
+"tranches",
+"LEFT JOIN client sans conso"
+],
+"minutes": 18,
+"source": "Kata Lab",
+"tests": 9
+},
+{
+"id": "e07t4",
+"name": "Meter Display Reader",
+"lang": "python",
+"tags": [
+"grille 3x3",
+"découper en blocs",
+"dictionnaire de motifs",
+"consigne longue"
+],
+"minutes": 22,
+"source": "Kata Lab",
+"tests": 11
+},
+{
+"id": "e08t1",
+"name": "Catalog JSON Exports",
+"lang": "pyspark",
+"tags": [
+"JSON multi-lignes",
+"multiLine",
+"explode",
+"valeur par défaut du parent"
+],
+"minutes": 22,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "e08t2",
+"name": "Price History Versions",
+"lang": "pyspark",
+"tags": [
+"SCD type 2",
+"gaps and islands",
+"lag + somme cumulée",
+"lead pour valid_to"
+],
+"minutes": 22,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "e08t3",
+"name": "Frequently Bought Together",
+"lang": "sql",
+"tags": [
+"auto-jointure",
+"paires a < b",
+"DISTINCT avant de compter",
+"HAVING"
+],
+"minutes": 15,
+"source": "Kata Lab",
+"tests": 9
+},
+{
+"id": "e08t4",
+"name": "Pipeline Run Order",
+"lang": "python",
+"tags": [
+"graphe",
+"tri topologique (Kahn)",
+"heapq pour l'ordre",
+"détection de cycle"
+],
+"minutes": 22,
+"source": "Kata Lab",
+"tests": 11
+},
+{
+"id": "e09t1",
+"name": "Airport Departure Boards",
+"lang": "pyspark",
+"tags": [
+"CSV avec guillemets",
+"virgules dans les champs",
+"retard en minutes",
+"annulations"
+],
+"minutes": 22,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "e09t2",
+"name": "Valid Flight Connections",
+"lang": "pyspark",
+"tags": [
+"auto-jointure",
+"condition sur le temps",
+"alias",
+"exclure les annulés"
+],
+"minutes": 20,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "e09t3",
+"name": "Worst Routes On-Time Rate",
+"lang": "sql",
+"tags": [
+"FILTER",
+"HAVING",
+"RANK",
+"route = paire ordonnée"
+],
+"minutes": 15,
+"source": "Kata Lab",
+"tests": 9
+},
+{
+"id": "e09t4",
+"name": "Fewest Connections Route",
+"lang": "python",
+"tags": [
+"graphe",
+"BFS",
+"plus court chemin",
+"ordre alphabétique"
+],
+"minutes": 22,
 "source": "Kata Lab",
 "tests": 12
 },
@@ -410,5 +1014,89 @@
 "minutes": 20,
 "source": "Kata Lab",
 "tests": 9
+},
+{
+"id": "p2x1",
+"name": "Scanned Notebook Pages",
+"lang": "pyspark",
+"tags": [
+"lire un dossier",
+"ordre des lignes",
+"grille verticale",
+"droite à gauche"
+],
+"minutes": 22,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "p2x2",
+"name": "Schema Drift Across Exports",
+"lang": "pyspark",
+"tags": [
+"lire un dossier",
+"unionByName(allowMissingColumns)",
+"renommer des colonnes",
+"dates de fichier"
+],
+"minutes": 22,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "p2x3",
+"name": "Latest Customer Record",
+"lang": "pyspark",
+"tags": [
+"dossiers par date",
+"row_number",
+"départage",
+"suppression logique"
+],
+"minutes": 22,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "p2x4",
+"name": "Nested Order Payloads",
+"lang": "pyspark",
+"tags": [
+"JSON lines",
+"schéma explicite",
+"explode_outer",
+"champs imbriqués"
+],
+"minutes": 22,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "p2x5",
+"name": "Price at Order Time",
+"lang": "pyspark",
+"tags": [
+"jointure as-of",
+"jointure avec inégalité",
+"row_number",
+"left join"
+],
+"minutes": 22,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "p2x6",
+"name": "Weekly Channel Pivot",
+"lang": "pyspark",
+"tags": [
+"groupBy().pivot()",
+"liste de valeurs fixée",
+"fillna",
+"semaine ISO"
+],
+"minutes": 20,
+"source": "Kata Lab",
+"tests": 8
 }
 ]

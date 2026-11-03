@@ -278,6 +278,8 @@ def load_task(path):
         "tags": getattr(m, "TAGS", []), "minutes": getattr(m, "MINUTES", 20),
         "source": getattr(m, "SOURCE", "Kata Lab"), "visible_n": getattr(m, "VISIBLE", 2),
         "tests_in": m.tests(), "mutants": getattr(m, "MUTANTS", []), "io": getattr(m, "IO", []),
+        # Vérifications en plus pour les banques : réponses officielles et solutions indépendantes
+        "bank": m.expected() if hasattr(m, "expected") else None, "alts": getattr(m, "ALT", []),
     }
     return t
 
@@ -291,6 +293,22 @@ def build_task(t):
             raise SystemExit(f"[{t['id']}] la solution plante sur le test {i + 1}:\n{traceback.format_exc()}")
         tests.append({"input": inp, "expected": exp})
     problems = []
+    if t["bank"] is not None:
+        assert len(t["bank"]) == len(tests), f"[{t['id']}] expected() et tests() n'ont pas la même longueur"
+        nb = 0
+        for i, (x, want) in enumerate(zip(tests, t["bank"])):
+            if want is None:
+                continue
+            nb += 1
+            if not out_eq(x["expected"], {"value": want}, True):
+                problems.append(f"test {i + 1} : la solution donne {x['expected']} mais la banque attend {want!r}")
+        t["bank_n"] = nb
+    for k, alt in enumerate(t["alts"]):
+        for i, x in enumerate(tests):
+            got = safe_run(t, alt, x["input"])
+            if not out_eq(got, x["expected"], t["ordered"]):
+                problems.append(f"la solution indépendante {k + 1} diffère au test {i + 1} : {got} au lieu de {x['expected']}")
+                break
     if all(out_eq(safe_run(t, t["starter"], x["input"]), x["expected"], t["ordered"]) for x in tests):
         problems.append("le code de départ passe tous les tests")
     for k, mut in enumerate(t["mutants"]):
@@ -322,6 +340,10 @@ def build_task(t):
     with open(os.path.join(OUT, "tasks", t["id"] + ".json"), "w", encoding="utf-8") as fh:
         json.dump(doc, fh, ensure_ascii=False, separators=(",", ":"))
     info = f"{t['id']:<10} {t['lang']:<8} {len(vis)}+{len(hid)} tests"
+    if t.get("bank_n"):
+        info += f", {t['bank_n']} réponses officielles vérifiées"
+    if t["alts"]:
+        info += f", {len(t['alts'])} solution(s) indépendante(s) d'accord"
     if empty:
         info += f"  (sortie vide aux tests {empty})"
     print(info + ("  !! " + " ; ".join(problems) if problems else "  ok"))

@@ -49,3 +49,34 @@ def rng(seed):
 
 def dump(x):
     return json.dumps(x, ensure_ascii=False)
+
+
+# ---------------- banques externes (licence MIT, voir content_src/banks/) ----------------
+import os as _os
+
+BANKS = _os.path.join(_os.path.dirname(__file__), "banks")
+EXERCISM = "exercism/problem-specifications (MIT)"
+BLSQL = "shawlu95/Beyond-LeetCode-SQL (MIT)"
+
+
+def exercism(slug, prop=None):
+    """Cas officiels d'exercism : liste de (input, expected), sans les cas remplacés ni les cas d'erreur."""
+    data = json.load(open(_os.path.join(BANKS, "exercism", slug + ".json"), encoding="utf-8"))
+    leaves = []
+
+    def walk(c):
+        for x in c.get("cases", []):
+            if "cases" in x:
+                walk(x)
+            else:
+                leaves.append(x)
+    walk(data)
+    replaced = {x["reimplements"] for x in leaves if "reimplements" in x}
+    out = []
+    for x in leaves:
+        if x["uuid"] in replaced or (prop and x["property"] != prop):
+            continue
+        if isinstance(x["expected"], dict) and "error" in x["expected"]:
+            continue
+        out.append((x["input"], x["expected"]))
+    return out

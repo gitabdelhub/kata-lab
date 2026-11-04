@@ -173,8 +173,24 @@
   function clearTimers() { timers.forEach((f) => f()); timers = []; }
 
   /* ============================================================ alertes */
+  function renderGuide() {
+    if (!P.guideSeen) { P.guideSeen = true; persist(); renderAlerts(); }
+    const sec = (n, t, body) => `<div class="card guide-sec"><span class="eyebrow">${n}</span><h3 style="margin:4px 0 10px">${t}</h3>${body}</div>`;
+    view().innerHTML = `<section class="ws on">${band("Mode d'emploi", `<p class="lead" style="padding-bottom:28px">Comment utiliser Kata Lab en 3 minutes. Retiens surtout la première règle : clique sur « Séance du jour » et laisse le site te guider.</p>`)}
+      <div class="wrap"><div class="sect guide">
+        ${sec("1", "Chaque jour : « Séance du jour »", `<p>Le bouton bleu en haut à droite ouvre ta séance. Une séance dure environ 30 min et enchaîne 2 ou 3 étapes : révision, leçon, exo ou examen. Quand une étape est finie, clique sur la barre bleue « Étape suivante » en bas de l'écran. Tu n'as rien à choisir : le parcours donne les bons exos dans le bon ordre.</p><div class="btnrow"><a class="pill" href="#seance">Commencer ma séance</a></div>`)}
+        ${sec("2", "Le parcours jusqu'au test", `<ul><li><b>Phase 1 · Réflexes</b> : les gestes de base (PySpark, SQL, Python), un par séance.</li><li><b>Phase 2 · Tasks guidées</b> : des tasks au format du test, avec des indices qui disparaissent peu à peu, un examen complet chaque semaine et une séance DSA.</li><li><b>Phase 3 · Examens complets</b> : conditions réelles, sans indice, puis analyse et séance pour refaire.</li></ul><p>Les dates sont des repères, pas des verrous : tout est ouvert. Tu peux commencer la phase 1 dès aujourd'hui, à ton rythme, en plus du Zoomcamp.</p>`)}
+        ${sec("3", "L'écran d'exo et d'examen", `<ul><li><b>DESC</b> : l'énoncé. <b>INFO</b> : le chrono et la stratégie. <b>SETTINGS</b> : mode du chrono, Recommencer.</li><li><b>RUN TESTS</b> lance les tests visibles. <b>SUBMIT</b> note ta task sur 100 avec les tests cachés : soumets tôt, puis améliore et resoumets.</li><li>Le chrono suit l'heure réelle. En examen il est strict (pas de pause) ; en exo tu peux mettre en pause ou ajouter du temps (SETTINGS).</li><li>Avant chaque task, l'écran UMPIRE te fait réfléchir 2 minutes : dis ton plan à voix haute.</li></ul>`)}
+        ${sec("4", "PySpark : une clé, une seule fois", `<p>SQL et Python marchent tout de suite dans la page. Pour PySpark, le site allume ton Codespace GitHub : colle ta clé une seule fois dans <a href="#connexion">Connexion</a>. Au premier exo PySpark, Spark démarre en 1 à 2 minutes, puis il s'éteint seul après 30 minutes sans utilisation. Le chrono ne démarre que quand tout est prêt.</p>`)}
+        ${sec("5", "Les révisions se font toutes seules", `<p>Chaque séance commence par une révision éclair : des cartes à retrouver de mémoire, et les exos ratés (moins de 80/100) qui reviennent 2, puis 5, puis 12 séances plus tard. C'est ce qui fait que tu retiens au lieu d'oublier.</p>`)}
+        ${sec("6", "En plus, quand tu veux", `<ul><li><b>Bibliothèque</b> : tous les exos, les 19 examens, les réflexes et les 13 patterns DSA, en libre choix.</li><li><b>Live coding</b> : une fois par semaine, 40 min, une question d'entretien à voix haute. Enregistre-toi et réécoute.</li><li><b>Progression</b> : tes notes, tes erreurs fréquentes, tes examens.</li></ul>`)}
+        ${sec("7", "Effacer, recommencer, sauvegarder", `<ul><li><b>Recommencer</b> (SETTINGS) : remet ton code et le chrono à zéro, tes anciennes notes restent.</li><li><b>Effacer</b> (sur un examen ou un exo dans la Bibliothèque) : efface seulement cet examen ou cet exo.</li><li>Ta progression est enregistrée dans ce navigateur : utilise toujours le même (ton favori Chrome), et exporte-la de temps en temps dans <a href="#progression">Progression</a>, Sauvegarde.</li></ul>`)}
+        ${sec("8", "Une semaine type", `<p>Pendant le Zoomcamp : 3 séances de 30 min par semaine. Pendant ton PFE (phase 2) : 4 séances de 30 min, dont l'examen complet le week-end. Plus un live coding de 40 min. Si tu rates un jour, rien n'est perdu : la séance suivante t'attend, le parcours avance par séance, pas par date.</p><div class="btnrow"><a class="pill" href="#seance">Commencer ma séance</a><a class="pill ghost" href="#accueil">Voir mon parcours</a></div>`)}
+      </div></div></section>`;
+  }
   function renderAlerts() {
     const a = [];
+    if (!P.guideSeen) a.push(`<div class="alert">Première visite ? Lis le <a href="#guide">Mode d'emploi</a> (3 minutes) : il explique comment utiliser le site.</div>`);
     const key = E.Key.get(), exp = E.Key.expiry();
     if (!key) a.push(`<div class="alert">Pour les exos PySpark, colle ta clé GitHub une seule fois dans <a href="#connexion">Connexion</a>. SQL et Python marchent déjà sans clé.</div>`);
     else if (exp) {
@@ -235,7 +251,7 @@
       <div class="wrap"><div class="sect">
         ${rv ? `<div class="alert" style="margin:0 0 18px">${rv} exo${rv > 1 ? "s" : ""} raté${rv > 1 ? "s" : ""} à refaire : ils sont dans la révision éclair de ta prochaine séance.</div>` : ""}
         <h2>Ton parcours jusqu'au jour J</h2>
-        <p class="sub">Tout est ouvert : clique sur n'importe quelle séance pour la faire maintenant. La séance conseillée est mise en avant, les dates ne sont que des repères. Les exos ratés reviennent seuls 2, 5 puis 12 séances plus tard.</p>
+        <p class="sub"><a href="#guide">Mode d'emploi du site</a> · Tout est ouvert : clique sur n'importe quelle séance pour la faire maintenant. La séance conseillée est mise en avant, les dates ne sont que des repères. Les exos ratés reviennent seuls 2, 5 puis 12 séances plus tard.</p>
         <div class="phases">${phases}
           <div class="phase goal"><div class="ph-head"><span class="ph-dot"></span><div><b>Fin avril · Tu repostules</b><span>Avec des examens complets passés au chrono (${nb} pour l'instant)</span></div><span class="ph-prog">🎯</span></div></div>
         </div></div></div></section>`;
@@ -1139,6 +1155,7 @@
     if (h === "connexion") return renderConnexion();
     if ((m = h.match(/^live-(\w+)$/))) return renderLive(m[1]);
     if (h === "live") return renderLiveList();
+    if (h === "guide") return renderGuide();
     if ((m = h.match(/^dsa-(\w+)$/))) return renderDsa(m[1]);
     if (h === "dsa") return renderDsaList();
     renderHome();

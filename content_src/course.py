@@ -289,6 +289,7 @@ def write(out, index):
         "library": [t for t in sorted(index) if t not in exam_tasks],
         "links": LINKS,
         "live": __import__("live").check(index),
+        "dsa": __import__("dsa").check(index),
     }
     with open(os.path.join(out, "catalog.json"), "w", encoding="utf-8") as fh:
         json.dump(cat, fh, ensure_ascii=False, separators=(",", ":"))

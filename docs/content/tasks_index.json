@@ -267,6 +267,368 @@
 "tests": 9
 },
 {
+"id": "d01",
+"name": "First Repeated Event",
+"lang": "python",
+"tags": [
+"DSA",
+"ensemble (set)",
+"O(n)"
+],
+"minutes": 10,
+"source": "Kata Lab",
+"tests": 11
+},
+{
+"id": "d02",
+"name": "Two Invoices for a Payment",
+"lang": "python",
+"tags": [
+"DSA",
+"dictionnaire",
+"complément",
+"O(n)"
+],
+"minutes": 12,
+"source": "Kata Lab",
+"tests": 13
+},
+{
+"id": "d03",
+"name": "Merge Two Sorted Exports",
+"lang": "python",
+"tags": [
+"DSA",
+"deux pointeurs",
+"fusion",
+"O(n + m)"
+],
+"minutes": 10,
+"source": "Kata Lab",
+"tests": 11
+},
+{
+"id": "d04",
+"name": "Clean Palindrome Check",
+"lang": "python",
+"tags": [
+"DSA",
+"deux pointeurs",
+"isalnum",
+"O(1) mémoire"
+],
+"minutes": 10,
+"source": "Kata Lab",
+"tests": 12
+},
+{
+"id": "d05",
+"name": "Busiest K-Minute Window",
+"lang": "python",
+"tags": [
+"DSA",
+"fenêtre glissante",
+"taille fixe",
+"O(n)"
+],
+"minutes": 10,
+"source": "Kata Lab",
+"tests": 12
+},
+{
+"id": "d06",
+"name": "Longest Run of Distinct Pages",
+"lang": "python",
+"tags": [
+"DSA",
+"fenêtre glissante",
+"taille variable",
+"dernier indice vu"
+],
+"minutes": 15,
+"source": "Kata Lab",
+"tests": 12
+},
+{
+"id": "d07",
+"name": "Days Until a Higher Price",
+"lang": "python",
+"tags": [
+"DSA",
+"pile monotone",
+"prochain plus grand",
+"O(n)"
+],
+"minutes": 15,
+"source": "Kata Lab",
+"tests": 12
+},
+{
+"id": "d08",
+"name": "Evaluate a Metric Formula",
+"lang": "python",
+"tags": [
+"DSA",
+"pile",
+"notation polonaise inverse",
+"division entière vers zéro"
+],
+"minutes": 12,
+"source": "Kata Lab",
+"tests": 12
+},
+{
+"id": "d09",
+"name": "First Log Line After a Time",
+"lang": "python",
+"tags": [
+"DSA",
+"recherche binaire",
+"lower bound",
+"O(log n)"
+],
+"minutes": 10,
+"source": "Kata Lab",
+"tests": 12
+},
+{
+"id": "d10",
+"name": "Smallest Batch Size",
+"lang": "python",
+"tags": [
+"DSA",
+"recherche binaire sur la réponse",
+"glouton de vérification"
+],
+"minutes": 18,
+"source": "Kata Lab",
+"tests": 12
+},
+{
+"id": "d11",
+"name": "Merge Maintenance Windows",
+"lang": "python",
+"tags": [
+"DSA",
+"tri",
+"intervalles",
+"fusion"
+],
+"minutes": 12,
+"source": "Kata Lab",
+"tests": 12
+},
+{
+"id": "d12",
+"name": "Top K Search Terms",
+"lang": "python",
+"tags": [
+"DSA",
+"comptage",
+"tri à clé multiple",
+"départage"
+],
+"minutes": 12,
+"source": "Kata Lab",
+"tests": 11
+},
+{
+"id": "d13",
+"name": "All Column Subsets",
+"lang": "python",
+"tags": [
+"DSA",
+"backtracking",
+"prendre ou ne pas prendre",
+"2^n"
+],
+"minutes": 15,
+"source": "Kata Lab",
+"tests": 9
+},
+{
+"id": "d14",
+"name": "Fill a Truck Exactly",
+"lang": "python",
+"tags": [
+"DSA",
+"backtracking",
+"élagage",
+"réutilisation permise"
+],
+"minutes": 18,
+"source": "Kata Lab",
+"tests": 11
+},
+{
+"id": "d15",
+"name": "Reverse a Linked Change Log",
+"lang": "python",
+"tags": [
+"DSA",
+"liste chaînée",
+"trois pointeurs",
+"O(1) mémoire"
+],
+"minutes": 12,
+"source": "Kata Lab",
+"tests": 9
+},
+{
+"id": "d16",
+"name": "Merge Two Sorted Linked Lists",
+"lang": "python",
+"tags": [
+"DSA",
+"liste chaînée",
+"nœud sentinelle",
+"fusion"
+],
+"minutes": 15,
+"source": "Kata Lab",
+"tests": 10
+},
+{
+"id": "d17",
+"name": "Depth of a Category Tree",
+"lang": "python",
+"tags": [
+"DSA",
+"arbre binaire",
+"récursion",
+"DFS"
+],
+"minutes": 10,
+"source": "Kata Lab",
+"tests": 10
+},
+{
+"id": "d18",
+"name": "Validate a Sorted Index Tree",
+"lang": "python",
+"tags": [
+"DSA",
+"arbre binaire de recherche",
+"bornes min/max",
+"parcours infixe"
+],
+"minutes": 15,
+"source": "Kata Lab",
+"tests": 11
+},
+{
+"id": "d19",
+"name": "K-th Largest Transaction",
+"lang": "python",
+"tags": [
+"DSA",
+"tas (heapq)",
+"tas de taille k",
+"O(n log k)"
+],
+"minutes": 12,
+"source": "Kata Lab",
+"tests": 11
+},
+{
+"id": "d20",
+"name": "Cheapest Way to Compact Files",
+"lang": "python",
+"tags": [
+"DSA",
+"tas (heapq)",
+"glouton",
+"toujours les deux plus petits"
+],
+"minutes": 15,
+"source": "Kata Lab",
+"tests": 12
+},
+{
+"id": "d21",
+"name": "Count Outage Zones",
+"lang": "python",
+"tags": [
+"DSA",
+"graphe sur grille",
+"BFS/DFS",
+"cases visitées"
+],
+"minutes": 15,
+"source": "Kata Lab",
+"tests": 12
+},
+{
+"id": "d22",
+"name": "Count Replication Clusters",
+"lang": "python",
+"tags": [
+"DSA",
+"union-find",
+"composantes connexes",
+"compression de chemin"
+],
+"minutes": 15,
+"source": "Kata Lab",
+"tests": 11
+},
+{
+"id": "d23",
+"name": "Fewest Batches to Reach a Quota",
+"lang": "python",
+"tags": [
+"DSA",
+"programmation dynamique",
+"rendu de monnaie",
+"le glouton échoue"
+],
+"minutes": 15,
+"source": "Kata Lab",
+"tests": 12
+},
+{
+"id": "d24",
+"name": "Common Steps of Two Pipelines",
+"lang": "python",
+"tags": [
+"DSA",
+"programmation dynamique",
+"tableau 2D",
+"plus longue sous-suite commune"
+],
+"minutes": 18,
+"source": "Kata Lab",
+"tests": 12
+},
+{
+"id": "d25",
+"name": "Can the Retry Chain Finish",
+"lang": "python",
+"tags": [
+"DSA",
+"glouton",
+"portée maximale",
+"O(n)"
+],
+"minutes": 12,
+"source": "Kata Lab",
+"tests": 14
+},
+{
+"id": "d26",
+"name": "Table Name Autocomplete",
+"lang": "python",
+"tags": [
+"DSA",
+"trie (arbre de préfixes)",
+"dictionnaire de dictionnaires",
+"autocomplétion"
+],
+"minutes": 18,
+"source": "Kata Lab",
+"tests": 9
+},
+{
 "id": "e00t1",
 "name": "Late Deliveries per Courier",
 "lang": "pyspark",

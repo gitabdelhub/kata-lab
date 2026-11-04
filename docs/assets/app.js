@@ -112,6 +112,7 @@
   }
   function cardText(id) {
     if (id.startsWith("m-")) return CAT.method_cards[+id.slice(2)];
+    if (id.startsWith("dsa")) { const [pid, j] = id.split("-"); const d = dsaP(pid); return d ? d.cards[+j] : null; }
     const [rid, j] = id.split("-");
     const r = reflex(rid); return r ? r.cards[+j] : null;
   }
@@ -146,7 +147,7 @@
   function band(title, tabsHtml, extra) {
     return `<div class="pband"><div class="wrap">${extra || ""}<h1 class="ptitle">${title}</h1>${tabsHtml || '<div style="height:18px"></div>'}</div></div>`;
   }
-  const bib = (on) => `<div class="biblinks"><a href="#exos" class="${on === "exos" ? "on" : ""}">Exos</a><a href="#examens" class="${on === "examens" ? "on" : ""}">Examens</a><a href="#apprendre" class="${on === "apprendre" ? "on" : ""}">Réflexes</a></div>`;
+  const bib = (on) => `<div class="biblinks"><a href="#exos" class="${on === "exos" ? "on" : ""}">Exos</a><a href="#examens" class="${on === "examens" ? "on" : ""}">Examens</a><a href="#apprendre" class="${on === "apprendre" ? "on" : ""}">Réflexes</a><a href="#dsa" class="${on === "dsa" ? "on" : ""}">DSA</a></div>`;
   function fmtVal(v, top) {
     if (v === null || v === undefined) return "null";
     if (typeof v === "string") return top === "cell" ? v : JSON.stringify(v);
@@ -266,7 +267,7 @@
       if (!ids.length) { box().innerHTML = `<p class="q">Aucune carte à revoir aujourd'hui.</p><p class="meta">Les cartes de chaque réflexe arrivent ici à partir de la séance suivante.</p>${insess ? "" : '<a class="pill sm" href="#accueil">Retour au parcours</a>'}`; return; }
       if (i >= ids.length) { box().innerHTML = `<p class="q">✓ Révision faite.</p><p class="meta">Les cartes « à revoir » reviendront à la prochaine séance, les autres plus tard.</p>`; return; }
       const [q, a] = cardText(ids[i]);
-      box().innerHTML = `<span class="meta">${ids[i].startsWith("m-") ? "Méthode" : esc((reflex(ids[i].split("-")[0]) || {}).title || "")}</span><p class="q">${esc(q)}</p>
+      box().innerHTML = `<span class="meta">${ids[i].startsWith("m-") ? "Méthode" : ids[i].startsWith("dsa") ? "DSA · " + esc((dsaP(ids[i].split("-")[0]) || {}).title || "") : esc((reflex(ids[i].split("-")[0]) || {}).title || "")}</span><p class="q">${esc(q)}</p>
         <div class="field"><label for="ans">Ta réponse, de mémoire</label><textarea id="ans" placeholder="Écris ce dont tu te souviens…"></textarea></div>
         <div class="btnrow" id="fb"><button class="pill sm" id="see">Voir la réponse</button></div>`;
       $("#see").onclick = () => {
@@ -928,6 +929,49 @@
     $("#snext").textContent = here ? nextLabel() : "Revenir à l'étape " + (P.cur.step + 1);
     $("#snext").onclick = () => (here ? sessNext() : goHash(stepHash(s.steps[P.cur.step])));
   }
+  /* ============================================================ parcours DSA */
+  function dsaP(id) { return (CAT.dsa || []).find((d) => d.id === id); }
+  function dsaDone(d) { return d.exos.filter((t) => P.tasks[t] && P.tasks[t].best >= 80).length; }
+  function dsaCardsOn(d) { return d.cards.every((_, j) => P.cards[d.id + "-" + j]); }
+  function renderDsaList() {
+    const L = CAT.dsa || [];
+    const done = L.filter((d) => dsaDone(d) === d.exos.length).length;
+    const next = L.find((d) => dsaDone(d) < d.exos.length);
+    view().innerHTML = `<section class="ws on">${band("DSA", `<p class="lead" style="padding-bottom:28px">Les 13 patterns que tout informaticien doit connaître, reliés au data engineering. Chaque pattern : une fiche, un exemple guidé, les pièges, puis 2 exos vérifiés. Rythme conseillé : un pattern par semaine, dans un créneau de 30 min.</p>`, bib("dsa"))}
+      <div class="wrap"><div class="sect">
+        <div class="card" style="margin-bottom:20px"><div class="btnrow" style="justify-content:space-between"><div><b>${done} pattern${done > 1 ? "s" : ""} sur ${L.length} maîtrisé${done > 1 ? "s" : ""}</b><br><span class="muted">Un pattern est maîtrisé quand ses 2 exos ont au moins 80/100.</span></div>${next ? `<a class="pill" href="#dsa-${next.id}">Continuer : ${esc(next.title)}</a>` : ""}</div></div>
+        <div class="grid3">${L.map((d, i) => {
+          const n = dsaDone(d);
+          return `<div class="ex"><span class="src">Pattern ${i + 1}</span><h3>${esc(d.title)}</h3><span class="muted">${esc(d.why)}</span>${n ? `<span class="done-badge">${n === d.exos.length ? "✓ maîtrisé" : n + " exo sur " + d.exos.length + " réussi"}</span>` : ""}<a class="pill sm" href="#dsa-${d.id}">Ouvrir</a></div>`;
+        }).join("")}</div>
+      </div></div></section>`;
+  }
+  function renderDsa(id) {
+    const d = dsaP(id);
+    if (!d) return goHash("dsa");
+    const L = CAT.dsa, i = L.indexOf(d);
+    const toc = L.map((x, k) => `<a href="#dsa-${x.id}" class="${x.id === id ? "on" : ""}">${esc(x.title)} <span>${k + 1}</span></a>`).join("");
+    const exo = (t) => { const m = CAT.tasks[t] || {}, s = P.tasks[t]; return `<div class="btnrow" style="margin-top:8px"><a class="pill sm" href="#exo-${t}">${esc(m.name || t)} · ${m.minutes || 15} min</a>${s ? `<span class="muted">Ta meilleure note : ${s.best}/100</span>` : ""}</div>`; };
+    view().innerHTML = `<section class="ws on">${band(esc(d.title), `<p class="lead" style="padding-bottom:28px">${esc(d.why)}</p>`, bib("dsa"))}
+      <div class="wrap"><div class="sect learn"><aside class="toc"><span class="lbl">Patterns DSA</span>${toc}</aside>
+      <div class="panel lesson"><span class="chip">Pattern ${i + 1} sur ${L.length} · Python</span>
+        <div class="reveal" style="margin-top:14px"><b>En data engineering :</b> ${esc(d.de)}</div>
+        <h2 style="font-size:28px;margin:18px 0 10px">La fiche</h2>
+        <ul>${d.body.map((x) => `<li>${x}</li>`).join("")}</ul>
+        <h3 style="margin-top:18px">Exemple guidé</h3><p class="muted" style="margin:0 0 8px">Lis-le, puis réécris-le de mémoire sur papier avant de faire les exos.</p>${codeBlock(d.code)}
+        <h3>Les pièges</h3><ul class="traps">${d.traps.map((x) => `<li>${x}</li>`).join("")}</ul>
+        <div class="card" style="margin-top:20px;background:var(--mint-soft);border-color:transparent">
+          <h3>Les 2 exos · avec les vrais tests</h3>
+          <p class="muted" style="margin:0 0 6px">Avant de coder : dis à voix haute le pattern et la complexité visée. Les indices sont dans l'énoncé si tu bloques.</p>
+          ${d.exos.map(exo).join("")}
+        </div>
+        <div class="btnrow" style="margin-top:20px">${dsaCardsOn(d) ? `<span class="done-badge" style="color:var(--ok)">✓ Ses ${d.cards.length} cartes sont dans tes révisions</span>` : `<button class="pill sm ghost" id="dsaCards">Ajouter ses ${d.cards.length} cartes à mes révisions</button>`}
+          ${L[i + 1] ? `<a class="pill sm" href="#dsa-${L[i + 1].id}">Pattern suivant : ${esc(L[i + 1].title)}</a>` : ""}</div>
+      </div></div></div></section>`;
+    const b = $("#dsaCards");
+    if (b) b.onclick = () => { d.cards.forEach((_, j) => { const k = d.id + "-" + j; if (!P.cards[k]) P.cards[k] = { due: P.sessCount + 1, lvl: 0 }; }); persist(); renderDsa(id); };
+  }
+
   /* ============================================================ live coding */
   const LSL = "kata.live";
   const REC = { mr: null, chunks: [], url: null, name: "", stream: null, t0: 0 };
@@ -1061,7 +1105,7 @@
     const asm = /^(exam|exo)-/.test(h);
     $("#v-examen").classList.toggle("on", asm);
     document.body.classList.toggle("in-asm", asm);
-    const nv = /^(exos|examens|apprendre|reflexe-)/.test(h) ? "bib" : /^live/.test(h) ? "live" : h === "progression" ? "progression" : h === "connexion" ? "connexion" : "accueil";
+    const nv = /^(exos|examens|apprendre|reflexe-|dsa)/.test(h) ? "bib" : /^live/.test(h) ? "live" : h === "progression" ? "progression" : h === "connexion" ? "connexion" : "accueil";
     $$("[data-nav]").forEach((a) => a.classList.toggle("on", a.dataset.nav === nv));
     $("#streakN").textContent = streak() + (streak() > 1 ? " jours" : " jour");
     renderSessbar(asm);
@@ -1081,6 +1125,8 @@
     if (h === "connexion") return renderConnexion();
     if ((m = h.match(/^live-(\w+)$/))) return renderLive(m[1]);
     if (h === "live") return renderLiveList();
+    if ((m = h.match(/^dsa-(\w+)$/))) return renderDsa(m[1]);
+    if (h === "dsa") return renderDsaList();
     renderHome();
   }
 

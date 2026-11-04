@@ -315,6 +315,17 @@
 
   /* ============================================================ bibliothèque */
   let exoFilter = "all";
+  function wipeTasks(tids) { tids.forEach((t) => delete P.tasks[t]); P.review = P.review.filter((r) => !tids.includes(r.task)); }
+  function wipeAttempt(key) { const a = load(LSA, null); if (a && a.key === key) save(LSA, null); }
+  function wipeExam(eid) {
+    const e = exam(eid); if (!e) return;
+    if (!confirm("Effacer « " + e.title.replace("Practice Assessment · ", "") + " » ? Ses notes, ta tentative en cours et ses tasks à refaire seront effacées. Tout le reste est gardé.")) return;
+    delete P.exams[eid]; delete P.notes[eid]; wipeTasks(e.tasks); wipeAttempt("exam:" + eid); persist(); route();
+  }
+  function wipeExo(tid) {
+    if (!confirm("Effacer « " + (TITLE[tid] || tid) + " » ? Ses notes, ta tentative en cours et sa place dans les exos à refaire seront effacées. Tout le reste est gardé.")) return;
+    wipeTasks([tid]); wipeAttempt("exo:" + tid); persist(); route();
+  }
   function renderExos() {
     const ids = CAT.library;
     const cnt = (l) => ids.filter((id) => l === "all" || CAT.tasks[id].lang === l).length;
@@ -322,7 +333,7 @@
     const cards = ids.filter((id) => exoFilter === "all" || CAT.tasks[id].lang === exoFilter).map((id) => {
       const t = CAT.tasks[id], pr = P.tasks[id];
       return `<div class="ex"><span class="src">${esc(t.source)} · ${SHORT[t.lang]}</span><h3>${esc(t.name)}</h3><div class="tagrow">${t.tags.slice(0, 3).map((g) => `<span class="tag">${esc(g)}</span>`).join("")}</div>
-        <span class="muted">Chrono ${t.minutes} min · ${t.tests} tests</span>${pr ? `<span class="${pr.best >= 80 ? "done-badge" : "muted"}">${pr.best >= 80 ? "✓ validé" : "Meilleure note"} · ${pr.best}/100</span>` : ""}<a class="pill sm" href="#exo-${id}">Ouvrir</a></div>`;
+        <span class="muted">Chrono ${t.minutes} min · ${t.tests} tests</span>${pr ? `<span class="${pr.best >= 80 ? "done-badge" : "muted"}">${pr.best >= 80 ? "✓ validé" : "Meilleure note"} · ${pr.best}/100</span>` : ""}<div class="btnrow"><a class="pill sm" href="#exo-${id}">Ouvrir</a>${pr || attemptFor("exo", id) ? `<button class="pill sm ghost" data-wipe-exo="${id}">Effacer</button>` : ""}</div></div>`;
     }).join("");
     view().innerHTML = `<section class="ws on">${band("Exos", tabs, bib("exos"))}<div class="wrap"><div class="sect">
       <p class="sub">Choix libre. Ton parcours, lui, te donne les exos dans le bon ordre. Les tasks des examens restent dans les examens, pour qu'elles soient neuves le jour où tu les passes.</p>
@@ -331,6 +342,7 @@
       <div class="grid3">${CAT.links.map((l) => `<div class="ex"><span class="src">Lien externe</span><h3>${esc(l.name)}</h3><span class="muted">${esc(l.what)}</span><a class="pill sm ghost" href="${esc(l.url)}" target="_blank" rel="noopener">Ouvrir ↗</a></div>`).join("")}</div>
       </div></div></section>`;
     $$(".ptabs button").forEach((b) => (b.onclick = () => { exoFilter = b.dataset.f; renderExos(); }));
+    $$("[data-wipe-exo]").forEach((b) => (b.onclick = () => wipeExo(b.dataset.wipeExo)));
   }
   let examTab = "todo";
   function renderExams() {
@@ -344,12 +356,13 @@
       const n = e.mini ? "mini" : "#" + pad(CAT.exams.filter((x) => !x.mini).indexOf(e) + 1);
       return `<div class="row"><span class="n">${n}</span><div class="t"><b>${esc(e.title.replace("Practice Assessment · ", ""))}</b><span>${langs} · ${e.minutes} min</span></div>
         ${last ? `<span class="chip">${last.scores.join(" · ")}</span>` : '<span class="score muted">Pas encore fait</span>'}
-        <div class="btnrow">${last ? `<a class="pill sm ghost" href="#analyse-${e.id}">Analyse</a>` : ""}<a class="pill sm ${last ? "ghost" : ""}" href="#exam-${e.id}">${attemptFor("exam", e.id) ? "Reprendre" : last ? "Recommencer" : "Start"}</a></div></div>`;
+        <div class="btnrow">${last ? `<a class="pill sm ghost" href="#analyse-${e.id}">Analyse</a>` : ""}<a class="pill sm ${last ? "ghost" : ""}" href="#exam-${e.id}">${attemptFor("exam", e.id) ? "Reprendre" : last ? "Recommencer" : "Start"}</a>${last || attemptFor("exam", e.id) ? `<button class="pill sm ghost" data-wipe-exam="${e.id}">Effacer</button>` : ""}</div></div>`;
     }).join("") || `<p class="empty">${examTab === "done" ? "Aucun examen terminé pour l'instant." : "Tu as fait tous les examens disponibles. Refais-les dans l'onglet Terminés."}</p>`;
     view().innerHTML = `<section class="ws on">${band("Examens", tabs, bib("examens"))}<div class="wrap"><div class="sect">
-      <p class="sub">Format du vrai test : 4 tasks, 70 minutes, chaque task notée sur 100. Les premiers sont plus abordables, les suivants sont au niveau du vrai test. Les autres examens arrivent avec les prochaines mises à jour.</p>
+      <p class="sub">Format du vrai test : 4 tasks, 70 minutes, chaque task notée sur 100. Les premiers sont plus abordables, les suivants sont au niveau du vrai test. « Effacer » remet un seul examen à zéro, sans toucher au reste.</p>
       <div class="list">${rows}</div></div></div></section>`;
     $$(".ptabs button").forEach((b) => (b.onclick = () => { examTab = b.dataset.t; renderExams(); }));
+    $$("[data-wipe-exam]").forEach((b) => (b.onclick = () => wipeExam(b.dataset.wipeExam)));
   }
 
   /* ============================================================ analyse guidée */

@@ -452,3 +452,13 @@ button.unit:hover{border-color:var(--mint)}
 @media (max-width:900px){.links a{padding:10px 10px;font-size:15px}}
 @media (max-width:1000px){.streak{display:none}.links a{padding:10px 8px}}
 .guide{display:grid;gap:16px;max-width:900px}.guide-sec ul{margin:0;padding-left:20px;display:grid;gap:6px}.guide-sec p{margin:0 0 10px}
+/* lire la consigne */
+.rd-text{font-size:16px;line-height:1.65}
+.rd-text pre{background:#f4f6fa;border-radius:10px;padding:10px 12px;overflow-x:auto;white-space:pre}
+.rd-q{margin-top:12px}
+.rd-opts{display:grid;gap:8px;margin-top:10px}
+.rd-opt{display:flex;gap:10px;align-items:flex-start;padding:8px 10px;border:1px solid var(--line);border-radius:10px;cursor:pointer}
+.rd-opt input{margin-top:4px}
+.rd-q.ok{border-color:var(--ok)}
+.rd-q.ko{border-color:#d9534f}
+.rd-why{margin-top:10px;font-size:15px;background:var(--mint-soft);border-radius:10px;padding:10px 12px}

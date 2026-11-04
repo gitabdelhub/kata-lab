@@ -269,6 +269,8 @@
   /* ------------------------------------------------------------ API publique */
   async function runTests(task, code, tests, onProgress) {
     // Certaines tasks ajoutent un petit code caché après celui de l'élève (API simulée, plusieurs sorties)
+    // Tasks « projet » : fichiers mis bout à bout, imports locaux (package pipeline) retirés
+    if (task.project && task.lang !== "sql") code = code.replace(/^[ \t]*(from[ \t]+pipeline(\.\w+)*[ \t]+import[^\n]*|import[ \t]+pipeline[^\n]*)$/gm, "");
     if (task.wrapper && task.lang !== "sql") code = code + "\n\n" + task.wrapper;
     onProgress = onProgress || (() => {});
     let results = [];

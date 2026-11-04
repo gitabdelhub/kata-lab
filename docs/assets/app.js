@@ -65,7 +65,7 @@
   }
   function currentSession() { return P.cur ? findSession(P.cur.id) : nextSession(); }
   function stepHash(st) {
-    return st.type === "review" ? "revision" : st.type === "learn" ? "reflexe-" + st.reflex : st.type === "dsa" ? "dsa-" + st.dsa : st.type === "exo" ? "exo-" + st.task : st.type === "exam" ? "exam-" + st.exam : "analyse-" + st.exam;
+    return st.type === "review" ? "revision" : st.type === "learn" ? "reflexe-" + st.reflex : st.type === "dsa" ? "dsa-" + st.dsa : st.type === "read" ? "lire-" + st.read : st.type === "exo" ? "exo-" + st.task : st.type === "exam" ? "exam-" + st.exam : "analyse-" + st.exam;
   }
   function goHash(h) { if (location.hash === "#" + h) route(); else location.hash = h; }
   function startSession() {
@@ -148,7 +148,7 @@
   function band(title, tabsHtml, extra) {
     return `<div class="pband"><div class="wrap">${extra || ""}<h1 class="ptitle">${title}</h1>${tabsHtml || '<div style="height:18px"></div>'}</div></div>`;
   }
-  const bib = (on) => `<div class="biblinks"><a href="#exos" class="${on === "exos" ? "on" : ""}">Exos</a><a href="#examens" class="${on === "examens" ? "on" : ""}">Examens</a><a href="#apprendre" class="${on === "apprendre" ? "on" : ""}">Réflexes</a><a href="#dsa" class="${on === "dsa" ? "on" : ""}">DSA</a></div>`;
+  const bib = (on) => `<div class="biblinks"><a href="#exos" class="${on === "exos" ? "on" : ""}">Exos</a><a href="#examens" class="${on === "examens" ? "on" : ""}">Examens</a><a href="#apprendre" class="${on === "apprendre" ? "on" : ""}">Réflexes</a><a href="#dsa" class="${on === "dsa" ? "on" : ""}">DSA</a><a href="#lire" class="${on === "lire" ? "on" : ""}">Lire la consigne</a></div>`;
   function fmtVal(v, top) {
     if (v === null || v === undefined) return "null";
     if (typeof v === "string") return top === "cell" ? v : JSON.stringify(v);
@@ -179,11 +179,11 @@
     view().innerHTML = `<section class="ws on">${band("Mode d'emploi", `<p class="lead" style="padding-bottom:28px">Comment utiliser Kata Lab en 3 minutes. Retiens surtout la première règle : clique sur « Séance du jour » et laisse le site te guider.</p>`)}
       <div class="wrap"><div class="sect guide">
         ${sec("1", "Chaque jour : « Séance du jour »", `<p>Le bouton bleu en haut à droite ouvre ta séance. Une séance dure environ 30 min et enchaîne 2 ou 3 étapes : révision, leçon, exo ou examen. Quand une étape est finie, clique sur la barre bleue « Étape suivante » en bas de l'écran. Tu n'as rien à choisir : le parcours donne les bons exos dans le bon ordre.</p><div class="btnrow"><a class="pill" href="#seance">Commencer ma séance</a></div>`)}
-        ${sec("2", "Le parcours jusqu'au test", `<ul><li><b>Phase 1 · Réflexes</b> : les gestes de base (PySpark, SQL, Python), un par séance.</li><li><b>Phase 2 · Tasks guidées</b> : des tasks au format du test, avec des indices qui disparaissent peu à peu, un examen complet chaque semaine et une séance DSA.</li><li><b>Phase 3 · Examens complets</b> : conditions réelles, sans indice, puis analyse et séance pour refaire.</li></ul><p>Les dates sont des repères, pas des verrous : tout est ouvert. Tu peux commencer la phase 1 dès aujourd'hui, à ton rythme, en plus du Zoomcamp.</p>`)}
+        ${sec("2", "Le parcours jusqu'au test", `<ul><li><b>Phase 1 · Réflexes</b> : les gestes de base (PySpark, SQL, Python), un par séance.</li><li><b>Phase 2 · Tasks guidées</b> : des tasks au format du test, avec des indices qui disparaissent peu à peu, un examen complet chaque semaine, une séance DSA et un exo « Lire la consigne ».</li><li><b>Phase 3 · Examens complets</b> : conditions réelles, sans indice, puis analyse et séance pour refaire. Comme le jour J, les 2 premières tasks sont en PySpark avec des dossiers de fichiers à lire et de longs énoncés à interpréter, et 3 examens sont des petits projets à plusieurs fichiers de code.</li></ul><p>Les dates sont des repères, pas des verrous : tout est ouvert. Tu peux commencer la phase 1 dès aujourd'hui, à ton rythme, en plus du Zoomcamp.</p>`)}
         ${sec("3", "L'écran d'exo et d'examen", `<ul><li><b>DESC</b> : l'énoncé. <b>INFO</b> : le chrono et la stratégie. <b>SETTINGS</b> : mode du chrono, Recommencer.</li><li><b>RUN TESTS</b> lance les tests visibles. <b>SUBMIT</b> note ta task sur 100 avec les tests cachés : soumets tôt, puis améliore et resoumets.</li><li>Le chrono suit l'heure réelle. En examen il est strict (pas de pause) ; en exo tu peux mettre en pause ou ajouter du temps (SETTINGS).</li><li>Avant chaque task, l'écran UMPIRE te fait réfléchir 2 minutes : dis ton plan à voix haute.</li></ul>`)}
         ${sec("4", "PySpark : une clé, une seule fois", `<p>SQL et Python marchent tout de suite dans la page. Pour PySpark, le site allume ton Codespace GitHub : colle ta clé une seule fois dans <a href="#connexion">Connexion</a>. Au premier exo PySpark, Spark démarre en 1 à 2 minutes, puis il s'éteint seul après 30 minutes sans utilisation. Le chrono ne démarre que quand tout est prêt.</p>`)}
         ${sec("5", "Les révisions se font toutes seules", `<p>Chaque séance commence par une révision éclair : des cartes à retrouver de mémoire, et les exos ratés (moins de 80/100) qui reviennent 2, puis 5, puis 12 séances plus tard. C'est ce qui fait que tu retiens au lieu d'oublier.</p>`)}
-        ${sec("6", "En plus, quand tu veux", `<ul><li><b>Bibliothèque</b> : tous les exos, les 19 examens, les réflexes et les 13 patterns DSA, en libre choix.</li><li><b>Live coding</b> : une fois par semaine, 40 min, une question d'entretien à voix haute. Enregistre-toi et réécoute.</li><li><b>Progression</b> : tes notes, tes erreurs fréquentes, tes examens.</li></ul>`)}
+        ${sec("6", "En plus, quand tu veux", `<ul><li><b>Bibliothèque</b> : tous les exos, les 19 examens, les réflexes, les 13 patterns DSA et les 13 exos « Lire la consigne », en libre choix.</li><li><b>Live coding</b> : une fois par semaine, 40 min, une question d'entretien à voix haute. Enregistre-toi et réécoute.</li><li><b>Progression</b> : tes notes, tes erreurs fréquentes, tes examens.</li></ul>`)}
         ${sec("7", "Effacer, recommencer, sauvegarder", `<ul><li><b>Recommencer</b> (SETTINGS) : remet ton code et le chrono à zéro, tes anciennes notes restent.</li><li><b>Effacer</b> (sur un examen ou un exo dans la Bibliothèque) : efface seulement cet examen ou cet exo.</li><li>Ta progression est enregistrée dans ce navigateur : utilise toujours le même (ton favori Chrome), et exporte-la de temps en temps dans <a href="#progression">Progression</a>, Sauvegarde.</li></ul>`)}
         ${sec("8", "Une semaine type", `<p>Pendant le Zoomcamp : 3 séances de 30 min par semaine. Pendant ton PFE (phase 2) : 4 séances de 30 min, dont l'examen complet le week-end. Plus un live coding de 40 min. Si tu rates un jour, rien n'est perdu : la séance suivante t'attend, le parcours avance par séance, pas par date.</p><div class="btnrow"><a class="pill" href="#seance">Commencer ma séance</a><a class="pill ghost" href="#accueil">Voir mon parcours</a></div>`)}
       </div></div></section>`;
@@ -539,8 +539,23 @@
         "Ctrl-Enter": () => runTests(false), "Cmd-Enter": () => runTests(false),
       },
     });
-    cm.on("change", () => { if (cmSilent || cm.getOption("readOnly")) return; W.drafts[W.cur] = cm.getValue(); saveSoon(); });
+    cm.on("change", () => {
+      if (cmSilent || cm.getOption("readOnly")) return;
+      const t = W.tasks[W.cur];
+      if (t.project && W.pfile) { const parts = projSplit(W.drafts[W.cur]); parts[W.pfile] = cm.getValue(); W.drafts[W.cur] = projJoin(t, parts); }
+      else W.drafts[W.cur] = cm.getValue();
+      saveSoon();
+    });
   }
+  /* tasks « projet » : plusieurs fichiers de code, rangés dans une seule chaîne avec des marqueurs */
+  const PMARK = /^# ==== (.+?) ====$/;
+  function projSplit(code) {
+    const out = {}; let cur = null;
+    for (const line of (code || "").split("\n")) { const m = line.match(PMARK); if (m) { cur = m[1]; out[cur] = []; } else if (cur) out[cur].push(line); }
+    for (const k in out) out[k] = out[k].join("\n").replace(/^\n+|\n+$/g, "") + "\n";
+    return out;
+  }
+  function projJoin(t, parts) { return t.project.files.map((p) => "# ==== " + p + " ====\n" + (parts[p] || "").replace(/\n+$/, "") + "\n").join("\n"); }
   function setEditor(text, readOnly, lang) {
     cmSilent = true;
     cm.setOption("mode", lang === "sql" ? "text/x-pgsql" : lang === "text" ? null : "python");
@@ -599,10 +614,21 @@
   function closeWorkspace() { W.on = false; stopClock(); clearInterval(pingT); $("#ov").hidden = true; }
 
   function treeHtml(t) {
-    if (!t.files) return "";
+    if (!t.files && !t.project) return "";
+    let h = "";
+    if (t.project) {
+      const seenP = new Set();
+      h += `<div class="lbl">Code</div>`;
+      t.project.files.forEach((p) => {
+        const parts = p.split("/");
+        for (let d = 1; d < parts.length; d++) { const k = parts.slice(0, d).join("/"); if (!seenP.has(k)) { seenP.add(k); h += `<div class="dir in${Math.min(d - 1, 2)}">▾ ${esc(parts[d - 1])}/</div>`; } }
+        h += `<button class="in${Math.min(parts.length - 1, 2)} ${W.fileOpen === null && W.pfile === p ? "on" : ""}" data-c="${esc(p)}">${esc(parts[parts.length - 1])}</button>`;
+      });
+      if (!t.files) return h;
+    }
     const root = t.files.root;
     const paths = Object.keys(t.files.files).sort();
-    const seen = new Set(); let h = `<div class="lbl">Files</div><div class="dir">▾ ${esc(root)}/</div>`;
+    const seen = new Set(); h += `<div class="lbl">Files</div><div class="dir">▾ ${esc(root)}/</div>`;
     paths.forEach((p, i) => {
       const parts = p.split("/");
       for (let d = 1; d < parts.length; d++) {
@@ -611,15 +637,21 @@
       }
       h += `<button class="in${Math.min(parts.length, 2)} ${W.fileOpen === p ? "on" : ""}" data-p="${esc(p)}">${esc(parts[parts.length - 1])}</button>`;
     });
-    h += `<button class="${W.fileOpen === null ? "on" : ""}" data-p="">${FILE[t.lang]}</button>`;
+    if (!t.project) h += `<button class="${W.fileOpen === null ? "on" : ""}" data-p="">${FILE[t.lang]}</button>`;
     return h;
   }
   function renderFiles() {
     const t = W.tasks[W.cur];
-    $("#ed").classList.toggle("nofiles", !t.files);
-    if (!t.files) return;
+    $("#ed").classList.toggle("nofiles", !t.files && !t.project);
+    if (!t.files && !t.project) return;
     const f = $("#files"); f.innerHTML = treeHtml(t);
     $$("button", f).forEach((b) => (b.onclick = () => {
+      if (b.dataset.c) {
+        W.fileOpen = null; W.pfile = b.dataset.c;
+        $("#ftab").textContent = W.pfile.split("/").pop();
+        setEditor(projSplit(W.drafts[W.cur])[W.pfile] || "", false, t.lang);
+        renderFiles(); return;
+      }
       const p = b.dataset.p || null; W.fileOpen = p;
       if (p) { $("#ftab").textContent = p.split("/").pop(); setEditor(t.files.files[p], true, "text"); }
       else { $("#ftab").textContent = FILE[t.lang]; setEditor(W.drafts[W.cur], false, t.lang); }
@@ -635,8 +667,9 @@
   function showTask(i) {
     W.cur = i; W.fileOpen = null;
     const t = W.tasks[i];
-    $("#ftab").textContent = FILE[t.lang]; $("#lang").textContent = LANG[t.lang];
-    setEditor(W.drafts[i], false, t.lang);
+    $("#lang").textContent = LANG[t.lang];
+    if (t.project) { W.pfile = t.project.main; $("#ftab").textContent = W.pfile.split("/").pop(); setEditor(projSplit(W.drafts[i])[W.pfile] || "", false, t.lang); }
+    else { W.pfile = null; $("#ftab").textContent = FILE[t.lang]; setEditor(W.drafts[i], false, t.lang); }
     renderFiles(); renderTaskTabs(); renderPaper(); renderTests(); updScore();
   }
   function renderPaper() {
@@ -959,6 +992,74 @@
     $("#snext").textContent = here ? nextLabel() : "Revenir à l'étape " + (P.cur.step + 1);
     $("#snext").onclick = () => (here ? sessNext() : goHash(stepHash(s.steps[P.cur.step])));
   }
+  /* ============================================================ lire la consigne */
+  let rdTimer = null;
+  function shuffled(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+  function rdP(id) { return (CAT.read || []).find((d) => d.id === id); }
+  function renderReadList() {
+    const L = CAT.read || [];
+    P.read = P.read || {};
+    const done = L.filter((d) => P.read[d.id]).length;
+    const next = L.find((d) => !P.read[d.id]);
+    view().innerHTML = `<section class="ws on">${band("Lire la consigne", `<p class="lead" style="padding-bottom:28px">Le jour J, la difficulté est souvent de comprendre l'énoncé, pas d'écrire le code. Chaque exo : un long énoncé en anglais au format du test, puis 4 questions qui vérifient que tu as bien lu. 8 minutes, une fois par semaine.</p>`, bib("lire"))}
+      <div class="wrap"><div class="sect">
+        <div class="card" style="margin-bottom:20px"><div class="btnrow" style="justify-content:space-between"><div><b>${done} exo${done > 1 ? "s" : ""} sur ${L.length} faits</b><br><span class="muted">Méthode : lis tout une fois, puis souligne chaque règle et chaque mot-piège avant de répondre.</span></div>${next ? `<a class="pill" href="#lire-${next.id}">Continuer : ${esc(next.title)}</a>` : ""}</div></div>
+        <div class="grid3">${L.map((d, i) => {
+          const r = P.read[d.id];
+          return `<div class="ex"><span class="src">Exo ${i + 1}</span><h3>${esc(d.title)}</h3><span class="muted">${esc(d.focus)}</span>${r ? `<span class="done-badge">Meilleur score : ${r.best}/${d.questions.length}</span>` : ""}<a class="pill sm" href="#lire-${d.id}">Ouvrir</a></div>`;
+        }).join("")}</div>
+      </div></div></section>`;
+  }
+  function renderRead(id) {
+    const d = rdP(id);
+    if (!d) return goHash("lire");
+    P.read = P.read || {};
+    const L = CAT.read, i = L.indexOf(d);
+    if (rdTimer) clearInterval(rdTimer);
+    const t0 = Date.now(), total = 8 * 60;
+    const qs = d.questions.map((q, k) => `<div class="card rd-q" data-q="${k}"><b>${k + 1}. ${esc(q.q)}</b>
+        <div class="rd-opts">${shuffled(q.o.map((o, j) => [o, j])).map(([o, j]) => `<label class="rd-opt"><input type="radio" name="q${k}" value="${j}"> <span>${esc(o)}</span></label>`).join("")}</div>
+        <div class="rd-why" hidden></div></div>`).join("");
+    view().innerHTML = `<section class="ws on">${band(esc(d.title), `<p class="lead" style="padding-bottom:28px">${esc(d.focus)}. Lis l'énoncé comme le jour J, puis réponds sans relire le code d'une task.</p>`, bib("lire"))}
+      <div class="wrap"><div class="sect">
+        <div class="btnrow" style="justify-content:space-between;margin-bottom:12px"><span class="chip">Exo ${i + 1} sur ${L.length} · 8 min conseillées</span><b id="rdClock">8:00</b></div>
+        <div class="card rd-text">${d.text}</div>
+        <h3 style="margin:22px 0 10px">Les questions</h3>
+        ${qs}
+        <div class="btnrow" style="margin-top:16px"><button class="pill" id="rdCheck">Vérifier mes réponses</button><span id="rdScore" class="muted"></span></div>
+        <div class="card" id="rdKeys" hidden style="margin-top:18px;background:var(--mint-soft);border-color:transparent"><h3>Les mots-pièges à retenir</h3><ul>${d.keys.map((k) => `<li>${esc(k)}</li>`).join("")}</ul></div>
+        <div class="btnrow" style="margin-top:18px">${L[i + 1] ? `<a class="pill sm ghost" href="#lire-${L[i + 1].id}">Exo suivant : ${esc(L[i + 1].title)}</a>` : ""}<a class="pill sm ghost" href="#lire">Tous les exos</a></div>
+      </div></div></section>`;
+    rdTimer = setInterval(() => {
+      const el = $("#rdClock");
+      if (!el) { clearInterval(rdTimer); rdTimer = null; return; }
+      const left = total - Math.floor((Date.now() - t0) / 1000);
+      el.textContent = left >= 0 ? Math.floor(left / 60) + ":" + String(left % 60).padStart(2, "0") : "Temps conseillé dépassé";
+      el.style.color = left < 60 ? "var(--bad, #c0392b)" : "";
+    }, 1000);
+    $("#rdCheck").onclick = () => {
+      let ok = 0, miss = 0;
+      d.questions.forEach((q, k) => {
+        const box = view().querySelector(`.rd-q[data-q="${k}"]`);
+        const sel = box.querySelector("input:checked");
+        if (!sel) { miss++; return; }
+        const good = +sel.value === q.a;
+        if (good) ok++;
+        box.classList.toggle("ok", good); box.classList.toggle("ko", !good);
+        const why = box.querySelector(".rd-why");
+        why.hidden = false;
+        why.innerHTML = (good ? "<b>✓ Juste.</b> " : `<b>✗ Réponse : ${esc(q.o[q.a])}.</b> `) + esc(q.why);
+      });
+      if (miss) { $("#rdScore").textContent = "Réponds aux " + miss + " question" + (miss > 1 ? "s" : "") + " restante" + (miss > 1 ? "s" : "") + " avant de vérifier."; return; }
+      if (rdTimer) { clearInterval(rdTimer); rdTimer = null; }
+      const prev = P.read[d.id];
+      P.read[d.id] = { best: Math.max(ok, prev ? prev.best : 0), last: ok, at: today() };
+      persist();
+      $("#rdScore").textContent = `Score : ${ok}/${d.questions.length}. ` + (ok === d.questions.length ? "Parfait, tu as lu comme il faut." : "Relis les phrases des réponses ratées : c'est exactement là que se cachent les tests.");
+      $("#rdKeys").hidden = false;
+      view().querySelectorAll(".rd-opt input").forEach((x) => (x.disabled = true));
+    };
+  }
   /* ============================================================ parcours DSA */
   function dsaP(id) { return (CAT.dsa || []).find((d) => d.id === id); }
   function dsaDone(d) { return d.exos.filter((t) => P.tasks[t] && P.tasks[t].best >= 80).length; }
@@ -1135,7 +1236,7 @@
     const asm = /^(exam|exo)-/.test(h);
     $("#v-examen").classList.toggle("on", asm);
     document.body.classList.toggle("in-asm", asm);
-    const nv = /^(exos|examens|apprendre|reflexe-|dsa)/.test(h) ? "bib" : /^live/.test(h) ? "live" : h === "progression" ? "progression" : h === "connexion" ? "connexion" : "accueil";
+    const nv = /^(exos|examens|apprendre|reflexe-|dsa|lire)/.test(h) ? "bib" : /^live/.test(h) ? "live" : h === "progression" ? "progression" : h === "connexion" ? "connexion" : "accueil";
     $$("[data-nav]").forEach((a) => a.classList.toggle("on", a.dataset.nav === nv));
     $("#streakN").textContent = streak() + (streak() > 1 ? " jours" : " jour");
     renderSessbar(asm);
@@ -1158,6 +1259,8 @@
     if (h === "guide") return renderGuide();
     if ((m = h.match(/^dsa-(\w+)$/))) return renderDsa(m[1]);
     if (h === "dsa") return renderDsaList();
+    if ((m = h.match(/^lire-(\w+)$/))) return renderRead(m[1]);
+    if (h === "lire") return renderReadList();
     renderHome();
   }
 

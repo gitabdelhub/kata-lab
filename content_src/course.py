@@ -193,7 +193,14 @@ def _hints(w):
 
 
 import dsa as _dsa
+import reading as _reading
 _D = _dsa.DSA
+_R = _reading.READ
+
+
+def _read_step(k):
+    d = _R[k]
+    return {"type": "read", "read": d["id"], "title": "Lire la consigne : " + d["title"], "sub": d["focus"] + ", 4 questions", "min": 8}
 
 
 def _dsa_session(sid, k, label):
@@ -210,6 +217,7 @@ for w in range(6):
     lab = "tous les indices" if h is None else "1 indice" if h == 1 else "sans indice"
     SESSIONS_P2.append({"id": f"p2s{3 * w + 1}", "title": f"Semaine {w + 1} · PySpark fichiers", "steps": [
         dict(REVIEW),
+        _read_step(w),
         {"type": "exo", "task": P2_SPARK[w], "hints": h, "title": "Task PySpark chronométrée", "sub": "Format examen, " + lab, "min": 22}]})
     SESSIONS_P2.append({"id": f"p2s{3 * w + 2}", "title": f"Semaine {w + 1} · SQL et Python", "steps": [
         dict(REVIEW),
@@ -230,7 +238,9 @@ for i, ex in enumerate(P3_EXAMS):
         dict(REVIEW),
         {"type": "exam", "exam": ex, "title": "Examen complet, mode strict", "sub": "4 tasks, 70 min, pas de pause ni d'indice", "min": 70},
         {"type": "analysis", "exam": ex, "title": "Analyse guidée", "sub": "Comprendre tes erreurs, 15 min", "min": 15}]})
-    steps = [{"type": "review", "title": "Refaire tes tasks ratées", "sub": "Les tests ratés de l'examen, de mémoire", "min": 20}]
+    steps = [{"type": "review", "title": "Refaire tes tasks ratées", "sub": "Les tests ratés de l'examen, de mémoire", "min": 15}]
+    if 6 + i < len(_R):
+        steps.append(_read_step(6 + i))
     if i < len(P3_BANK):
         lang = "SQL" if P3_BANK[i].startswith("bs") else "Python"
         steps.append({"type": "exo", "task": P3_BANK[i], "hints": 0, "title": f"Task {lang} sans indice", "sub": "Banque réelle, comme le jour J", "min": 13})
@@ -258,15 +268,15 @@ EXAMS = [
     {"id": "e07", "title": "Practice Assessment · Energy Meters", "minutes": 70, "tasks": ["e07t1", "e07t2", "e07t3", "e07t4"]},
     {"id": "e08", "title": "Practice Assessment · Marketplace Catalog", "minutes": 70, "tasks": ["e08t1", "e08t2", "e08t3", "e08t4"]},
     {"id": "e09", "title": "Practice Assessment · Airline Operations", "minutes": 70, "tasks": ["e09t1", "e09t2", "e09t3", "e09t4"]},
-    {"id": "e10", "title": "Practice Assessment · SaaS Subscriptions", "minutes": 70, "tasks": ["e10t1", "e10t2", "e10t3", "e10t4"]},
-    {"id": "e11", "title": "Practice Assessment · Logistics & Payments", "minutes": 70, "tasks": ["e11t1", "e11t2", "e11t3", "e11t4"]},
-    {"id": "e12", "title": "Practice Assessment · Retail Revenue", "minutes": 70, "tasks": ["e12t1", "e12t2", "e12t3", "e12t4"]},
-    {"id": "e13", "title": "Practice Assessment · Customer Master Data", "minutes": 70, "tasks": ["e13t1", "e13t2", "e13t3", "e13t4"]},
-    {"id": "e14", "title": "Practice Assessment · Payments Cleanup", "minutes": 70, "tasks": ["e14t1", "e14t2", "e14t3", "e14t4"]},
-    {"id": "e15", "title": "Practice Assessment · Full Rehearsal", "minutes": 70, "tasks": ["e15t1", "e15t2", "e15t3", "e15t4"]},
-    {"id": "e16", "title": "Practice Assessment · Retail Data Lake", "minutes": 70, "tasks": ["e16t1", "e16t2", "e16t3", "e16t4"]},
-    {"id": "e17", "title": "Practice Assessment · Streaming Platform", "minutes": 70, "tasks": ["e17t1", "e17t2", "e17t3", "e17t4"]},
-    {"id": "e18", "title": "Practice Assessment · Supply Chain", "minutes": 70, "tasks": ["e18t1", "e18t2", "e18t3", "e18t4"]},
+    {"id": "e10", "title": "Practice Assessment · SaaS Subscriptions", "minutes": 70, "tasks": ["f10t1", "f10t2", "e10t3", "e10t4"]},
+    {"id": "e11", "title": "Practice Assessment · Logistics & Payments", "minutes": 70, "tasks": ["f11t1", "f11t2", "e11t3", "e11t4"]},
+    {"id": "e12", "title": "Practice Assessment · Retail Revenue", "minutes": 70, "tasks": ["f12t1", "f12t2", "e12t3", "e12t4"]},
+    {"id": "e13", "title": "Practice Assessment · Customer Master Data", "minutes": 70, "tasks": ["f13t1", "f13t2", "e13t3", "e13t4"]},
+    {"id": "e14", "title": "Practice Assessment · Payments Cleanup", "minutes": 70, "tasks": ["f14t1", "f14t2", "e14t3", "e14t4"]},
+    {"id": "e15", "title": "Practice Assessment · Full Rehearsal", "minutes": 70, "tasks": ["f15t1", "f15t2", "e15t3", "e15t4"]},
+    {"id": "e16", "title": "Practice Assessment · Retail Data Lake", "minutes": 70, "tasks": ["f16t1", "f16t2", "e16t3", "e16t4"]},
+    {"id": "e17", "title": "Practice Assessment · Streaming Platform", "minutes": 70, "tasks": ["f17t1", "f17t2", "e17t3", "e17t4"]},
+    {"id": "e18", "title": "Practice Assessment · Supply Chain", "minutes": 70, "tasks": ["f18t1", "f18t2", "e18t3", "e18t4"]},
 ]
 
 # Temps conseillé par task (stratégie d'examen), en minutes, pour 70 min
@@ -305,6 +315,7 @@ def write(out, index):
         "links": LINKS,
         "live": __import__("live").check(index),
         "dsa": __import__("dsa").check(index),
+        "read": _reading.check(),
     }
     with open(os.path.join(out, "catalog.json"), "w", encoding="utf-8") as fh:
         json.dump(cat, fh, ensure_ascii=False, separators=(",", ":"))

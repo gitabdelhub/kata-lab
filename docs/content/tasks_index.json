@@ -1551,6 +1551,259 @@
 "tests": 11
 },
 {
+"id": "f10t1",
+"name": "Seat Roster Sheets",
+"lang": "pyspark",
+"tags": [
+"consigne longue",
+"grille lue en colonnes",
+"fichiers par dossier",
+"dédoublonnage"
+],
+"minutes": 22,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "f10t2",
+"name": "Billable Seat-Days",
+"lang": "pyspark",
+"tags": [
+"consigne longue",
+"intervalles actifs",
+"jours couverts",
+"règles implicites"
+],
+"minutes": 22,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "f11t1",
+"name": "Carrier Scan Manifests",
+"lang": "pyspark",
+"tags": [
+"consigne longue",
+"en-têtes variables",
+"lignes de commentaire",
+"dernier état"
+],
+"minutes": 22,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "f11t2",
+"name": "Payment Retries in EUR",
+"lang": "pyspark",
+"tags": [
+"consigne longue",
+"première réussite",
+"taux de change as-of",
+"plusieurs règles cachées"
+],
+"minutes": 22,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "f12t1",
+"name": "Till Receipts Project",
+"lang": "pyspark",
+"tags": [
+"projet multi-fichiers",
+"consigne longue",
+"parsing de texte",
+"contrôle de total"
+],
+"minutes": 25,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "f12t2",
+"name": "Products Bought Together",
+"lang": "pyspark",
+"tags": [
+"consigne longue",
+"auto-jointure",
+"paires sans doublon",
+"top N avec départage"
+],
+"minutes": 22,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "f13t1",
+"name": "Three Systems, One Customer",
+"lang": "pyspark",
+"tags": [
+"consigne longue",
+"CSV et JSON mélangés",
+"normalisation",
+"dernière valeur non vide par champ"
+],
+"minutes": 25,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "f13t2",
+"name": "Win-back Audience",
+"lang": "pyspark",
+"tags": [
+"consigne longue",
+"consentement au plus tard",
+"anti-jointure",
+"plusieurs filtres"
+],
+"minutes": 22,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "f14t1",
+"name": "Bank Statements from Two Banks",
+"lang": "pyspark",
+"tags": [
+"consigne longue",
+"formats régionaux",
+"relevés qui se chevauchent",
+"doublons légitimes"
+],
+"minutes": 25,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "f14t2",
+"name": "Weekly Merchant Payouts",
+"lang": "pyspark",
+"tags": [
+"consigne longue",
+"semaines sans activité",
+"réserve libérée 4 semaines plus tard",
+"grille de dates"
+],
+"minutes": 22,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "f15t1",
+"name": "Access Logs Project",
+"lang": "pyspark",
+"tags": [
+"projet multi-fichiers",
+"consigne longue",
+"regex",
+"fuseaux horaires",
+"normalisation des chemins"
+],
+"minutes": 25,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "f15t2",
+"name": "Shopping Sessions",
+"lang": "pyspark",
+"tags": [
+"consigne longue",
+"sessionisation",
+"lag et somme cumulée",
+"jour de début de session"
+],
+"minutes": 22,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "f16t1",
+"name": "Partitioned Sales Lake",
+"lang": "pyspark",
+"tags": [
+"consigne longue",
+"partitions Hive",
+"marqueur _SUCCESS",
+"fichiers temporaires"
+],
+"minutes": 25,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "f16t2",
+"name": "Stock-out Days",
+"lang": "pyspark",
+"tags": [
+"consigne longue",
+"valeur reportée (forward fill)",
+"grille de jours",
+"plus longue série"
+],
+"minutes": 22,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "f17t1",
+"name": "Player Event Batches",
+"lang": "pyspark",
+"tags": [
+"consigne longue",
+"JSON imbriqué",
+"lots renvoyés",
+"intervalles lecture/pause"
+],
+"minutes": 25,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "f17t2",
+"name": "Peak Concurrent Viewers",
+"lang": "pyspark",
+"tags": [
+"consigne longue",
+"balayage +1/-1",
+"égalités de temps",
+"flux encore ouverts"
+],
+"minutes": 22,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "f18t1",
+"name": "Purchase Orders Project (EDI)",
+"lang": "pyspark",
+"tags": [
+"projet multi-fichiers",
+"consigne longue",
+"format EDI",
+"remplacement et annulation"
+],
+"minutes": 25,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "f18t2",
+"name": "Late Deliveries in Working Days",
+"lang": "pyspark",
+"tags": [
+"consigne longue",
+"jours ouvrés",
+"jours fériés",
+"livraisons pas encore arrivées"
+],
+"minutes": 22,
+"source": "Kata Lab",
+"tests": 8
+},
+{
 "id": "p1m1",
 "name": "Payment status",
 "lang": "pyspark",

@@ -18,6 +18,7 @@ import contextlib
 import json
 import math
 import os
+import re
 import sys
 import traceback
 
@@ -179,8 +180,18 @@ def run_pyspark(code, entry, params, inp):
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+LOCAL_IMPORT = re.compile(r"^[ \t]*(from[ \t]+pipeline(\.\w+)*[ \t]+import[^\n]*|import[ \t]+pipeline[^\n]*)$", re.M)
+
+
+def flatten(code):
+    """Tâches « projet » : les fichiers sont mis bout à bout, les imports locaux (package pipeline) sont retirés."""
+    return LOCAL_IMPORT.sub("", code)
+
+
 def run(task, code, inp):
     lang = task["lang"]
+    if task.get("project") and lang != "sql":
+        code = flatten(code)
     if task.get("wrapper") and lang != "sql":
         code = code + "\n\n" + task["wrapper"]
     if lang == "python":
@@ -282,7 +293,7 @@ def load_task(path):
         "tests_in": m.tests(), "mutants": getattr(m, "MUTANTS", []), "io": getattr(m, "IO", []),
         # Vérifications en plus pour les banques : réponses officielles et solutions indépendantes
         "bank": m.expected() if hasattr(m, "expected") else None, "alts": getattr(m, "ALT", []),
-        "wrapper": getattr(m, "WRAPPER", ""), "desc_raw": getattr(m, "DESC_RAW", False),
+        "wrapper": getattr(m, "WRAPPER", ""), "project": getattr(m, "PROJECT", None), "desc_raw": getattr(m, "DESC_RAW", False),
     }
     return t
 
@@ -348,6 +359,8 @@ def build_task(t):
                              "hints", "summary_fr", "tags", "minutes", "source")}
     if t["wrapper"]:
         doc["wrapper"] = t["wrapper"]
+    if t["project"]:
+        doc["project"] = t["project"]
     doc.update(files=files, visible=vis, hidden_n=len(hid), hidden=b64(hid), solution=b64(t["solution"]))
     with open(os.path.join(OUT, "tasks", t["id"] + ".json"), "w", encoding="utf-8") as fh:
         json.dump(doc, fh, ensure_ascii=False, separators=(",", ":"))

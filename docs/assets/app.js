@@ -65,7 +65,7 @@
   }
   function currentSession() { return P.cur ? findSession(P.cur.id) : nextSession(); }
   function stepHash(st) {
-    return st.type === "review" ? "revision" : st.type === "learn" ? "reflexe-" + st.reflex : st.type === "exo" ? "exo-" + st.task : st.type === "exam" ? "exam-" + st.exam : "analyse-" + st.exam;
+    return st.type === "review" ? "revision" : st.type === "learn" ? "reflexe-" + st.reflex : st.type === "dsa" ? "dsa-" + st.dsa : st.type === "exo" ? "exo-" + st.task : st.type === "exam" ? "exam-" + st.exam : "analyse-" + st.exam;
   }
   function goHash(h) { if (location.hash === "#" + h) route(); else location.hash = h; }
   function startSession() {
@@ -83,6 +83,7 @@
     const s = findSession(P.cur.id);
     const st = s.steps[P.cur.step];
     if (st.type === "learn") introduceCards(st.reflex);
+    if (st.type === "dsa") { const d = dsaP(st.dsa); if (d) d.cards.forEach((_, j) => { const k = d.id + "-" + j; if (!P.cards[k]) P.cards[k] = { due: P.sessCount + 1, lvl: 0 }; }); }
     if (P.cur.step < s.steps.length - 1) {
       P.cur.step++; persist();
       goHash(stepHash(s.steps[P.cur.step]));

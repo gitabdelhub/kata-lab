@@ -192,6 +192,18 @@ def _hints(w):
     return None if w < 2 else 1 if w < 4 else 0
 
 
+import dsa as _dsa
+_D = _dsa.DSA
+
+
+def _dsa_session(sid, k, label):
+    d = _D[k]
+    return {"id": sid, "title": f"{label} · DSA {k + 1} sur 13 : {d['title']}", "steps": [
+        {"type": "dsa", "dsa": d["id"], "title": "Fiche DSA : " + d["title"], "sub": "Mini cours et exemple guidé, à réécrire de mémoire", "min": 8},
+        {"type": "exo", "task": d["exos"][0], "title": "Exo DSA 1", "sub": "Pattern du jour, avec les vrais tests", "min": 11},
+        {"type": "exo", "task": d["exos"][1], "title": "Exo DSA 2", "sub": "Même pattern, autre problème", "min": 11}]}
+
+
 SESSIONS_P2 = []
 for w in range(6):
     h = _hints(w)
@@ -203,6 +215,7 @@ for w in range(6):
         dict(REVIEW),
         {"type": "exo", "task": P2_SQL[w], "hints": h, "title": "Task SQL chronométrée", "sub": "Banque Beyond-LeetCode-SQL, " + lab, "min": 13},
         {"type": "exo", "task": P2_PY[w], "hints": h, "title": "Task Python chronométrée", "sub": "Banque exercism, " + lab, "min": 12}]})
+    SESSIONS_P2.append(_dsa_session(f"p2d{w + 1}", w, f"Semaine {w + 1}"))
     SESSIONS_P2.append({"id": f"p2s{3 * w + 3}", "title": f"Semaine {w + 1} · Examen complet", "steps": [
         dict(REVIEW),
         {"type": "exam", "exam": P2_EXAMS[w], "title": "Examen complet chronométré", "sub": "4 tasks, au niveau du vrai test", "min": 70},
@@ -222,14 +235,16 @@ for i, ex in enumerate(P3_EXAMS):
         lang = "SQL" if P3_BANK[i].startswith("bs") else "Python"
         steps.append({"type": "exo", "task": P3_BANK[i], "hints": 0, "title": f"Task {lang} sans indice", "sub": "Banque réelle, comme le jour J", "min": 13})
     SESSIONS_P3.append({"id": f"p3s{2 * i + 2}", "title": f"Après l'examen {i + 1} · refaire", "steps": steps})
+    if 6 + i < len(_D):
+        SESSIONS_P3.append(_dsa_session(f"p3d{i + 1}", 6 + i, f"Semaine {i + 7}"))
 
 PHASES = [
     {"id": "p1", "name": "Phase 1 · Réflexes", "dates": "15 au 31 janvier · 3 séances de 30 min par semaine", "opens": "2027-01-15",
      "note": "Un geste par séance : exemple guidé, mini-exo de mémoire, puis un exo chronométré.", "sessions": SESSIONS_P1},
-    {"id": "p2", "name": "Phase 2 · Tasks guidées sous chrono", "dates": "1er février au 15 mars · 3 × 30 min par semaine, pendant ton PFE", "opens": "2027-02-01",
-     "note": "Une task au format de l'examen par séance, PySpark, SQL et Python mélangés, avec des indices qui disparaissent peu à peu.", "sessions": SESSIONS_P2},
+    {"id": "p2", "name": "Phase 2 · Tasks guidées sous chrono", "dates": "1er février au 15 mars · 4 × 30 min par semaine, pendant ton PFE", "opens": "2027-02-01",
+     "note": "Une task au format de l'examen par séance, PySpark, SQL et Python mélangés, avec des indices qui disparaissent peu à peu. Une séance DSA par semaine : un pattern, sa fiche et 2 exos.", "sessions": SESSIONS_P2},
     {"id": "p3", "name": "Phase 3 · Examens complets", "dates": "16 mars au 30 avril · 9 examens, chacun suivi d'une séance pour refaire", "opens": "2027-03-16",
-     "note": "Un examen complet en mode strict, puis une analyse guidée et une séance pour refaire tes tests ratés. Aucun indice.", "sessions": SESSIONS_P3},
+     "note": "Un examen complet en mode strict, puis une analyse guidée et une séance pour refaire tes tests ratés. Aucun indice. Et chaque semaine, une séance DSA (patterns 7 à 13).", "sessions": SESSIONS_P3},
 ]
 
 EXAMS = [

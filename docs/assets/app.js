@@ -797,7 +797,7 @@
   function ensureCM() {
     if (cm) return;
     cm = CodeMirror($("#cm"), {
-      lineNumbers: true, indentUnit: 4, tabSize: 4, indentWithTabs: false, matchBrackets: true, autoCloseBrackets: true, viewportMargin: 30,
+      lineNumbers: true, indentUnit: 4, tabSize: 4, indentWithTabs: false, matchBrackets: true, autoCloseBrackets: P.autoClose !== false, viewportMargin: 30,
       extraKeys: {
         Tab: (c) => (c.somethingSelected() ? c.indentSelection("add") : c.replaceSelection("    ", "end")),
         "Shift-Tab": (c) => c.indentSelection("subtract"),
@@ -1012,12 +1012,14 @@
       p.innerHTML = `<h2>Settings</h2><h4>Mode du chrono</h4><div class="opt"><button id="sStrict" class="${c.mode === "strict" ? "on" : ""}">Strict, comme le vrai test</button><button id="sTrain" class="${c.mode === "train" ? "on" : ""}">Entraînement, pause permise</button>${c.mode === "train" ? `<button id="sPause">${c.pausedLeft == null ? "Mettre en pause" : "Reprendre"}</button><button id="sAdd5">Ajouter 5 min</button><button id="sAdd10">Ajouter 10 min</button>` : ""}</div>${c.mode === "strict" ? `<p style="font-size:14px;color:var(--as-dim)">Passe en mode entraînement pour mettre en pause ou ajouter du temps.</p>` : ""}
         ${W.mode === "exam" && !exam(W.id).mini ? `<h4>Durée au départ</h4><div class="opt" style="grid-template-columns:repeat(3,1fr)">${[60, 70, 90].map((d) => `<button data-dur="${d}" class="${(P.dur || 70) === d ? "on" : ""}">${d} min</button>`).join("")}</div><p style="font-size:14px;color:var(--as-dim)">La durée choisie s'applique quand tu recommences.</p>` : ""}
         ${W.mode === "exo" ? `<h4>Fiche UMPIRE</h4><div class="opt"><button id="sUmp" class="${P.ump ? "on" : ""}">${P.ump ? "Affichée avant chaque exo (conseillé)" : "Masquée"}</button></div>` : ""}
+        <h4>Parenthèses et guillemets</h4><div class="opt"><button id="sClose" class="${P.autoClose !== false ? "on" : ""}">${P.autoClose !== false ? "Fermés automatiquement : quand tu tapes ( , ) s'ajoute" : "Pas de fermeture automatique : tu tapes toi-même ( et )"}</button></div><p style="font-size:14px;color:var(--as-dim)">Clique pour changer. Dans les deux cas, quand ton curseur touche une parenthèse, sa jumelle s'éclaire en bleu. Une parenthèse seule s'éclaire en rouge.</p>
         <h4>${W.mode === "exam" ? "Examen" : "Exo"}</h4><div class="opt"><button id="sRestart">Recommencer depuis le début</button></div>`;
       const on = (id, f) => { const b = $("#" + id); if (b) b.onclick = f; };
       on("sAdd5", () => addTime(5)); on("sAdd10", () => addTime(10));
       on("sStrict", () => { setMode("strict"); renderPaper(); }); on("sTrain", () => { setMode("train"); renderPaper(); });
       on("sPause", () => { togglePause(); renderPaper(); });
       on("sUmp", () => { P.ump = !P.ump; persist(); renderPaper(); });
+      on("sClose", () => { P.autoClose = P.autoClose === false; persist(); if (cm) cm.setOption("autoCloseBrackets", P.autoClose); renderPaper(); });
       on("sRestart", restart);
       $$("[data-dur]", p).forEach((b) => (b.onclick = () => { P.dur = +b.dataset.dur; persist(); renderPaper(); }));
     }

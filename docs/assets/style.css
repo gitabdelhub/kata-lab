@@ -560,3 +560,7 @@ button.unit:hover{border-color:var(--mint)}
 .tin nav{border-right:0}
 body.resizing-x,body.resizing-x *{cursor:col-resize!important;user-select:none!important}
 body.resizing-y,body.resizing-y *{cursor:row-resize!important;user-select:none!important}
+
+/* parenthèses : la jumelle bien visible, l'orpheline en rouge */
+.asm-code .CodeMirror span.CodeMirror-matchingbracket{color:inherit!important;background:rgba(31,111,235,.22);outline:1px solid #1f6feb;border-radius:2px;font-weight:700}
+.asm-code .CodeMirror span.CodeMirror-nonmatchingbracket{color:#fff!important;background:#d1242f;border-radius:2px;font-weight:700}

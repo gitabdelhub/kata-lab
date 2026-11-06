@@ -9,7 +9,7 @@ TAGS = ["heapq", "fusion de k listes triées", "départage stable", "doublons co
 IO = [("input", "array.array.array.string streams"), ("output", "array.string")]
 DESC = """
 <p>Each server of a cluster writes its own log, already sorted by time. You are given <code>streams</code>: <code>streams[i]</code> is the log of server <code>i</code>, a list of <code>[timestamp, message]</code> pairs sorted by <code>timestamp</code> (an integer written as a string, without leading zeros). A server can write several lines with the same timestamp.</p>
-<p>Your task is to merge all logs into one list sorted by timestamp, written as <code>"timestamp server message"</code> (for example <code>"105 2 disk full"</code>). When several lines have the same timestamp, the line of the server with the smallest index comes first, and lines of the same server keep their order.</p>
+<p>Your task is to merge all logs and return one list of strings, sorted by timestamp, written as <code>"timestamp server message"</code> (for example <code>"105 2 disk full"</code>). When several lines have the same timestamp, the line of the server with the smallest index comes first, and lines of the same server keep their order.</p>
 <p>Finally, when the <b>same message</b> appears on consecutive lines of the merged list (whatever the server and the timestamp), only its first line is kept.</p>
 <h4>Example</h4>{{EXAMPLE}}
 """

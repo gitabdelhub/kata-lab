@@ -22,6 +22,8 @@ import re
 import sys
 import traceback
 
+from howto import howto_html, io_lines
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "content_src"))
 sys.path.insert(0, os.path.join(ROOT, "runner"))
@@ -346,9 +348,9 @@ def build_task(t):
             html = (f"<p>For <code>{esc(args)}</code>, the output should be</p>" + render_output(ex["expected"]))
         t["desc"] = t["desc"].replace("{{EXAMPLE}}", html)
     lim, mem = LIMITS[t["lang"]]
-    io_lines = "".join(f"<br><b>[{esc(k)}]</b> {v}" for k, v in t["io"])
+    io_html = "".join(f"<br><b>[{esc(k)}]</b> {v}" for k, v in t["io"] + io_lines(t, tests))
     t["desc"] += (f'<div class="lim"><b>[execution time limit]</b> {t["limit_s"]:g} seconds ({lim})'
-                  f'<br><b>[memory limit]</b> {mem}{io_lines}</div>')
+                  f'<br><b>[memory limit]</b> {mem}{io_html}</div>')
     hid = tests[t["visible_n"]:]
     files = None
     first = vis[0]["input"] if vis else {}
@@ -361,6 +363,7 @@ def build_task(t):
         doc["wrapper"] = t["wrapper"]
     if t["project"]:
         doc["project"] = t["project"]
+    doc["howto"] = howto_html(t, tests)
     doc.update(files=files, visible=vis, hidden_n=len(hid), hidden=b64(hid), solution=b64(t["solution"]))
     with open(os.path.join(OUT, "tasks", t["id"] + ".json"), "w", encoding="utf-8") as fh:
         json.dump(doc, fh, ensure_ascii=False, separators=(",", ":"))

@@ -11,7 +11,7 @@ IO = [("input", "array.integer tree"), ("output", "integer")]
 SUMMARY_FR = "Profondeur maximale d'un arbre binaire (nombre de nœuds sur le plus long chemin racine -> feuille), 0 pour un arbre vide."
 HINTS = ["Récursion : 0 si root est None, sinon 1 + max(profondeur gauche, profondeur droite).", "Variante itérative : BFS niveau par niveau avec une deque, et compter les niveaux."]
 DESC = """
-<p>A product category tree is a <b>binary tree</b> of <code>TreeNode</code> objects (<code>val</code>, <code>left</code>, <code>right</code>). Implement <code>max_depth(root)</code>: the number of nodes on the longest path from the root down to a leaf, or <code>0</code> if <code>root</code> is <code>None</code>.</p>
+<p>A product category tree is a <b>binary tree</b> of <code>TreeNode</code> objects (<code>val</code>, <code>left</code>, <code>right</code>). Implement <code>max_depth(root)</code> so that it returns an integer: the number of nodes on the longest path from the root down to a leaf, or <code>0</code> if <code>root</code> is <code>None</code>.</p>
 <p>The class <code>TreeNode</code> is already defined. In the tests, the tree is shown in level order, with <code>null</code> for a missing child (like on most coding platforms).</p>
 <h4>Example</h4>{{EXAMPLE}}
 """

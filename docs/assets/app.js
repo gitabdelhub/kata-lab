@@ -15,8 +15,11 @@
   const LS = "kata.v1", LSA = "kata.attempt";
   const load = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (_) { return d; } };
   const save = (k, v) => { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); } catch (_) {} };
-  const P0 = () => ({ v: 1, done: {}, sessCount: 0, cur: null, cards: {}, tasks: {}, exams: {}, review: [], errors: {}, notes: {}, days: [], ump: true, dur: 70, live: [] });
+  const P0 = () => ({ v: 1, done: {}, sessCount: 0, cur: null, cards: {}, tasks: {}, exams: {}, review: [], errors: {}, notes: {}, days: [], ump: false, dur: 70, live: [], v2: 1, solSeen: {}, day: null, dayN: 1 });
   let P = Object.assign(P0(), load(LS, {}));
+  // v2 (6 nov 2026) : séance du jour simple, plus de parcours guidé ni d'UMPIRE imposé
+  if (!P.v2) { P.v2 = 1; P.ump = false; P.cur = null; P.solSeen = P.solSeen || {}; }
+  if (!P.solSeen) P.solSeen = {};
   const persist = () => save(LS, P);
 
   const pad = (n) => String(n).padStart(2, "0");
@@ -148,7 +151,7 @@
   function band(title, tabsHtml, extra) {
     return `<div class="pband"><div class="wrap">${extra || ""}<h1 class="ptitle">${title}</h1>${tabsHtml || '<div style="height:18px"></div>'}</div></div>`;
   }
-  const bib = (on) => `<div class="biblinks"><a href="#exos" class="${on === "exos" ? "on" : ""}">Exos</a><a href="#examens" class="${on === "examens" ? "on" : ""}">Examens</a><a href="#apprendre" class="${on === "apprendre" ? "on" : ""}">Réflexes</a><a href="#dsa" class="${on === "dsa" ? "on" : ""}">DSA</a><a href="#lire" class="${on === "lire" ? "on" : ""}">Lire la consigne</a></div>`;
+  const bib = (on) => on === "examens" || on === "exos" ? "" : `<div class="biblinks"><a href="#fiches">Fiches</a><a href="#apprendre" class="${on === "apprendre" ? "on" : ""}">Réflexes</a><a href="#dsa" class="${on === "dsa" ? "on" : ""}">DSA</a><a href="#lire" class="${on === "lire" ? "on" : ""}">Lire la consigne</a><a href="#live">Live coding</a><a href="#progression">Progression</a></div>`;
   function fmtVal(v, top) {
     if (v === null || v === undefined) return "null";
     if (typeof v === "string") return top === "cell" ? v : JSON.stringify(v);
@@ -176,16 +179,15 @@
   function renderGuide() {
     if (!P.guideSeen) { P.guideSeen = true; persist(); renderAlerts(); }
     const sec = (n, t, body) => `<div class="card guide-sec"><span class="eyebrow">${n}</span><h3 style="margin:4px 0 10px">${t}</h3>${body}</div>`;
-    view().innerHTML = `<section class="ws on">${band("Mode d'emploi", `<p class="lead" style="padding-bottom:28px">Comment utiliser Kata Lab en 3 minutes. Retiens surtout la première règle : clique sur « Séance du jour » et laisse le site te guider.</p>`)}
+    view().innerHTML = `<section class="ws on">${band("Mode d'emploi", `<p class="lead" style="padding-bottom:28px">Kata Lab en 2 minutes : une séance par jour, et trois espaces libres à côté.</p>`)}
       <div class="wrap"><div class="sect guide">
-        ${sec("1", "Chaque jour : « Séance du jour »", `<p>Le bouton bleu en haut à droite ouvre ta séance. Une séance dure environ 30 min et enchaîne 2 ou 3 étapes : révision, leçon, exo ou examen. Quand une étape est finie, clique sur la barre bleue « Étape suivante » en bas de l'écran. Tu n'as rien à choisir : le parcours donne les bons exos dans le bon ordre.</p><div class="btnrow"><a class="pill" href="#seance">Commencer ma séance</a></div>`)}
-        ${sec("2", "Le parcours jusqu'au test", `<ul><li><b>Phase 1 · Réflexes</b> : les gestes de base (PySpark, SQL, Python), un par séance.</li><li><b>Phase 2 · Tasks guidées</b> : des tasks au format du test, avec des indices qui disparaissent peu à peu, un examen complet chaque semaine, une séance DSA et un exo « Lire la consigne ».</li><li><b>Phase 3 · Examens complets</b> : conditions réelles, sans indice, puis analyse et séance pour refaire. Comme le jour J, les 2 premières tasks sont en PySpark avec des dossiers de fichiers à lire et de longs énoncés à interpréter, et 3 examens sont des petits projets à plusieurs fichiers de code.</li></ul><p>Les dates sont des repères, pas des verrous : tout est ouvert. Tu peux commencer la phase 1 dès aujourd'hui, à ton rythme, en plus du Zoomcamp.</p>`)}
-        ${sec("3", "L'écran d'exo et d'examen", `<ul><li><b>DESC</b> : l'énoncé. <b>INFO</b> : le chrono et la stratégie. <b>SETTINGS</b> : mode du chrono, Recommencer.</li><li><b>RUN TESTS</b> lance les tests visibles. <b>SUBMIT</b> note ta task sur 100 avec les tests cachés : soumets tôt, puis améliore et resoumets.</li><li>Le chrono suit l'heure réelle. En examen il est strict (pas de pause) ; en exo tu peux mettre en pause ou ajouter du temps (SETTINGS).</li><li>Avant chaque task, l'écran UMPIRE te fait réfléchir 2 minutes : dis ton plan à voix haute.</li></ul>`)}
-        ${sec("4", "PySpark : une clé, une seule fois", `<p>SQL et Python marchent tout de suite dans la page. Pour PySpark, le site allume ton Codespace GitHub : colle ta clé une seule fois dans <a href="#connexion">Connexion</a>. Au premier exo PySpark, Spark démarre en 1 à 2 minutes, puis il s'éteint seul après 30 minutes sans utilisation. Le chrono ne démarre que quand tout est prêt.</p>`)}
-        ${sec("5", "Les révisions se font toutes seules", `<p>Chaque séance commence par une révision éclair : des cartes à retrouver de mémoire, et les exos ratés (moins de 80/100) qui reviennent 2, puis 5, puis 12 séances plus tard. C'est ce qui fait que tu retiens au lieu d'oublier.</p>`)}
-        ${sec("6", "En plus, quand tu veux", `<ul><li><b>Bibliothèque</b> : tous les exos, les 19 examens, les réflexes, les 13 patterns DSA et les 13 exos « Lire la consigne », en libre choix.</li><li><b>Live coding</b> : une fois par semaine, 40 min, une question d'entretien à voix haute. Enregistre-toi et réécoute.</li><li><b>Progression</b> : tes notes, tes erreurs fréquentes, tes examens.</li></ul>`)}
-        ${sec("7", "Effacer, recommencer, sauvegarder", `<ul><li><b>Recommencer</b> (SETTINGS) : remet ton code et le chrono à zéro, tes anciennes notes restent.</li><li><b>Effacer</b> (sur un examen ou un exo dans la Bibliothèque) : efface seulement cet examen ou cet exo.</li><li>Ta progression est enregistrée dans ce navigateur : utilise toujours le même (ton favori Chrome), et exporte-la de temps en temps dans <a href="#progression">Progression</a>, Sauvegarde.</li></ul>`)}
-        ${sec("8", "Une semaine type", `<p>Pendant le Zoomcamp : 3 séances de 30 min par semaine. Pendant ton PFE (phase 2) : 4 séances de 30 min, dont l'examen complet le week-end. Plus un live coding de 40 min. Si tu rates un jour, rien n'est perdu : la séance suivante t'attend, le parcours avance par séance, pas par date.</p><div class="btnrow"><a class="pill" href="#seance">Commencer ma séance</a><a class="pill ghost" href="#accueil">Voir mon parcours</a></div>`)}
+        ${sec("1", "Chaque jour : la séance sur l'Accueil", `<p>L'Accueil te donne 4 exos : un SQL, un PySpark, un Python et une révision. Tu ne vois pas leur titre avant de les ouvrir, pour ne pas choisir à la carte. Un exo est coché quand tu as 80/100 ou plus, ou quand tu as regardé le corrigé (il revient alors plus tard en révision). Quand tout est coché, la séance suivante apparaît, peu importe le jour. Toutes les 7 séances, la séance est un examen complet.</p><div class="btnrow"><a class="pill" href="#accueil">Ma séance</a></div>`)}
+        ${sec("2", "Pratiquer", `<p>Tous les exos dans une liste, dans l'ordre conseillé. Filtre par langage, thème ou statut (À faire, Réussi, À refaire), ou cherche un mot comme « Window ».</p>`)}
+        ${sec("3", "Examens", `<p>19 examens au format du test : 4 tasks, 70 minutes, chaque task notée sur 100. Le chrono est strict. Après l'examen, l'analyse guidée te montre le corrigé de chaque task.</p>`)}
+        ${sec("4", "Fiches", `<p>Le résumé de SQL, PySpark et Python : syntaxe, exemple court, piège, et les exos liés. Dans chaque exo, un lien ouvre la bonne partie de la fiche dans un nouvel onglet.</p>`)}
+        ${sec("5", "L'écran d'exo", `<ul><li>L'encadré bleu <b>Comment faire, exactement</b> dit en français où écrire, quoi renvoyer et ce que tu dois voir.</li><li><b>RUN TESTS</b> lance les tests visibles. <b>SUBMIT</b> note ta task sur 100 : soumets tôt, puis améliore.</li><li>Les indices sont sous l'énoncé. Le corrigé s'ouvre après 2 essais (MORE, Voir le corrigé).</li></ul>`)}
+        ${sec("6", "PySpark : une clé, une seule fois", `<p>SQL et Python marchent tout de suite. Pour PySpark, colle ta clé GitHub une fois dans <a href="#connexion">Connexion</a>. Spark démarre en 1 à 2 minutes au premier exo, puis s'éteint seul après 30 minutes sans utilisation.</p>`)}
+        ${sec("7", "Sauvegarder", `<p>Ta progression reste dans ce navigateur : utilise toujours le même, et exporte-la de temps en temps dans <a href="#progression">Progression et sauvegarde</a>.</p>`)}
       </div></div></section>`;
   }
   function renderAlerts() {
@@ -202,7 +204,7 @@
   }
 
   /* ============================================================ accueil */
-  function renderHome() {
+  function renderParcours() {
     const s = currentSession();
     const allDone = !s;
     const p1 = CAT.phases[0];
@@ -264,6 +266,247 @@
     }));
   }
   let TITLE = {};
+
+  /* ============================================================ v2 : ordre des exos, statuts, thèmes */
+  const FI = () => window.KATA_FICHES || {};
+  let EXAM_OF = {}, RANK = {}, QUEUE = {};
+  const LORD = { sql: 0, pyspark: 1, python: 2 };
+  function buildOrder() {
+    EXAM_OF = {};
+    CAT.exams.forEach((e, i) => e.tasks.forEach((t) => { if (!EXAM_OF[t]) EXAM_OF[t] = { id: e.id, i, mini: !!e.mini }; }));
+    const g = (id) => (/^p1m/.test(id) ? 0 : /^p1x/.test(id) ? 1 : /^p2x/.test(id) ? 2 : /^bs/.test(id) ? 3 : /^e\d/.test(id) ? 4 : /^(bp|d\d)/.test(id) ? 5 : 6);
+    const num = (id) => parseInt(id.replace(/\D/g, ""), 10) || 0;
+    ["sql", "pyspark", "python"].forEach((l) => {
+      const s = Object.keys(CAT.tasks).filter((id) => !EXAM_OF[id] && CAT.tasks[id].lang === l).sort((a, b) => g(a) - g(b) || num(a) - num(b));
+      const bp = s.filter((x) => /^bp/.test(x)), d = s.filter((x) => /^d\d/.test(x)), rest = s.filter((x) => !/^(bp|d\d)/.test(x));
+      const mix = [];
+      for (let i = 0; i < Math.max(bp.length, d.length); i++) { if (d[i]) mix.push(d[i]); if (bp[i]) mix.push(bp[i]); }
+      QUEUE[l] = rest.concat(mix);
+      const inExam = Object.keys(CAT.tasks).filter((id) => EXAM_OF[id] && CAT.tasks[id].lang === l).sort((a, b) => EXAM_OF[a].i - EXAM_OF[b].i || a.localeCompare(b));
+      QUEUE[l].concat(inExam).forEach((id, i) => (RANK[id] = i));
+    });
+  }
+  const THEMES = [
+    ["Fenêtres", /window|lag|lead|row_number|rank|cumul|gaps|îlot|session|over|partition by|forward fill|ignorenulls/],
+    ["Fichiers", /dossier|fichier|json|csv|partitions hive|parsing|parser|largeur fixe|regex|logs|edi|grille|posexplode|split/],
+    ["Jointures", /join|jointure|as-of|anti/],
+    ["Agrégation", /groupby|group by|agr|pivot|count|having|sum|percentile/],
+    ["Nettoyage", /nettoy|null|try_cast|trim|doublon|dédoublon|normalis|format/],
+    ["Dates", /date|jour|semaine|fuseau|heure|mois|cohorte/],
+    ["Simulation", /simulation|deque|file|intervalle|tri|dict/],
+  ];
+  function themeOf(id) {
+    if (/^d\d/.test(id)) return "Algorithmes";
+    const s = (CAT.tasks[id].tags || []).join(" ").toLowerCase();
+    for (const [n, rx] of THEMES) if (rx.test(s)) return n;
+    return /^e1\d/.test(id) ? "Consigne longue" : "Bases";
+  }
+  function statusOf(id) {
+    const t = P.tasks[id];
+    if (t && t.best >= 80) return "ok";
+    if ((t && t.n) || P.review.some((r) => r.task === id) || (P.solSeen || {})[id]) return "redo";
+    return "todo";
+  }
+  const ST_LAB = { ok: "Réussi", redo: "À refaire", todo: "À faire" };
+  function ficheSecFor(id) {
+    const t = CAT.tasks[id]; if (!t) return null;
+    const f = FI()[t.lang]; if (!f) return null;
+    const s = (t.tags || []).join(" ").toLowerCase();
+    const sec = f.secs.find((x) => x.match && new RegExp(x.match).test(s)) || f.secs[0];
+    return { lang: t.lang, id: sec.id, t: sec.t };
+  }
+  function linkedTasks(lang, rx, n) {
+    const re = new RegExp(rx);
+    return Object.keys(CAT.tasks).filter((id) => CAT.tasks[id].lang === lang && !EXAM_OF[id] && re.test((CAT.tasks[id].tags || []).join(" ").toLowerCase())).sort((a, b) => RANK[a] - RANK[b]).slice(0, n || 4);
+  }
+  const solOK = (id) => ((P.tasks[id] || {}).n || 0) >= 2;
+
+  /* ============================================================ v2 : séance du jour */
+  const isDoneTask = (id) => (P.tasks[id] && P.tasks[id].best >= 80) || !!(P.solSeen || {})[id];
+  function nextOf(lang, taken) { return QUEUE[lang].find((id) => !isDoneTask(id) && !taken.includes(id)) || null; }
+  function nextExam() { return CAT.exams.find((e) => !((P.exams[e.id] || {}).hist || []).length) || null; }
+  function makeDay(n) {
+    const at = Date.now();
+    const e = nextExam();
+    if (n % 7 === 0 && e) return { n, at, exam: e.id, h0: 0, items: [] };
+    const items = [], taken = [];
+    const FB = { sql: ["pyspark", "python"], pyspark: ["python", "sql"], python: ["pyspark", "sql"] };
+    for (const want of ["sql", "pyspark", "python"]) {
+      let id = nextOf(want, taken);
+      for (const f of FB[want]) if (!id) id = nextOf(f, taken);
+      if (id) { taken.push(id); items.push({ id, want }); }
+    }
+    if (!items.length) return e ? { n, at, exam: e.id, h0: 0, items: [] } : { n, at, end: true, items: [] };
+    const due = P.review.filter((r) => r.due <= P.sessCount && !taken.includes(r.task) && CAT.tasks[r.task]).sort((a, b) => a.due - b.due)[0];
+    let rev;
+    if (due) rev = { kind: "redo", id: due.task, n0: (P.tasks[due.task] || {}).n || 0 };
+    else {
+      const base = (items.find((i) => CAT.tasks[i.id].lang === "pyspark") || items[0]).id;
+      const s = ficheSecFor(base);
+      rev = s ? { kind: "fiche", lang: s.lang, sec: s.id, read: false } : null;
+    }
+    return { n, at, items, rev };
+  }
+  function dayStepDone(st) {
+    if (st.kind === "exo") return isDoneTask(st.id);
+    if (st.kind === "redo") { const t = P.tasks[st.id] || {}; return ((t.n || 0) > st.n0 && t.last >= 80) || ((P.solSeen || {})[st.id] || 0) > P.day.at; }
+    if (st.kind === "fiche") return !!P.day.rev.read;
+    if (st.kind === "exam") return (((P.exams[st.id] || {}).hist || []).filter((h) => (h.ts || 0) >= P.day.at)).length > 0;
+    return false;
+  }
+  function daySteps() {
+    const d = P.day;
+    if (d.exam) return [{ kind: "exam", id: d.exam }];
+    const s = d.items.map((i) => ({ kind: "exo", id: i.id, want: i.want }));
+    if (d.rev) s.push(d.rev.kind === "redo" ? { kind: "redo", id: d.rev.id, n0: d.rev.n0 } : { kind: "fiche", lang: d.rev.lang, sec: d.rev.sec });
+    return s;
+  }
+  function ensureDay() {
+    if (!P.dayN) P.dayN = 1;
+    if (!P.day) { P.day = makeDay(P.dayN); persist(); }
+    return P.day;
+  }
+  function advanceDay() {
+    P.sessCount++; P.dayN++;
+    P.day = makeDay(P.dayN); persist();
+  }
+  function inDay(mode, id) {
+    const d = P.day; if (!d) return false;
+    if (mode === "exam") return d.exam === id;
+    return d.items.some((i) => i.id === id) || !!(d.rev && d.rev.id === id);
+  }
+  const backHash = () => (inDay(W.mode, W.id) ? "accueil" : W.mode === "exo" ? "pratiquer" : "examens");
+
+  function renderHome() {
+    const d = ensureDay();
+    let card;
+    if (d.end) {
+      card = `<div class="day"><div class="dayhead"><div><span class="eyebrow">Séance ${d.n}</span><h2>Tu as fini tous les exos et tous les examens.</h2></div></div><p class="muted" style="margin:0">Pour rester prêt : refais un examen par semaine et les exos marqués « À refaire » dans Pratiquer.</p><div class="btnrow"><a class="pill sm" href="#examens">Examens</a><a class="pill sm ghost" href="#pratiquer">Pratiquer</a></div></div>`;
+    } else {
+      const steps = daySteps();
+      const done = steps.filter(dayStepDone).length;
+      const row = (st, i) => {
+        const ok = dayStepDone(st);
+        let lab, sub, href, btn;
+        if (st.kind === "exam") {
+          const e = exam(st.id);
+          lab = "Examen"; sub = `${e.tasks.length} tasks · ${e.mini ? e.minutes : P.dur || 70} min · chrono strict`; href = "#exam-" + st.id; btn = attemptFor("exam", st.id) ? "Reprendre" : "Commencer l'examen";
+        } else if (st.kind === "fiche") {
+          lab = "Exo " + (i + 1); sub = "Révision · 5 min · lecture d'une fiche"; href = "#fiche-" + st.lang + "-" + st.sec; btn = "Ouvrir";
+        } else {
+          const t = CAT.tasks[st.id];
+          lab = "Exo " + (i + 1);
+          sub = (st.kind === "redo" ? "Révision · " : "") + SHORT[t.lang] + " · " + t.minutes + " min" + (st.kind === "redo" ? " · un exo raté, à refaire de mémoire" : st.want && st.want !== t.lang ? " · à la place du " + SHORT[st.want] + ", déjà tout fait" : "");
+          href = "#exo-" + st.id; btn = attemptFor("exo", st.id) ? "Reprendre" : st.kind === "redo" ? "Refaire" : "Ouvrir l'exo";
+        }
+        return `<div class="dstep ${ok ? "done" : ""}"><span class="ck">${ok ? "✓" : st.kind === "exam" ? "E" : i + 1}</span><div class="t"><b>${lab}</b><small>${esc(sub)}</small></div><a class="pill sm ${ok ? "ghost" : ""}" href="${href}">${ok ? "Revoir" : btn}</a></div>`;
+      };
+      const all = done === steps.length;
+      card = `<div class="day"><div class="dayhead"><div><span class="eyebrow">Séance du jour · séance ${d.n}</span><h2>${d.exam ? "Jour d'examen" : steps.length + " exos, dans l'ordre que tu veux"}</h2></div><span class="muted">${done} / ${steps.length} fait${done > 1 ? "s" : ""}</span></div>
+        <div class="ph-track" style="margin:0"><i style="width:${Math.round((100 * done) / steps.length)}%"></i></div>
+        <div class="dsteps">${steps.map(row).join("")}</div>
+        ${all ? `<div class="dunlock"><span>Séance ${d.n} terminée. Bravo, une de plus.</span><button class="pill sm" id="nextDay">Voir la séance suivante</button></div>`
+          : `<p class="muted" style="margin:0;font-size:14px">${d.exam ? "L'étape est cochée quand tu termines l'examen (Finish test)." : "Un exo est coché quand tu as 80/100 ou plus. Si tu regardes le corrigé, il est coché aussi et il revient plus tard en révision."} La séance suivante apparaît quand tout est coché, peu importe le jour.</p>`}</div>`;
+    }
+    const nOk = Object.keys(CAT.tasks).filter((id) => statusOf(id) === "ok").length;
+    view().innerHTML = `<section class="ws on"><div class="pband"><div class="wrap hero2"><h1 class="ptitle">Bonjour AB</h1><p class="lead">Ta séance du jour t'attend. Le reste du site est libre, à côté.</p></div></div>
+      <div class="wrap"><div class="sect">${card}
+        <h2 class="h2s">Ou pratique librement</h2>
+        <div class="doors">
+          <a class="door" href="#pratiquer"><span class="ic">&lt;/&gt;</span><h3>Pratiquer</h3><p>${Object.keys(CAT.tasks).length} exos en Python, SQL et PySpark, du plus abordable au niveau du test. ${nOk} réussi${nOk > 1 ? "s" : ""}.</p><span class="go">Voir les exos →</span></a>
+          <a class="door" href="#examens"><span class="ic">70′</span><h3>Examens</h3><p>${CAT.exams.length} examens au format du test : 4 tasks, 70 min, chaque task notée sur 100.</p><span class="go">Voir les examens →</span></a>
+          <a class="door" href="#fiches"><span class="ic">Aa</span><h3>Fiches</h3><p>Le résumé de chaque langage : syntaxe, exemples courts, pièges, et les exos liés.</p><span class="go">Voir les fiches →</span></a>
+        </div></div></div></section>`;
+    const nb = $("#nextDay"); if (nb) nb.onclick = () => { advanceDay(); renderHome(); window.scrollTo(0, 0); };
+  }
+
+  /* ============================================================ v2 : Pratiquer */
+  const PF = { lang: "all", theme: "", st: "", q: "", shown: 30 };
+  function renderPratiquer() {
+    const ids = Object.keys(CAT.tasks);
+    const cnt = (l) => ids.filter((id) => l === "all" || CAT.tasks[id].lang === l).length;
+    const tabs = `<div class="ptabs" role="group" aria-label="Langage">${[["all", "Tous"], ["sql", "SQL"], ["pyspark", "PySpark"], ["python", "Python"]].map(([k, n]) => `<button data-f="${k}" class="${PF.lang === k ? "on" : ""}">${n} <span class="cnt">${cnt(k)}</span></button>`).join("")}</div>`;
+    const themes = [...new Set(ids.map(themeOf))].sort();
+    const prog = ["sql", "pyspark", "python"].map((l) => {
+      const all = ids.filter((id) => CAT.tasks[id].lang === l), ok = all.filter((id) => statusOf(id) === "ok").length;
+      return `<div class="prl"><span><b>${SHORT[l]}</b><span>${ok} / ${all.length}</span></span><div class="ph-track"><i style="width:${Math.max(2, Math.round((100 * ok) / all.length))}%"></i></div></div>`;
+    }).join("");
+    const redo = P.review.filter((r) => CAT.tasks[r.task]).slice(0, 6).map((r) => `<li><a href="#exo-${r.task}">${esc(CAT.tasks[r.task].name)}</a> · ${SHORT[CAT.tasks[r.task].lang]}</li>`).join("");
+    view().innerHTML = `<section class="ws on">${band("Pratiquer", `<p class="lead" style="margin:-4px 0 22px">Les exos sont rangés dans l'ordre conseillé : commence en haut de ton langage et descends. Clique sur une ligne pour ouvrir l'exo.</p>` + tabs)}
+      <div class="wrap"><div class="sect prat">
+        <div style="min-width:0">
+          <div class="pfilters">
+            <select id="fTheme" aria-label="Thème"><option value="">Tous les thèmes</option>${themes.map((t) => `<option ${PF.theme === t ? "selected" : ""}>${esc(t)}</option>`).join("")}</select>
+            <select id="fStat" aria-label="Statut">${[["", "Tous les statuts"], ["todo", "À faire"], ["ok", "Réussi"], ["redo", "À refaire"]].map(([k, n]) => `<option value="${k}" ${PF.st === k ? "selected" : ""}>${n}</option>`).join("")}</select>
+            <input id="fQ" type="search" placeholder="Chercher un exo (ex. Window, doublons)" aria-label="Chercher" value="${esc(PF.q)}">
+          </div>
+          <div class="ptable"><table><thead><tr><th>#</th><th>Exo</th><th>Langage</th><th>Thème</th><th>Durée</th><th>Statut</th></tr></thead><tbody id="prows"></tbody></table></div>
+          <div class="pmore"><button class="pill sm ghost" id="pmore"></button></div>
+        </div>
+        <aside class="pside">
+          <div class="card"><h3>Ta progression</h3><div class="prog3">${prog}</div><p class="muted" style="font-size:13px;margin:8px 0 0">Un exo est réussi à 80/100 ou plus.</p></div>
+          <div class="card"><h3>À refaire</h3>${redo ? `<ul class="redo">${redo}</ul>` : `<p class="muted" style="margin:0;font-size:14px">Rien pour l'instant. Les exos ratés (moins de 80) arrivent ici.</p>`}</div>
+          <div class="card"><h3>Bloqué sur une notion ?</h3><p class="muted" style="margin:0 0 6px;font-size:14px">Chaque exo a un lien vers la fiche qui l'explique.</p><a href="#fiches">Voir les fiches</a></div>
+        </aside>
+      </div></div></section>`;
+    const draw = () => {
+      const q = PF.q.trim().toLowerCase();
+      let r = ids.filter((id) => {
+        const t = CAT.tasks[id];
+        return (PF.lang === "all" || t.lang === PF.lang) && (!PF.theme || themeOf(id) === PF.theme) && (!PF.st || statusOf(id) === PF.st) && (!q || (t.name + " " + (t.tags || []).join(" ")).toLowerCase().includes(q));
+      }).sort((a, b) => RANK[a] - RANK[b] || LORD[CAT.tasks[a].lang] - LORD[CAT.tasks[b].lang]);
+      const total = r.length; r = r.slice(0, PF.shown);
+      $("#prows").innerHTML = r.map((id, i) => {
+        const t = CAT.tasks[id], s = statusOf(id), ex = EXAM_OF[id], best = (P.tasks[id] || {}).best;
+        return `<tr data-id="${id}" tabindex="0"><td class="num">${i + 1}</td><td class="ttl"><a href="#exo-${id}">${esc(t.name)}</a><small>${esc((t.tags || []).slice(0, 3).join(" · "))}${ex ? " · aussi dans l'examen " + (ex.mini ? "mini" : "#" + pad(CAT.exams.filter((x) => !x.mini).findIndex((x) => x.id === ex.id) + 1)) : ""}</small></td><td><span class="lg ${t.lang}">${SHORT[t.lang]}</span></td><td>${esc(themeOf(id))}</td><td class="num">${t.minutes} min</td><td><span class="st ${s}">${ST_LAB[s]}${best != null && s !== "todo" ? " · " + best : ""}</span></td></tr>`;
+      }).join("") || `<tr><td colspan="6" class="muted">Aucun exo ne correspond à ces filtres.</td></tr>`;
+      $$("#prows tr[data-id]").forEach((tr) => { tr.onclick = (e) => { if (e.target.tagName !== "A") goHash("exo-" + tr.dataset.id); }; tr.onkeydown = (e) => { if (e.key === "Enter") goHash("exo-" + tr.dataset.id); }; });
+      const mb = $("#pmore"); mb.hidden = total <= PF.shown; mb.textContent = `Afficher plus (${total - PF.shown} restants)`;
+    };
+    $$(".ptabs button").forEach((b) => (b.onclick = () => { PF.lang = b.dataset.f; PF.shown = 30; renderPratiquer(); }));
+    $("#fTheme").onchange = (e) => { PF.theme = e.target.value; PF.shown = 30; draw(); };
+    $("#fStat").onchange = (e) => { PF.st = e.target.value; PF.shown = 30; draw(); };
+    $("#fQ").oninput = (e) => { PF.q = e.target.value; PF.shown = 30; draw(); };
+    $("#pmore").onclick = () => { PF.shown += 30; draw(); };
+    draw();
+  }
+
+  /* ============================================================ v2 : Fiches */
+  function renderFiches() {
+    const f = FI();
+    const card = (l) => `<a class="fcard" href="#fiche-${l}"><span class="lg ${l}">${SHORT[l]}</span><h3>${esc(f[l].title)}</h3><ul>${f[l].secs.slice(0, 6).map((s) => `<li>${esc(s.t)}</li>`).join("")}</ul><span class="go">Lire la fiche →</span></a>`;
+    const tool = (h, t, d) => `<a class="fcard small" href="${h}"><h3>${t}</h3><p class="muted" style="margin:0;font-size:14px">${d}</p></a>`;
+    view().innerHTML = `<section class="ws on">${band("Fiches", `<p class="lead" style="margin:-4px 0 28px">Quand tu as oublié une syntaxe : lis la partie qu'il te faut, puis fais un des exos liés.</p>`)}
+      <div class="wrap"><div class="sect">
+        <div class="fgrid">${["sql", "pyspark", "python"].map(card).join("")}</div>
+        <h2 class="h2s">Autres outils</h2>
+        <div class="fgrid">
+          ${tool("#apprendre", "Réflexes", "Les 8 gestes de base, avec un exemple guidé et un mini-exo chacun.")}
+          ${tool("#dsa", "Algorithmes (DSA)", "13 patterns : fiche, exemple guidé, pièges et 2 exos par pattern.")}
+          ${tool("#lire", "Lire la consigne", "13 exos de lecture d'énoncés longs, pour ne plus mal comprendre une consigne.")}
+          ${tool("#live", "Live coding", "Une question d'entretien à voix haute, chronométrée, avec enregistrement.")}
+          ${tool("#progression", "Progression et sauvegarde", "Tes notes, tes erreurs fréquentes, et l'export de ta progression.")}
+          ${tool("#guide", "Mode d'emploi", "Comment utiliser le site en 3 minutes.")}
+        </div></div></div></section>`;
+  }
+  function renderFiche(lang, sid) {
+    const f = FI()[lang]; if (!f) return goHash("fiches");
+    const isRev = P.day && P.day.rev && P.day.rev.kind === "fiche" && P.day.rev.lang === lang;
+    const sec = (s) => {
+      const links = s.match ? linkedTasks(lang, s.match, 4) : [];
+      const revBtn = isRev && P.day.rev.sec === s.id ? `<div class="revbox">${P.day.rev.read ? "✓ Révision du jour faite." : `C'est ta révision du jour. Relis cette partie, puis : <button class="pill sm" id="revDone">J'ai relu</button>`}</div>` : "";
+      return `<section class="fsec" id="sec-${s.id}"><h2>${esc(s.t)}</h2>${revBtn}<p>${s.p}</p>${codeBlock(s.code)}<div class="trap"><b>Piège :</b> ${s.trap}</div>
+        ${links.length ? `<div class="flinks"><span class="muted">Pour pratiquer :</span>${links.map((id) => `<a href="#exo-${id}">${statusOf(id) === "ok" ? "✓ " : ""}${esc(CAT.tasks[id].name)}</a>`).join("")}</div>` : ""}
+        ${s.more ? `<div class="flinks"><a class="pill sm ghost" href="${s.more.href}">${esc(s.more.label)}</a></div>` : ""}</section>`;
+    };
+    view().innerHTML = `<section class="ws on">${band(esc(f.title), `<p class="lead" style="margin:-4px 0 28px">${esc(f.lead)}</p>`, `<div class="crumbs"><a href="#fiches">Fiches</a> › ${SHORT[lang]}</div>`)}
+      <div class="wrap"><div class="sect fiche">
+        <nav class="ftoc" aria-label="Sommaire">${f.secs.map((s) => `<a href="#fiche-${lang}-${s.id}" data-sec="${s.id}">${esc(s.t)}</a>`).join("")}</nav>
+        <div style="min-width:0">${f.start ? `<p class="muted" style="margin:0 0 6px">En haut de chaque solution :</p>${codeBlock(f.start)}` : ""}${f.secs.map(sec).join("")}</div>
+      </div></div></section>`;
+    const rb = $("#revDone"); if (rb) rb.onclick = () => { P.day.rev.read = true; persist(); renderFiche(lang, sid); };
+    if (sid) { const el = document.getElementById("sec-" + sid); if (el) setTimeout(() => el.scrollIntoView({ block: "start" }), 0); }
+  }
 
   /* ============================================================ révision éclair */
   function renderRevision() {
@@ -575,7 +818,7 @@
       const e = exam(id); if (!e) return goHash("examens");
       ids = e.tasks; title = e.title; minutes = e.mini ? e.minutes : P.dur || 70;
     } else {
-      if (!CAT.tasks[id]) return goHash("exos");
+      if (!CAT.tasks[id]) return goHash("pratiquer");
       ids = [id]; title = "Exo · " + CAT.tasks[id].name; minutes = CAT.tasks[id].minutes;
     }
     const tasks = await Promise.all(ids.map(getTask));
@@ -605,7 +848,7 @@
     $("#modal").hidden = true; $("#morebox").hidden = true; $("#umpire").hidden = true;
     $("#diff").textContent = "VIEW DIFF";
     $$(".asm-side button").forEach((x) => x.classList.toggle("on", x.dataset.side === "desc"));
-    $("#showSol").hidden = mode !== "exo";
+    $("#showSol").hidden = mode !== "exo" || !solOK(id);
     showTask(0);
     renderClock();
     markDay();
@@ -682,11 +925,17 @@
         extra = `<div class="hintbox">${fr ? '<button data-fr="1">Aide à la lecture (FR)</button>' : ""}${hs.map((_, k) => `<button data-h="${k}">Indice ${k + 1}</button>`).join("")}</div>`;
         if (W.maxHints != null && lim < all.length) extra += `<p class="muted" style="margin:6px 0 0">${lim === 0 ? "Pas d'indice dans cette séance : tu t'entraînes comme le jour J." : "Les indices s'effacent : " + lim + " indice dans cette séance."} Tu les retrouveras en refaisant l'exo depuis la Bibliothèque.</p>`;
         if (W.fr) extra += `<div class="fr"><b>En français :</b> ${esc(t.summary_fr)}</div>`;
+        const fs = ficheSecFor(t.id);
+        if (fs) extra += `<p class="fichelink">Une notion t'échappe ? <a href="#fiche-${fs.lang}-${fs.id}" target="_blank" rel="noopener">Relis la fiche « ${esc(fs.t)} »</a> (s'ouvre dans un nouvel onglet, ton code reste ici).</p>`;
+        extra += `<p class="fichelink">${solOK(t.id) ? "Le corrigé est dans MORE, Voir le corrigé." : "Le corrigé s'ouvre après 2 essais (SUBMIT ou Terminer)."}</p>`;
         const shown = W.hints[W.cur] || [];
         shown.forEach((k) => (extra += `<div class="hinttxt"><b>Indice ${k + 1} :</b> ${esc(hs[k])}</div>`));
       }
-      p.innerHTML = `<h2>${W.mode === "exam" ? "Task " + (W.cur + 1) + " · " : ""}${esc(t.name)}</h2>` + t.desc + extra;
+      const howOpen = exo && P.howto !== false;
+      const how = t.howto ? `<details class="howto"${howOpen ? " open" : ""}><summary>Comment faire, exactement <span>(en français : où écrire, quoi renvoyer, ce que tu dois voir)</span></summary>${t.howto}</details>` : "";
+      p.innerHTML = `<h2>${W.mode === "exam" ? "Task " + (W.cur + 1) + " · " : ""}${esc(t.name)}</h2>` + how + t.desc + extra;
       $$("[data-h]", p).forEach((b) => (b.onclick = () => { const a = W.hints[W.cur] || (W.hints[W.cur] = []); const k = +b.dataset.h; if (!a.includes(k)) a.push(k); renderPaper(); }));
+      const hw = $("details.howto", p); if (hw && exo) hw.ontoggle = () => { P.howto = hw.open; persist(); };
       const fr = $("[data-fr]", p); if (fr) fr.onclick = () => { W.fr = !W.fr; renderPaper(); };
     } else if (W.side === "info") {
       const total = t.visible.length + t.hidden_n;
@@ -803,7 +1052,7 @@
       if (W.mode === "exo") {
         recordTask(t.id, R.score);
         if (R.score < 80) recordErrors(t.tags);
-        $("#showSol").hidden = false;
+        $("#showSol").hidden = !solOK(t.id);
       }
     }
     if (W.cur === ti) { renderTests(); updScore(); }
@@ -927,12 +1176,14 @@
     const hash = (W.mode === "exam" ? "exam-" : "exo-") + W.id;
     const insess = P.cur && (inSessionStep(hash) || isMiniOfStep(W.id));
     const outOfTime = W.clock.endsAt && left() <= 0;
+    const dayHere = inDay(W.mode, W.id);
     b.className = "box";
     b.innerHTML = `<h3>${outOfTime ? "Time is up" : "Résultat"}</h3>${W.tasks.map((t, i) => `<div class="r"><span>${W.mode === "exam" ? "Task " + (i + 1) + " · " : ""}${esc(t.name)}</span><b>${scores[i]}/100</b></div>`).join("")}
-      <p style="margin:0;color:var(--as-dim);font-size:14px">${W.mode === "exam" ? "L'analyse guidée te montre le corrigé de chaque task et t'aide à comprendre tes erreurs." : scores[0] >= 80 ? "Validé (80 ou plus). Il reviendra quand même plus tard pour l'ancrer." : "Sous 80 : cet exo reviendra dans 2 séances. Regarde le corrigé, puis refais-le demain de mémoire."}</p>
-      <div class="row2"><button id="mBack">Retour au site</button><button id="mAgain">Recommencer</button>${W.mode === "exo" ? '<button id="mSol">Voir le corrigé</button>' : `<button ${insess ? "" : 'class="primary"'} id="mAna">Analyse guidée</button>`}${insess ? `<button class="primary" id="mNext">${isMiniOfStep(W.id) ? "Retour à la leçon" : esc(nextLabel())}</button>` : ""}</div>`;
+      <p style="margin:0;color:var(--as-dim);font-size:14px">${W.mode === "exam" ? "L'analyse guidée te montre le corrigé de chaque task et t'aide à comprendre tes erreurs." : scores[0] >= 80 ? "Réussi (80 ou plus)." : solOK(W.id) ? "Sous 80 : cet exo reviendra en révision dans 2 séances. Regarde le corrigé, puis refais-le de mémoire." : "Sous 80 : recommence, tu peux y arriver. Le corrigé s'ouvre après 2 essais."}</p>
+      <div class="row2"><button id="mBack">Retour au site</button><button id="mAgain">Recommencer</button>${W.mode === "exo" ? (solOK(W.id) ? '<button id="mSol">Voir le corrigé</button>' : "") : `<button ${insess || dayHere ? "" : 'class="primary"'} id="mAna">Analyse guidée</button>`}${dayHere ? '<button class="primary" id="mDay">Retour à la séance</button>' : ""}${insess ? `<button class="primary" id="mNext">${isMiniOfStep(W.id) ? "Retour à la leçon" : esc(nextLabel())}</button>` : ""}</div>`;
     m.hidden = false;
-    $("#mBack").onclick = () => { m.hidden = true; closeWorkspace(); goHash(P.cur ? "accueil" : W.mode === "exo" ? "exos" : "examens"); };
+    $("#mBack").onclick = () => { m.hidden = true; closeWorkspace(); goHash(P.cur ? "accueil" : backHash()); };
+    if ($("#mDay")) $("#mDay").onclick = () => { m.hidden = true; closeWorkspace(); goHash("accueil"); };
     $("#mAgain").onclick = () => { m.hidden = true; restart(true); };
     if ($("#mSol")) $("#mSol").onclick = () => showSolution();
     if ($("#mAna")) $("#mAna").onclick = () => { m.hidden = true; closeWorkspace(); goHash("analyse-" + W.id); };
@@ -947,6 +1198,11 @@
     const t = W.tasks[W.cur], m = $("#modal"), b = $("#mbox");
     const sub = Object.keys(W.lastSub).length > 0;
     if (!sub && W.clock.endsAt && left() > 0 && !confirm("Tu n'as pas encore soumis. Regarder le corrigé maintenant ? (Conseil : soumets d'abord, même incomplet.)")) return;
+    if (W.mode === "exo") {
+      P.solSeen[t.id] = Date.now();
+      if (!P.review.some((r) => r.task === t.id)) P.review.push({ task: t.id, stage: 0, due: P.sessCount + INTERVALS[0] });
+      persist();
+    }
     b.className = "box wide";
     b.innerHTML = `<h3>Corrigé · ${esc(t.name)}</h3>${codeBlock(solutionOf(t))}<p style="margin:0;color:var(--as-dim);font-size:14px">Ne le recopie pas : ferme-le et réécris la solution de mémoire, puis SUBMIT.</p><div class="row2"><button class="primary" id="mClose">Fermer</button></div>`;
     m.hidden = false; $("#mClose").onclick = () => { m.hidden = true; if (!W.clock.endsAt || left() <= 0) finishScreen(true); };
@@ -974,7 +1230,7 @@
       const running = W.clock.endsAt && left() > 0;
       if (running && !confirm("Quitter l'espace ? Ton code est gardé et le chrono continue (il suit l'heure réelle). Tu pourras reprendre.")) return;
       closeWorkspace();
-      goHash(P.cur ? "accueil" : W.mode === "exo" ? "exos" : "examens");
+      goHash(P.cur ? "accueil" : backHash());
     };
     document.addEventListener("keydown", (e) => { if (e.key === "Escape") $("#morebox").hidden = true; });
     window.addEventListener("beforeunload", saveAttempt);
@@ -1236,7 +1492,7 @@
     const asm = /^(exam|exo)-/.test(h);
     $("#v-examen").classList.toggle("on", asm);
     document.body.classList.toggle("in-asm", asm);
-    const nv = /^(exos|examens|apprendre|reflexe-|dsa|lire)/.test(h) ? "bib" : /^live/.test(h) ? "live" : h === "progression" ? "progression" : h === "connexion" ? "connexion" : "accueil";
+    const nv = /^(exos|pratiquer)/.test(h) ? "pratiquer" : /^(examens|analyse-)/.test(h) ? "examens" : /^(fiche|apprendre|reflexe-|dsa|lire|live|progression|guide)/.test(h) ? "fiches" : h === "connexion" ? "connexion" : "accueil";
     $$("[data-nav]").forEach((a) => a.classList.toggle("on", a.dataset.nav === nv));
     $("#streakN").textContent = streak() + (streak() > 1 ? " jours" : " jour");
     renderSessbar(asm);
@@ -1247,9 +1503,13 @@
     if ((m = h.match(/^exo-(\w+)$/))) return openWorkspace("exo", m[1]);
     if ((m = h.match(/^reflexe-(\w+)$/))) return renderLesson(m[1]);
     if ((m = h.match(/^analyse-(\w+)$/))) return renderAnalysis(m[1]);
-    if (h === "seance") return startSession();
+    if (h === "seance") return goHash("accueil");
+    if (h === "parcours") return renderParcours();
+    if ((m = h.match(/^fiche-(pyspark|sql|python)(?:-(\w+))?$/))) return renderFiche(m[1], m[2]);
+    if (h === "fiches") return renderFiches();
+    if (h === "pratiquer") return renderPratiquer();
     if (h === "revision") return renderRevision();
-    if (h === "exos") return renderExos();
+    if (h === "exos") return renderPratiquer();
     if (h === "examens") return renderExams();
     if (h === "apprendre") return renderReflexes();
     if (h === "progression") return renderProgress();
@@ -1272,9 +1532,9 @@
       return;
     }
     TITLE = Object.fromEntries(Object.entries(CAT.tasks).map(([k, v]) => [k, v.name]));
+    buildOrder();
     seedMethodCards(); persist();
     bindWorkspace();
-    $("#navStart").onclick = (e) => { e.preventDefault(); startSession(); };
     window.addEventListener("hashchange", route);
     route();
   }

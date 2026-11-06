@@ -365,7 +365,8 @@
     const d = P.day;
     if (d.exam) return [{ kind: "exam", id: d.exam }];
     const s = d.items.map((i) => ({ kind: "exo", id: i.id, want: i.want }));
-    if (d.rev) s.push(d.rev.kind === "redo" ? { kind: "redo", id: d.rev.id, n0: d.rev.n0 } : { kind: "fiche", lang: d.rev.lang, sec: d.rev.sec });
+    // Le rappel de cours passe en premier : on le lit avant d'attaquer les exos
+    if (d.rev) { if (d.rev.kind === "redo") s.push({ kind: "redo", id: d.rev.id, n0: d.rev.n0 }); else s.unshift({ kind: "fiche", lang: d.rev.lang, sec: d.rev.sec }); }
     return s;
   }
   function ensureDay() {
@@ -397,24 +398,27 @@
     } else {
       const steps = daySteps();
       const done = steps.filter(dayStepDone).length;
-      const row = (st, i) => {
+      let exoN = 0;
+      const row = (st) => {
         const ok = dayStepDone(st);
+        if (st.kind !== "exam" && st.kind !== "fiche") exoN++;
         let lab, sub, href, btn;
         if (st.kind === "exam") {
           const e = exam(st.id);
           lab = "Examen"; sub = `${e.tasks.length} tasks · ${e.mini ? e.minutes : P.dur || 70} min · chrono strict`; href = "#exam-" + st.id; btn = attemptFor("exam", st.id) ? "Reprendre" : "Commencer l'examen";
         } else if (st.kind === "fiche") {
-          lab = "Exo " + (i + 1); sub = ""; href = "#fiche-" + st.lang + "-" + st.sec; btn = "Ouvrir";
+          const sec = ((FI()[st.lang] || {}).secs || []).find((x) => x.id === st.sec);
+          lab = "Rappel de cours"; sub = ({ pyspark: "PySpark", sql: "SQL", python: "Python" }[st.lang] || st.lang) + (sec ? " · " + sec.t : ""); href = "#fiche-" + st.lang + "-" + st.sec; btn = "Lire";
         } else {
           const t = CAT.tasks[st.id];
-          lab = "Exo " + (i + 1);
+          lab = "Exo " + exoN;
           sub = "";
           href = "#exo-" + st.id; btn = attemptFor("exo", st.id) ? "Reprendre" : st.kind === "redo" ? "Refaire" : "Ouvrir l'exo";
         }
-        return `<div class="dstep ${ok ? "done" : ""}"><span class="ck">${ok ? "✓" : st.kind === "exam" ? "E" : i + 1}</span><div class="t"><b>${lab}</b>${sub ? `<small>${esc(sub)}</small>` : ""}</div><a class="pill sm ${ok ? "ghost" : ""}" href="${href}">${ok ? "Revoir" : btn}</a></div>`;
+        return `<div class="dstep ${ok ? "done" : ""}"><span class="ck">${ok ? "✓" : st.kind === "exam" ? "E" : st.kind === "fiche" ? "📖" : exoN}</span><div class="t"><b>${lab}</b>${sub ? `<small>${esc(sub)}</small>` : ""}</div><a class="pill sm ${ok ? "ghost" : ""}" href="${href}">${ok ? "Revoir" : btn}</a></div>`;
       };
       const all = done === steps.length;
-      card = `<div class="day"><div class="dayhead"><div><span class="eyebrow">Séance du jour · séance ${d.n}</span><h2>${d.exam ? "Jour d'examen" : steps.length + " exos, dans l'ordre que tu veux"}</h2></div><span class="muted">${done} / ${steps.length} fait${done > 1 ? "s" : ""}</span></div>
+      card = `<div class="day"><div class="dayhead"><div><span class="eyebrow">Séance du jour · séance ${d.n}</span><h2>${d.exam ? "Jour d'examen" : steps[0].kind === "fiche" ? "Lis le rappel, puis " + (steps.length - 1) + " exos dans l'ordre que tu veux" : steps.length + " exos, dans l'ordre que tu veux"}</h2></div><span class="muted">${done} / ${steps.length} fait${done > 1 ? "s" : ""}</span></div>
         <div class="ph-track" style="margin:0"><i style="width:${Math.round((100 * done) / steps.length)}%"></i></div>
         <div class="dsteps">${steps.map(row).join("")}</div>
         ${all ? `<div class="dunlock"><span>Séance ${d.n} terminée. Bravo, une de plus.</span><button class="pill sm" id="nextDay">Voir la séance suivante</button></div>`

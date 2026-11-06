@@ -665,7 +665,7 @@
         <div class="btnrow">${last ? `<a class="pill sm ghost" href="#analyse-${e.id}">Analyse</a>` : ""}<a class="pill sm ${last ? "ghost" : ""}" href="#exam-${e.id}">${attemptFor("exam", e.id) ? "Reprendre" : last ? "Recommencer" : "Start"}</a>${last || attemptFor("exam", e.id) ? `<button class="pill sm ghost" data-wipe-exam="${e.id}">Effacer</button>` : ""}</div></div>`;
     }).join("") || `<p class="empty">${examTab === "done" ? "Aucun examen terminé pour l'instant." : "Tu as fait tous les examens disponibles. Refais-les dans l'onglet Terminés."}</p>`;
     view().innerHTML = `<section class="ws on">${band("Examens", tabs, bib("examens"))}<div class="wrap"><div class="sect">
-      <p class="sub">Format du vrai test : 4 tasks, 70 minutes, chaque task notée sur 100. Les premiers sont plus abordables, les suivants sont au niveau du vrai test. « Effacer » remet un seul examen à zéro, sans toucher au reste.</p>
+      <p class="sub">Format du vrai test : 4 tasks, 70 minutes, chaque task notée sur 100. Les 4 premiers sont progressifs. Ensuite, comme le jour J, l'ordre des langages et la difficulté changent d'un examen à l'autre : SQL peut ouvrir l'examen, et les 4 tasks peuvent être coriaces. Prépare-toi à tout. « Effacer » remet un seul examen à zéro, sans toucher au reste.</p>
       <div class="list">${rows}</div></div></div></section>`;
     $$(".ptabs button").forEach((b) => (b.onclick = () => { examTab = b.dataset.t; renderExams(); }));
     $$("[data-wipe-exam]").forEach((b) => (b.onclick = () => wipeExam(b.dataset.wipeExam)));
@@ -1029,12 +1029,7 @@
       bindNote(p);
     } else if (W.side === "info") {
       const total = t.visible.length + t.hidden_n;
-      let strat = "";
-      if (W.mode === "exam") {
-        const plan = CAT.plan70, sum = plan.reduce((a, b) => a + b, 0), base = W.clock.baseMin;
-        const per = W.tasks.map((_, i) => Math.round((plan[i % plan.length] * (base - 3)) / sum));
-        strat = `<h4>Stratégie</h4><ol><li>Les 2 premières minutes : lis les ${W.tasks.length} tasks, sans coder.</li><li>Temps conseillé : ${per.map((m, i) => "task " + (i + 1) + " ≈ " + m + " min").join(", ")}.</li><li>Pour chaque task : une version simple qui passe quelques tests, <b>SUBMIT tout de suite</b>, puis améliore et resoumets. Jamais 0.</li><li>Bloqué plus de 10 minutes : soumets ce qui marche, passe à la suivante, reviens à la fin.</li></ol>`;
-      }
+      const strat = ""; // examen = conditions réelles : aucun temps conseillé, AB gère son temps seul
       p.innerHTML = `<h2>${W.mode === "exam" ? "Task " + (W.cur + 1) + " · " : ""}${esc(t.name)}</h2>
         <p>Cette task est notée sur 100. Ta note dépend uniquement des tests réussis : ${t.visible.length} tests visibles avec RUN TESTS, et ${t.hidden_n} tests cachés qui comptent seulement au SUBMIT (${total} tests au total).</p>
         <p>Tu peux soumettre plusieurs fois : ta note est celle de ta dernière soumission.</p>${strat}

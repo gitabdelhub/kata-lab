@@ -1804,6 +1804,690 @@
 "tests": 8
 },
 {
+"id": "h04t3",
+"name": "Courier Shifts and Idle Time",
+"lang": "sql",
+"tags": [
+"îlots à deux niveaux",
+"MAX cumulé",
+"intervalles qui se chevauchent",
+"division"
+],
+"minutes": 20,
+"source": "Kata Lab",
+"tests": 10
+},
+{
+"id": "h04t4",
+"name": "Kitchen Dispatch Simulator",
+"lang": "python",
+"tags": [
+"simulation par événements",
+"priorités",
+"annulations",
+"ordre des égalités"
+],
+"minutes": 30,
+"source": "Kata Lab",
+"tests": 12
+},
+{
+"id": "h05t3",
+"name": "Overdraft Episodes",
+"lang": "sql",
+"tags": [
+"solde cumulé",
+"îlots",
+"LAG avec valeur par défaut",
+"FILTER"
+],
+"minutes": 20,
+"source": "Kata Lab",
+"tests": 10
+},
+{
+"id": "h05t4",
+"name": "Card Fraud Rules",
+"lang": "python",
+"tags": [
+"fenêtres glissantes",
+"plusieurs règles",
+"moyenne des transactions précédentes",
+"état par carte"
+],
+"minutes": 30,
+"source": "Kata Lab",
+"tests": 12
+},
+{
+"id": "h06t3",
+"name": "Hourly Latency Report",
+"lang": "sql",
+"tags": [
+"generate_series",
+"heures vides",
+"percentile_cont",
+"FILTER",
+"LAG"
+],
+"minutes": 20,
+"source": "Kata Lab",
+"tests": 10
+},
+{
+"id": "h06t4",
+"name": "Versioned Config Store",
+"lang": "python",
+"tags": [
+"système à plusieurs commandes",
+"versions",
+"retour arrière",
+"tri de sortie",
+"cas limites"
+],
+"minutes": 35,
+"source": "Kata Lab",
+"tests": 11
+},
+{
+"id": "h07t3",
+"name": "Daily Consumption with Meter Resets",
+"lang": "sql",
+"tags": [
+"compteurs cumulés",
+"remise à zéro",
+"doublons",
+"LAG",
+"moyenne par fenêtre"
+],
+"minutes": 20,
+"source": "Kata Lab",
+"tests": 10
+},
+{
+"id": "h07t4",
+"name": "Time-of-Use Electricity Bills",
+"lang": "python",
+"tags": [
+"tranches horaires",
+"palier mensuel coupé au milieu d'une lecture",
+"doublons corrigés",
+"arrondi entier",
+"tri chronologique"
+],
+"minutes": 30,
+"source": "Kata Lab",
+"tests": 11
+},
+{
+"id": "h08t3",
+"name": "Price Validity Periods",
+"lang": "sql",
+"tags": [
+"historique (SCD2)",
+"DISTINCT ON",
+"doublons d'horodatage",
+"LAG / LEAD",
+"faux changements"
+],
+"minutes": 20,
+"source": "Kata Lab",
+"tests": 10
+},
+{
+"id": "h08t4",
+"name": "Limit Order Book",
+"lang": "python",
+"tags": [
+"carnet d'ordres",
+"priorité prix puis temps",
+"exécutions partielles",
+"annulations",
+"tas (heapq) pour la vitesse"
+],
+"minutes": 35,
+"source": "Kata Lab",
+"tests": 12
+},
+{
+"id": "h09t3",
+"name": "Passenger Trips from Flight Legs",
+"lang": "sql",
+"tags": [
+"îlots",
+"LAG",
+"intervalles de temps",
+"string_agg ordonné",
+"array_agg"
+],
+"minutes": 20,
+"source": "Kata Lab",
+"tests": 10
+},
+{
+"id": "h09t4",
+"name": "Group Seat Assignment",
+"lang": "python",
+"tags": [
+"règles de préférence",
+"allée",
+"annulations",
+"réservation qui échoue",
+"ordre de recherche"
+],
+"minutes": 30,
+"source": "Kata Lab",
+"tests": 11
+},
+{
+"id": "h10t3",
+"name": "MRR Movements",
+"lang": "sql",
+"tags": [
+"grille client × mois",
+"generate_series",
+"LAG",
+"MAX cumulé",
+"plusieurs lignes par mois"
+],
+"minutes": 25,
+"source": "Kata Lab",
+"tests": 10
+},
+{
+"id": "h10t4",
+"name": "Prorated Subscription Invoices",
+"lang": "python",
+"tags": [
+"calendrier (jours par mois)",
+"prorata au jour près",
+"plusieurs événements le même jour",
+"arrondi entier",
+"datetime"
+],
+"minutes": 35,
+"source": "Kata Lab",
+"tests": 11
+},
+{
+"id": "h11t3",
+"name": "Monthly Shipments in EUR",
+"lang": "sql",
+"tags": [
+"jointure « as-of »",
+"LATERAL",
+"nettoyage de codes",
+"DISTINCT ON",
+"COUNT(col) vs COUNT(*)"
+],
+"minutes": 20,
+"source": "Kata Lab",
+"tests": 11
+},
+{
+"id": "h11t4",
+"name": "Warehouse Lots with Expiry",
+"lang": "python",
+"tags": [
+"premier périmé, premier sorti",
+"lots partiels",
+"pertes à la date",
+"ordre de traitement dans la journée"
+],
+"minutes": 30,
+"source": "Kata Lab",
+"tests": 11
+},
+{
+"id": "h12t3",
+"name": "Frequently Bought Together",
+"lang": "sql",
+"tags": [
+"auto-jointure",
+"paires a < b",
+"doublons dans une commande",
+"division entière",
+"ROW_NUMBER par catégorie"
+],
+"minutes": 25,
+"source": "Kata Lab",
+"tests": 10
+},
+{
+"id": "h12t4",
+"name": "Price History Lookups",
+"lang": "python",
+"tags": [
+"recherche binaire (bisect)",
+"historique trié",
+"doublons corrigés",
+"intervalle de temps",
+"beaucoup de requêtes"
+],
+"minutes": 35,
+"source": "Kata Lab",
+"tests": 11
+},
+{
+"id": "h13t3",
+"name": "Golden Customer Record",
+"lang": "sql",
+"tags": [
+"dernière valeur non nulle",
+"array_agg FILTER",
+"NULL vs chaîne vide",
+"nettoyage",
+"regexp_replace"
+],
+"minutes": 25,
+"source": "Kata Lab",
+"tests": 10
+},
+{
+"id": "h13t4",
+"name": "Customer Deduplication",
+"lang": "python",
+"tags": [
+"normalisation",
+"groupes transitifs",
+"union-find",
+"vote du nom",
+"beaucoup de lignes"
+],
+"minutes": 35,
+"source": "Kata Lab",
+"tests": 11
+},
+{
+"id": "h14t3",
+"name": "Match Refunds to Payments",
+"lang": "sql",
+"tags": [
+"appariement 1 pour 1",
+"ROW_NUMBER des deux côtés",
+"LEFT JOIN",
+"statuts",
+"minutes entre deux horodatages"
+],
+"minutes": 20,
+"source": "Kata Lab",
+"tests": 10
+},
+{
+"id": "h14t4",
+"name": "Bank Reconciliation",
+"lang": "python",
+"tags": [
+"appariement glouton",
+"tolérance de dates",
+"règles d'égalité",
+"dict par montant"
+],
+"minutes": 30,
+"source": "Kata Lab",
+"tests": 12
+},
+{
+"id": "h15t3",
+"name": "Weekly Retention Matrix",
+"lang": "sql",
+"tags": [
+"cohortes",
+"date_trunc week",
+"division entière",
+"NULL quand non observable",
+"FILTER"
+],
+"minutes": 25,
+"source": "Kata Lab",
+"tests": 10
+},
+{
+"id": "h15t4",
+"name": "Data Lake Catalog",
+"lang": "python",
+"tags": [
+"système à plusieurs commandes",
+"quotas",
+"instantanés et restauration",
+"copie profonde",
+"tri de sortie"
+],
+"minutes": 40,
+"source": "Kata Lab",
+"tests": 11
+},
+{
+"id": "h16t3",
+"name": "Stock-out Periods with Missing Snapshots",
+"lang": "sql",
+"tags": [
+"jours manquants",
+"report de la dernière valeur",
+"COUNT cumulé",
+"îlots de dates",
+"doublons"
+],
+"minutes": 25,
+"source": "Kata Lab",
+"tests": 10
+},
+{
+"id": "h16t4",
+"name": "Late Events and Watermark",
+"lang": "python",
+"tags": [
+"watermark",
+"événements en retard",
+"dernière version gagne",
+"fenêtres de 10 minutes",
+"ordre d'arrivée vs temps de l'événement"
+],
+"minutes": 30,
+"source": "Kata Lab",
+"tests": 12
+},
+{
+"id": "h17t3",
+"name": "Peak Concurrent Streams",
+"lang": "sql",
+"tags": [
+"événements +1 / -1",
+"somme cumulée",
+"ordre des égalités",
+"sessions sans fin",
+"UNION ALL"
+],
+"minutes": 25,
+"source": "Kata Lab",
+"tests": 10
+},
+{
+"id": "h17t4",
+"name": "Trending Videos",
+"lang": "python",
+"tags": [
+"fenêtre glissante",
+"file (deque) + compteurs",
+"classement avec égalités",
+"beaucoup d'événements"
+],
+"minutes": 30,
+"source": "Kata Lab",
+"tests": 11
+},
+{
+"id": "h18t3",
+"name": "Supplier Spend Trends",
+"lang": "sql",
+"tags": [
+"mois manquants",
+"generate_series",
+"LAG 1 et LAG 12",
+"moyenne mobile",
+"noms à normaliser"
+],
+"minutes": 25,
+"source": "Kata Lab",
+"tests": 10
+},
+{
+"id": "h18t4",
+"name": "Pipeline Scheduler",
+"lang": "python",
+"tags": [
+"graphe de dépendances",
+"simulation avec workers",
+"priorités",
+"détection de cycle",
+"cas d'erreur"
+],
+"minutes": 35,
+"source": "Kata Lab",
+"tests": 12
+},
+{
+"id": "h19t1",
+"name": "Partner CSV Drops",
+"lang": "pyspark",
+"tags": [
+"consigne longue",
+"en-têtes dans le désordre",
+"colonne optionnelle",
+"virgule décimale",
+"dédoublonnage par fichier le plus récent"
+],
+"minutes": 25,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "h19t2",
+"name": "Nested Order Events",
+"lang": "pyspark",
+"tags": [
+"consigne longue",
+"JSON imbriqué",
+"explode",
+"dernière version par commande",
+"lignes invalides",
+"top par groupe"
+],
+"minutes": 25,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "h19t3",
+"name": "Ordered Conversion Funnel",
+"lang": "sql",
+"tags": [
+"entonnoir ordonné",
+"premier événement après un autre",
+"fenêtre de 7 jours",
+"pourcentages",
+"jointures latérales"
+],
+"minutes": 25,
+"source": "Kata Lab",
+"tests": 10
+},
+{
+"id": "h19t4",
+"name": "Ledger with Holds and Scheduled Transfers",
+"lang": "python",
+"tags": [
+"système à plusieurs commandes",
+"réservations qui expirent",
+"virements planifiés",
+"traitement des échéances avant chaque requête",
+"classement"
+],
+"minutes": 40,
+"source": "Kata Lab",
+"tests": 12
+},
+{
+"id": "h20t1",
+"name": "Settlement Files with Trailers",
+"lang": "pyspark",
+"tags": [
+"consigne longue",
+"largeur fixe",
+"en-tête / détail / pied",
+"contrôle des totaux",
+"fichiers rejetés en entier"
+],
+"minutes": 25,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "h20t2",
+"name": "Vehicle Trips from GPS Pings",
+"lang": "pyspark",
+"tags": [
+"consigne longue",
+"sessionisation",
+"Window + lag",
+"doublons",
+"trajets d'un seul point écartés"
+],
+"minutes": 25,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "h20t3",
+"name": "Customers at Risk",
+"lang": "sql",
+"tags": [
+"écarts entre commandes",
+"médiane (percentile_cont)",
+"plusieurs commandes le même jour",
+"date de référence",
+"HAVING"
+],
+"minutes": 25,
+"source": "Kata Lab",
+"tests": 10
+},
+{
+"id": "h20t4",
+"name": "Token Bucket Limiter with Plans",
+"lang": "python",
+"tags": [
+"seau à jetons",
+"recharge en continu",
+"changement de plan",
+"temps d'attente arrondi au-dessus",
+"calcul entier"
+],
+"minutes": 35,
+"source": "Kata Lab",
+"tests": 11
+},
+{
+"id": "h21t1",
+"name": "Apply CDC Batches",
+"lang": "pyspark",
+"tags": [
+"consigne longue",
+"ordre numérique des fichiers",
+"upsert",
+"champ vide = inchangé",
+"suppression"
+],
+"minutes": 25,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "h21t2",
+"name": "Last-Touch Attribution",
+"lang": "pyspark",
+"tags": [
+"consigne longue",
+"jointure sur un intervalle de temps",
+"dernier contact",
+"row_number",
+"valeur par défaut"
+],
+"minutes": 25,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "h21t3",
+"name": "Team Size at Every Level",
+"lang": "sql",
+"tags": [
+"CTE récursive",
+"hiérarchie",
+"profondeur",
+"managers sans chef",
+"agrégats sur toute la descendance"
+],
+"minutes": 25,
+"source": "Kata Lab",
+"tests": 10
+},
+{
+"id": "h21t4",
+"name": "Retry Policy and Dead Letters",
+"lang": "python",
+"tags": [
+"machine à états",
+"backoff exponentiel",
+"tri stable",
+"tentatives ignorées",
+"format de sortie"
+],
+"minutes": 30,
+"source": "Kata Lab",
+"tests": 11
+},
+{
+"id": "h22t1",
+"name": "Access Logs per UTC Hour",
+"lang": "pyspark",
+"tags": [
+"consigne longue",
+"regex",
+"fuseau horaire vers UTC",
+"normalisation des chemins",
+"lignes mal formées"
+],
+"minutes": 25,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "h22t2",
+"name": "Daily Signups by Channel",
+"lang": "pyspark",
+"tags": [
+"consigne longue",
+"pivot",
+"calendrier complet",
+"jours manquants à zéro",
+"noms à nettoyer"
+],
+"minutes": 25,
+"source": "Kata Lab",
+"tests": 8
+},
+{
+"id": "h22t3",
+"name": "Weekly Leaderboard Movers",
+"lang": "sql",
+"tags": [
+"DENSE_RANK",
+"égalités",
+"comparaison semaine précédente",
+"texte calculé (+2, -1, =, NEW)",
+"top N avec ex aequo"
+],
+"minutes": 25,
+"source": "Kata Lab",
+"tests": 10
+},
+{
+"id": "h22t4",
+"name": "Transactional Key-Value Store",
+"lang": "python",
+"tags": [
+"transactions imbriquées",
+"journal d'annulation",
+"compteur de valeurs en O(1)",
+"COMMIT global",
+"beaucoup de commandes"
+],
+"minutes": 40,
+"source": "Kata Lab",
+"tests": 11
+},
+{
 "id": "p1m1",
 "name": "Payment status",
 "lang": "pyspark",

@@ -9,7 +9,7 @@
 <meta http-equiv="Cache-Control" content="no-cache">
 <script>
 /* Version du site : si une version plus récente est en ligne, on recharge une seule fois avec ?v=… (le favori ouvre toujours la dernière version). */
-window.KATA_V = "20261106181620";
+window.KATA_V = "20261106181950";
 (function () {
   try {
     fetch("version.json?t=" + Date.now(), { cache: "no-store" }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
@@ -24,8 +24,8 @@ window.KATA_V = "20261106181620";
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Lexend:wght@300;400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="vendor/codemirror/codemirror.css?v=20261106181620">
-<link rel="stylesheet" href="assets/style.css?v=20261106181620">
+<link rel="stylesheet" href="vendor/codemirror/codemirror.css?v=20261106181950">
+<link rel="stylesheet" href="assets/style.css?v=20261106181950">
 </head>
 <body>
 <header class="navband">
@@ -62,7 +62,7 @@ window.KATA_V = "20261106181620";
       <button data-side="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>SETTINGS</button>
     </nav>
     <article class="asm-paper" id="paper"></article>
-    <div class="asm-split" aria-hidden="true"><i></i></div>
+    <div class="asm-split" role="separator" aria-orientation="vertical" aria-label="Largeur de l’énoncé"><i></i></div>
     <div class="asm-right">
       <div class="asm-ed" id="ed">
         <div class="asm-files" id="files"></div>
@@ -71,7 +71,7 @@ window.KATA_V = "20261106181620";
           <div id="cm" style="flex:1;display:flex;flex-direction:column;min-height:0"></div>
         </div>
       </div>
-      <div class="asm-hbar" aria-hidden="true"><i></i></div>
+      <div class="asm-hbar" role="separator" aria-orientation="horizontal" aria-label="Hauteur de l’éditeur"><i></i></div>
       <div class="asm-tests">
         <div class="asm-thead"><span class="tt">TESTS</span><button class="btn-blue" id="run"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M10 8l6 4-6 4z" fill="currentColor"/></svg>RUN TESTS</button></div>
         <div class="asm-tscroll" id="tscroll"></div>
@@ -109,13 +109,13 @@ window.KATA_V = "20261106181620";
     <div id="ovextra"></div>
   </div>
 </div>
-<script src="vendor/codemirror/codemirror.js?v=20261106181620"></script>
-<script src="vendor/codemirror/python.js?v=20261106181620"></script>
-<script src="vendor/codemirror/sql.js?v=20261106181620"></script>
-<script src="vendor/codemirror/matchbrackets.js?v=20261106181620"></script>
-<script src="vendor/codemirror/closebrackets.js?v=20261106181620"></script>
-<script src="assets/fiches.js?v=20261106181620"></script>
-<script src="assets/engines.js?v=20261106181620"></script>
-<script src="assets/app.js?v=20261106181620"></script>
+<script src="vendor/codemirror/codemirror.js?v=20261106181950"></script>
+<script src="vendor/codemirror/python.js?v=20261106181950"></script>
+<script src="vendor/codemirror/sql.js?v=20261106181950"></script>
+<script src="vendor/codemirror/matchbrackets.js?v=20261106181950"></script>
+<script src="vendor/codemirror/closebrackets.js?v=20261106181950"></script>
+<script src="assets/fiches.js?v=20261106181950"></script>
+<script src="assets/engines.js?v=20261106181950"></script>
+<script src="assets/app.js?v=20261106181950"></script>
 </body>
 </html>

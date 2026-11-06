@@ -181,7 +181,7 @@
     const sec = (n, t, body) => `<div class="card guide-sec"><span class="eyebrow">${n}</span><h3 style="margin:4px 0 10px">${t}</h3>${body}</div>`;
     view().innerHTML = `<section class="ws on">${band("Mode d'emploi", `<p class="lead" style="padding-bottom:28px">Kata Lab en 2 minutes : une séance par jour, et trois espaces libres à côté.</p>`)}
       <div class="wrap"><div class="sect guide">
-        ${sec("1", "Chaque jour : la séance sur l'Accueil", `<p>L'Accueil te donne 4 exos : un SQL, un PySpark, un Python et une révision. Tu ne vois pas leur titre avant de les ouvrir, pour ne pas choisir à la carte. Un exo est coché quand tu as 80/100 ou plus, ou quand tu as regardé le corrigé (il revient alors plus tard en révision). Quand tout est coché, la séance suivante apparaît, peu importe le jour. Toutes les 7 séances, la séance est un examen complet.</p><div class="btnrow"><a class="pill" href="#accueil">Ma séance</a></div>`)}
+        ${sec("1", "Chaque jour : la séance sur l'Accueil", `<p>L'Accueil te donne 4 exos : un SQL, un PySpark, un Python et une révision. Tu ne vois ni leur titre ni leur langage avant de les ouvrir, et leur ordre change à chaque séance : pas de choix à la carte. Un exo est coché quand tu as 80/100 ou plus, ou quand tu as regardé le corrigé (il revient alors plus tard en révision). Quand tout est coché, la séance suivante apparaît, peu importe le jour. Toutes les 7 séances, la séance est un examen complet.</p><div class="btnrow"><a class="pill" href="#accueil">Ma séance</a></div>`)}
         ${sec("2", "Pratiquer", `<p>Tous les exos dans une liste, dans l'ordre conseillé. Filtre par langage, thème ou statut (À faire, Réussi, À refaire), ou cherche un mot comme « Window ».</p>`)}
         ${sec("3", "Examens", `<p>19 examens au format du test : 4 tasks, 70 minutes, chaque task notée sur 100. Le chrono est strict. Après l'examen, l'analyse guidée te montre le corrigé de chaque task.</p>`)}
         ${sec("4", "Fiches", `<p>Le résumé de SQL, PySpark et Python : syntaxe, exemple court, piège, et les exos liés. Dans chaque exo, un lien ouvre la bonne partie de la fiche dans un nouvel onglet.</p>`)}
@@ -336,6 +336,7 @@
       for (const f of FB[want]) if (!id) id = nextOf(f, taken);
       if (id) { taken.push(id); items.push({ id, want }); }
     }
+    for (let i = items.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [items[i], items[j]] = [items[j], items[i]]; }
     if (!items.length) return e ? { n, at, exam: e.id, h0: 0, items: [] } : { n, at, end: true, items: [] };
     const due = P.review.filter((r) => r.due <= P.sessCount && !taken.includes(r.task) && CAT.tasks[r.task]).sort((a, b) => a.due - b.due)[0];
     let rev;
@@ -345,7 +346,7 @@
       const s = ficheSecFor(base);
       rev = s ? { kind: "fiche", lang: s.lang, sec: s.id, read: false } : null;
     }
-    return { n, at, items, rev };
+    return { n, at, items, rev, shuf: 1 };
   }
   function dayStepDone(st) {
     if (st.kind === "exo") return isDoneTask(st.id);
@@ -364,6 +365,11 @@
   function ensureDay() {
     if (!P.dayN) P.dayN = 1;
     if (!P.day) { P.day = makeDay(P.dayN); persist(); }
+    if (P.day.items && P.day.items.length > 1 && !P.day.shuf) {
+      const it = P.day.items;
+      for (let i = it.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [it[i], it[j]] = [it[j], it[i]]; }
+      P.day.shuf = 1; persist();
+    }
     return P.day;
   }
   function advanceDay() {
@@ -392,14 +398,14 @@
           const e = exam(st.id);
           lab = "Examen"; sub = `${e.tasks.length} tasks · ${e.mini ? e.minutes : P.dur || 70} min · chrono strict`; href = "#exam-" + st.id; btn = attemptFor("exam", st.id) ? "Reprendre" : "Commencer l'examen";
         } else if (st.kind === "fiche") {
-          lab = "Exo " + (i + 1); sub = "Révision · 5 min · lecture d'une fiche"; href = "#fiche-" + st.lang + "-" + st.sec; btn = "Ouvrir";
+          lab = "Exo " + (i + 1); sub = ""; href = "#fiche-" + st.lang + "-" + st.sec; btn = "Ouvrir";
         } else {
           const t = CAT.tasks[st.id];
           lab = "Exo " + (i + 1);
-          sub = (st.kind === "redo" ? "Révision · " : "") + SHORT[t.lang] + " · " + t.minutes + " min" + (st.kind === "redo" ? " · un exo raté, à refaire de mémoire" : st.want && st.want !== t.lang ? " · à la place du " + SHORT[st.want] + ", déjà tout fait" : "");
+          sub = "";
           href = "#exo-" + st.id; btn = attemptFor("exo", st.id) ? "Reprendre" : st.kind === "redo" ? "Refaire" : "Ouvrir l'exo";
         }
-        return `<div class="dstep ${ok ? "done" : ""}"><span class="ck">${ok ? "✓" : st.kind === "exam" ? "E" : i + 1}</span><div class="t"><b>${lab}</b><small>${esc(sub)}</small></div><a class="pill sm ${ok ? "ghost" : ""}" href="${href}">${ok ? "Revoir" : btn}</a></div>`;
+        return `<div class="dstep ${ok ? "done" : ""}"><span class="ck">${ok ? "✓" : st.kind === "exam" ? "E" : i + 1}</span><div class="t"><b>${lab}</b>${sub ? `<small>${esc(sub)}</small>` : ""}</div><a class="pill sm ${ok ? "ghost" : ""}" href="${href}">${ok ? "Revoir" : btn}</a></div>`;
       };
       const all = done === steps.length;
       card = `<div class="day"><div class="dayhead"><div><span class="eyebrow">Séance du jour · séance ${d.n}</span><h2>${d.exam ? "Jour d'examen" : steps.length + " exos, dans l'ordre que tu veux"}</h2></div><span class="muted">${done} / ${steps.length} fait${done > 1 ? "s" : ""}</span></div>
@@ -409,7 +415,7 @@
           : `<p class="muted" style="margin:0;font-size:14px">${d.exam ? "L'étape est cochée quand tu termines l'examen (Finish test)." : "Un exo est coché quand tu as 80/100 ou plus. Si tu regardes le corrigé, il est coché aussi et il revient plus tard en révision."} La séance suivante apparaît quand tout est coché, peu importe le jour.</p>`}</div>`;
     }
     const nOk = Object.keys(CAT.tasks).filter((id) => statusOf(id) === "ok").length;
-    view().innerHTML = `<section class="ws on"><div class="pband"><div class="wrap hero2"><h1 class="ptitle">Bonjour AB</h1><p class="lead">Ta séance du jour t'attend. Le reste du site est libre, à côté.</p></div></div>
+    view().innerHTML = `<section class="ws on"><div class="pband"><div class="wrap hero2"><h1 class="ptitle">Bonjour AB</h1><p class="lead">Ta séance du jour t'attend : 4 exos, tu découvres chacun en l'ouvrant. Le reste du site est libre, à côté.</p></div></div>
       <div class="wrap"><div class="sect">${card}
         <h2 class="h2s">Ou pratique librement</h2>
         <div class="doors">

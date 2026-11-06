@@ -6,10 +6,26 @@
 <title>Kata Lab</title>
 <meta name="robots" content="noindex">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%231f6feb'/%3E%3Cpath d='M5 7l7 10 7-10M9 7l3 4 3-4' stroke='white' stroke-width='2' fill='none'/%3E%3C/svg%3E">
+<meta http-equiv="Cache-Control" content="no-cache">
+<script>
+/* Version du site : si une version plus récente est en ligne, on recharge une seule fois avec ?v=… (le favori ouvre toujours la dernière version). */
+window.KATA_V = "20261106141956";
+(function () {
+  try {
+    fetch("version.json?t=" + Date.now(), { cache: "no-store" }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
+      if (!j || !j.v || j.v === window.KATA_V) return;
+      var k = "kata.reloadFor";
+      if (sessionStorage.getItem(k) === j.v) return;
+      sessionStorage.setItem(k, j.v);
+      location.replace(location.pathname + "?v=" + j.v + location.hash);
+    }).catch(function () {});
+  } catch (e) {}
+})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Lexend:wght@300;400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="vendor/codemirror/codemirror.css">
-<link rel="stylesheet" href="assets/style.css">
+<link rel="stylesheet" href="vendor/codemirror/codemirror.css?v=20261106141956">
+<link rel="stylesheet" href="assets/style.css?v=20261106141956">
 </head>
 <body>
 <header class="navband">
@@ -91,13 +107,13 @@
     <div id="ovextra"></div>
   </div>
 </div>
-<script src="vendor/codemirror/codemirror.js"></script>
-<script src="vendor/codemirror/python.js"></script>
-<script src="vendor/codemirror/sql.js"></script>
-<script src="vendor/codemirror/matchbrackets.js"></script>
-<script src="vendor/codemirror/closebrackets.js"></script>
-<script src="assets/fiches.js"></script>
-<script src="assets/engines.js"></script>
-<script src="assets/app.js"></script>
+<script src="vendor/codemirror/codemirror.js?v=20261106141956"></script>
+<script src="vendor/codemirror/python.js?v=20261106141956"></script>
+<script src="vendor/codemirror/sql.js?v=20261106141956"></script>
+<script src="vendor/codemirror/matchbrackets.js?v=20261106141956"></script>
+<script src="vendor/codemirror/closebrackets.js?v=20261106141956"></script>
+<script src="assets/fiches.js?v=20261106141956"></script>
+<script src="assets/engines.js?v=20261106141956"></script>
+<script src="assets/app.js?v=20261106141956"></script>
 </body>
 </html>

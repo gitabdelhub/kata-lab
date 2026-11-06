@@ -881,6 +881,7 @@
     $$(".asm-side button").forEach((x) => x.classList.toggle("on", x.dataset.side === "desc"));
     $("#showSol").hidden = mode !== "exo" || !solOK(id);
     $("#restartKeep").hidden = mode !== "exo";
+    $("#stopExo").hidden = mode !== "exo";
     $("#restart").textContent = mode === "exo" ? "Recommencer à zéro" : "Recommencer";
     showTask(0);
     renderClock();
@@ -1090,6 +1091,8 @@
     }
     if (W.cur === ti) { renderTests(); updScore(); }
     renderTaskTabs();
+    // Exo réussi à 100 : le chrono s'arrête et le résultat (note + temps) s'affiche
+    if (submit && !R.error && W.mode === "exo" && R.score === 100 && !W.recorded) setTimeout(() => { if (W.on) finishScreen(true); }, 700);
     saveAttempt();
   }
   function taskScore(i) { return W.lastSub[i] || 0; }
@@ -1275,6 +1278,7 @@
     $("#restart").onclick = () => { $("#morebox").hidden = true; restart(); };
     $("#restartKeep").onclick = () => { $("#morebox").hidden = true; restart(true, true); };
     $("#finish").onclick = () => { $("#morebox").hidden = true; finishScreen(false); };
+    $("#stopExo").onclick = () => finishScreen(true);
     $("#showSol").onclick = () => { $("#morebox").hidden = true; showSolution(); };
     $("#leave").onclick = () => {
       saveAttempt();

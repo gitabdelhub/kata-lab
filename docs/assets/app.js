@@ -787,7 +787,7 @@
   function pasteWarn() {
     let el = $("#pastewarn");
     if (!el) { el = document.createElement("div"); el.id = "pastewarn"; el.className = "pastewarn"; $("#ed").appendChild(el); }
-    el.textContent = "Copier-coller désactivé, comme au vrai test : tape ton code toi-même.";
+    el.textContent = "Coller un texte venu d’ailleurs est désactivé, comme au vrai test. Dans ton propre code, copier-coller marche.";
     el.hidden = false; clearTimeout(el._t); el._t = setTimeout(() => (el.hidden = true), 3500);
   }
   function ensureCM() {
@@ -802,12 +802,31 @@
     });
     // Copier-coller bloqué depuis l'extérieur de l'éditeur, comme au vrai test.
     // Ce que tu copies dans ton propre code reste permis.
-    let ownCopy = null;
-    const remember = (c) => { ownCopy = c.getSelection(); };
+    // On garde les derniers morceaux copiés dans l'éditeur (même après « Recommencer »),
+    // et on accepte aussi tout texte qui se trouve déjà dans ton code.
+    const OWN_K = "kata.owncopy";
+    const norm = (x) => String(x || "").replace(/\r\n?/g, "\n").replace(/\s+$/, "");
+    let own = [];
+    try { own = JSON.parse(sessionStorage.getItem(OWN_K) || "[]"); } catch (_) {}
+    const remember = (c) => {
+      let txt = c.getSelection();
+      if (!txt) txt = c.listSelections().map((r) => c.getLine(r.head.line)).join("\n"); // copie de la ligne entière
+      txt = norm(txt);
+      if (!txt) return;
+      own = [txt].concat(own.filter((x) => x !== txt)).slice(0, 40);
+      try { sessionStorage.setItem(OWN_K, JSON.stringify(own)); } catch (_) {}
+    };
+    const isOwn = (txt) => {
+      const x = norm(txt);
+      if (!x || own.includes(x)) return true;
+      if (norm(cm.getValue()).includes(x)) return true;
+      for (const k in W.drafts || {}) if (norm(W.drafts[k]).includes(x)) return true;
+      return false;
+    };
     cm.on("copy", remember); cm.on("cut", remember);
     cm.on("beforeChange", (c, ch) => {
       if (ch.origin !== "paste" && ch.origin !== "drop") return;
-      if (ch.origin === "paste" && ownCopy !== null && ch.text.join("\n") === ownCopy) return;
+      if (isOwn(ch.text.join("\n"))) return;
       ch.cancel();
       pasteWarn();
     });

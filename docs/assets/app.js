@@ -1063,10 +1063,10 @@
       if (W.open[k] == null) W.open[k] = !r.pass && !R.res.slice(0, i).some((y) => !y.pass);
       const pane = W.open[k + "p"] || "ret";
       const [cls, lab] = verdict(r);
-      const ret = r.ok ? `<div class="twocol"><div><h5 class="blue">Expected return value</h5>${tbl(x.expected)}</div><div><h5 class="blue">Your return value</h5>${tbl(r.output, x.expected, W.showDiff)}</div></div>`
+      const ret = r.ok ? `<div class="twocol"><div><h5 class="blue">Expected return value</h5>${tbl(x.expected)}</div><div class="kbar v" data-split="two" role="separator" aria-orientation="vertical" tabindex="0" title="Glisse pour agrandir. Double-clic : taille d'origine."><i></i></div><div><h5 class="blue">Your return value</h5>${tbl(r.output, x.expected, W.showDiff)}</div></div>`
         : `<h5 class="blue">Expected return value</h5>${tbl(x.expected)}<h5 class="blue">Your return value</h5><div class="errbox">${esc(r.error)}</div>`;
       h += `<div class="tcase ${W.open[k] ? "" : "closed"}"><button data-k="${k}"><span class="car">▾</span>Test ${i + 1}<span class="res ${cls}">${lab}</span></button>
-        <div class="tin"><nav><button data-p="${k}" data-v="in" class="${pane === "in" ? "on" : ""}">Input</button><button data-p="${k}" data-v="ret" class="${pane === "ret" ? "on" : ""}">Return Value</button><button data-p="${k}" data-v="con" class="${pane === "con" ? "on" : ""}">Console Output</button></nav>
+        <div class="tin"><nav><button data-p="${k}" data-v="in" class="${pane === "in" ? "on" : ""}">Input</button><button data-p="${k}" data-v="ret" class="${pane === "ret" ? "on" : ""}">Return Value</button><button data-p="${k}" data-v="con" class="${pane === "con" ? "on" : ""}">Console Output</button></nav><div class="kbar v" data-split="tin" role="separator" aria-orientation="vertical" tabindex="0" title="Glisse pour agrandir. Double-clic : taille d'origine."><i></i></div>
         <div class="pane">${pane === "in" ? inputHtml(t, x.input) : pane === "con" ? `<div class="val">${r.stdout ? esc(r.stdout) : "Empty"}</div>` : ret}</div></div></div>`;
     });
     if (R.sub) {
@@ -1603,63 +1603,68 @@
   }
 
   /* ============================================================ zones redimensionnables (glisser les barres) */
+  // Chaque barre [data-split] règle une variable CSS posée sur <html> ; la taille est gardée dans ce navigateur.
+  const SPLITS = {
+    paper: { v: "--paper-w", axis: "x", min: 220, max: () => { const r = $(".asm-body").getBoundingClientRect(), side = $(".asm-side").getBoundingClientRect().width; return r.width - side - 12 - 340; } },
+    ed: { v: "--ed-h", axis: "y", min: 90, max: () => (window.innerWidth > 760 ? $(".asm-right").getBoundingClientRect().height - 12 - 90 : 1400) },
+    files: { v: "--files-w", axis: "x", min: 80, max: () => Math.max(220, $(".asm-ed").getBoundingClientRect().width - 200) },
+    tin: { v: "--tin-w", axis: "x", min: 100, max: (bar) => bar.parentElement.getBoundingClientRect().width - 180 },
+    two: { v: "--two-l", axis: "x", min: 100, max: (bar) => bar.parentElement.getBoundingClientRect().width - 110 },
+  };
+  const PANES_K = "kata.panes";
+  let PANES = {};
+  try { PANES = JSON.parse(localStorage.getItem(PANES_K) || "{}") || {}; } catch (_) {}
+  function applyPanes() {
+    const root = document.documentElement.style;
+    for (const k in SPLITS) { if (PANES[k]) root.setProperty(SPLITS[k].v, PANES[k] + "px"); else root.removeProperty(SPLITS[k].v); }
+  }
+  function savePanes() { try { localStorage.setItem(PANES_K, JSON.stringify(PANES)); } catch (_) {} }
+  let paneRaf = 0;
+  function refreshCM() { if (paneRaf) return; paneRaf = requestAnimationFrame(() => { paneRaf = 0; if (cm) cm.refresh(); }); }
+  function setPane(k, bar, size) {
+    const S = SPLITS[k];
+    let max = S.max(bar);
+    if (!(max > S.min)) max = S.min;
+    PANES[k] = Math.round(Math.max(S.min, Math.min(max, size)));
+    applyPanes(); refreshCM();
+  }
   function bindSplitters() {
-    const body = document.querySelector(".asm-body"), right = document.querySelector(".asm-right");
-    const vbar = document.querySelector(".asm-split"), hbar = document.querySelector(".asm-hbar");
-    if (!body || !right || !vbar || !hbar) return;
-    const KEY = "kata.panes";
-    let saved = {};
-    try { saved = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch (_) {}
-    const save = () => { try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch (_) {} };
-    const apply = () => {
-      if (saved.paper) body.style.setProperty("--paper-w", saved.paper + "px"); else body.style.removeProperty("--paper-w");
-      if (saved.ed) right.style.setProperty("--ed-h", saved.ed + "px"); else right.style.removeProperty("--ed-h");
-    };
-    apply();
-    let raf = 0;
-    const refresh = () => { if (raf) return; raf = requestAnimationFrame(() => { raf = 0; if (cm) cm.refresh(); }); };
-    const drag = (bar, onMove) => {
-      bar.addEventListener("pointerdown", (e) => {
-        if (e.button !== 0) return;
-        e.preventDefault();
-        bar.setPointerCapture(e.pointerId);
-        bar.classList.add("dragging"); document.body.classList.add("resizing");
-        const move = (ev) => { onMove(ev); apply(); refresh(); };
-        const up = () => {
-          bar.removeEventListener("pointermove", move); bar.removeEventListener("pointerup", up); bar.removeEventListener("pointercancel", up);
-          bar.classList.remove("dragging"); document.body.classList.remove("resizing");
-          save(); refresh();
-        };
-        bar.addEventListener("pointermove", move); bar.addEventListener("pointerup", up); bar.addEventListener("pointercancel", up);
-      });
-    };
-    // Barre verticale : largeur de l'énoncé
-    drag(vbar, (ev) => {
-      const r = body.getBoundingClientRect(), side = document.querySelector(".asm-side").getBoundingClientRect().width;
-      const max = r.width - side - 8 - 380;
-      saved.paper = Math.round(Math.max(260, Math.min(max, ev.clientX - r.left - side)));
+    applyPanes();
+    document.addEventListener("pointerdown", (e) => {
+      const bar = e.target.closest && e.target.closest("[data-split]");
+      if (!bar || e.button !== 0) return;
+      const k = bar.dataset.split, S = SPLITS[k];
+      const prev = bar.previousElementSibling;
+      if (!S || !prev) return;
+      e.preventDefault();
+      try { bar.setPointerCapture(e.pointerId); } catch (_) {}
+      bar.classList.add("dragging"); document.body.classList.add(S.axis === "x" ? "resizing-x" : "resizing-y");
+      const start = prev.getBoundingClientRect();
+      const move = (ev) => setPane(k, bar, S.axis === "x" ? ev.clientX - start.left : ev.clientY - start.top);
+      const up = () => {
+        bar.removeEventListener("pointermove", move); bar.removeEventListener("pointerup", up); bar.removeEventListener("pointercancel", up);
+        bar.classList.remove("dragging"); document.body.classList.remove("resizing-x", "resizing-y");
+        savePanes(); refreshCM();
+      };
+      bar.addEventListener("pointermove", move); bar.addEventListener("pointerup", up); bar.addEventListener("pointercancel", up);
     });
-    // Barre horizontale : hauteur de l'éditeur (le reste va aux tests)
-    drag(hbar, (ev) => {
-      const r = right.getBoundingClientRect();
-      const max = window.innerWidth > 1000 ? r.height - 6 - 110 : 1400;
-      saved.ed = Math.round(Math.max(120, Math.min(max, ev.clientY - r.top)));
+    document.addEventListener("dblclick", (e) => {
+      const bar = e.target.closest && e.target.closest("[data-split]");
+      if (!bar) return;
+      delete PANES[bar.dataset.split]; applyPanes(); savePanes(); refreshCM();
     });
-    // Double-clic : retour à la taille d'origine
-    vbar.addEventListener("dblclick", () => { delete saved.paper; apply(); save(); refresh(); });
-    hbar.addEventListener("dblclick", () => { delete saved.ed; apply(); save(); refresh(); });
-    vbar.title = hbar.title = "Glisse pour agrandir ou réduire. Double-clic : taille d'origine.";
-    // Clavier : flèches quand la barre a le focus
-    [[vbar, "paper", "ArrowLeft", "ArrowRight"], [hbar, "ed", "ArrowUp", "ArrowDown"]].forEach(([bar, k, less, more]) => {
-      bar.tabIndex = 0;
-      bar.addEventListener("keydown", (e) => {
-        if (e.key !== less && e.key !== more) return;
-        e.preventDefault();
-        const cur = saved[k] || (k === "paper" ? document.querySelector(".asm-paper").getBoundingClientRect().width : document.querySelector(".asm-ed").getBoundingClientRect().height);
-        saved[k] = Math.max(k === "paper" ? 260 : 120, Math.round(cur + (e.key === more ? 30 : -30)));
-        apply(); save(); refresh();
-      });
+    document.addEventListener("keydown", (e) => {
+      const bar = e.target.closest && e.target.closest("[data-split]");
+      if (!bar) return;
+      const k = bar.dataset.split, S = SPLITS[k], prev = bar.previousElementSibling;
+      const less = S.axis === "x" ? "ArrowLeft" : "ArrowUp", more = S.axis === "x" ? "ArrowRight" : "ArrowDown";
+      if (e.key !== less && e.key !== more) return;
+      e.preventDefault();
+      const r = prev.getBoundingClientRect();
+      setPane(k, bar, (S.axis === "x" ? r.width : r.height) + (e.key === more ? 30 : -30));
+      savePanes();
     });
+    window.addEventListener("resize", refreshCM);
   }
 
   async function init() {

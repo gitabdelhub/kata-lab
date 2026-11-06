@@ -9,23 +9,42 @@
 <meta http-equiv="Cache-Control" content="no-cache">
 <script>
 /* Version du site : si une version plus récente est en ligne, on recharge une seule fois avec ?v=… (le favori ouvre toujours la dernière version). */
-window.KATA_V = "20261106181950";
+window.KATA_V = "20261106211213";
 (function () {
-  try {
-    fetch("version.json?t=" + Date.now(), { cache: "no-store" }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
-      if (!j || !j.v || j.v === window.KATA_V) return;
-      var k = "kata.reloadFor";
-      if (sessionStorage.getItem(k) === j.v) return;
-      sessionStorage.setItem(k, j.v);
-      location.replace(location.pathname + "?v=" + j.v + location.hash);
-    }).catch(function () {});
-  } catch (e) {}
+  var busy = function () { return /^#(exo|exam)-/.test(location.hash); };
+  var go = function (v) { location.replace(location.pathname + "?v=" + v + location.hash); };
+  var banner = function (v) {
+    if (document.getElementById("kataUpd") || !document.body) return;
+    var d = document.createElement("div");
+    d.id = "kataUpd";
+    d.setAttribute("role", "status");
+    d.style.cssText = "position:fixed;left:50%;transform:translateX(-50%);bottom:calc(76px + env(safe-area-inset-bottom,0px));z-index:9999;background:#1b2232;color:#fff;border-radius:10px;padding:10px 12px 10px 16px;display:flex;gap:12px;align-items:center;font:600 14px Lexend,system-ui,sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.25);max-width:calc(100vw - 32px)";
+    d.innerHTML = '<span>Une nouvelle version du site est en ligne.</span><button style="background:#1f6feb;color:#fff;border:0;border-radius:6px;padding:7px 12px;font:700 13px inherit;cursor:pointer">Mettre à jour</button>';
+    d.querySelector("button").onclick = function () { go(v); };
+    document.body.appendChild(d);
+  };
+  var check = function (first) {
+    try {
+      fetch("version.json?t=" + Date.now(), { cache: "no-store" }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
+        if (!j || !j.v || j.v === window.KATA_V) return;
+        var k = "kata.reloadFor";
+        if (first && sessionStorage.getItem(k) !== j.v) { sessionStorage.setItem(k, j.v); return go(j.v); }
+        if (!first && !busy() && sessionStorage.getItem(k) !== j.v) { sessionStorage.setItem(k, j.v); return go(j.v); }
+        banner(j.v);
+      }).catch(function () {});
+    } catch (e) {}
+  };
+  check(true);
+  /* Onglet resté ouvert : on revérifie au retour sur l'onglet et toutes les 10 minutes. */
+  document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible") check(false); });
+  setInterval(function () { check(false); }, 600000);
+  window.addEventListener("hashchange", function () { if (!busy() && document.getElementById("kataUpd")) check(false); });
 })();
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Lexend:wght@300;400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="vendor/codemirror/codemirror.css?v=20261106181950">
-<link rel="stylesheet" href="assets/style.css?v=20261106181950">
+<link rel="stylesheet" href="vendor/codemirror/codemirror.css?v=20261106211213">
+<link rel="stylesheet" href="assets/style.css?v=20261106211213">
 </head>
 <body>
 <header class="navband">
@@ -62,16 +81,17 @@ window.KATA_V = "20261106181950";
       <button data-side="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>SETTINGS</button>
     </nav>
     <article class="asm-paper" id="paper"></article>
-    <div class="asm-split" role="separator" aria-orientation="vertical" aria-label="Largeur de l’énoncé"><i></i></div>
+    <div class="asm-split kbar v" data-split="paper" role="separator" aria-orientation="vertical" aria-label="Largeur de l’énoncé" tabindex="0" title="Glisse pour agrandir ou réduire. Double-clic : taille d’origine."><i></i></div>
     <div class="asm-right">
       <div class="asm-ed" id="ed">
         <div class="asm-files" id="files"></div>
+        <div class="asm-fsplit kbar v" data-split="files" role="separator" aria-orientation="vertical" aria-label="Largeur des fichiers" tabindex="0" title="Glisse pour agrandir ou réduire. Double-clic : taille d’origine."><i></i></div>
         <div class="asm-code">
           <div class="asm-edhead"><span class="ft" id="ftab">solution.py</span><span class="lang" id="lang">PySpark</span></div>
           <div id="cm" style="flex:1;display:flex;flex-direction:column;min-height:0"></div>
         </div>
       </div>
-      <div class="asm-hbar" role="separator" aria-orientation="horizontal" aria-label="Hauteur de l’éditeur"><i></i></div>
+      <div class="asm-hbar kbar h" data-split="ed" role="separator" aria-orientation="horizontal" aria-label="Hauteur de l’éditeur" tabindex="0" title="Glisse pour agrandir ou réduire. Double-clic : taille d’origine."><i></i></div>
       <div class="asm-tests">
         <div class="asm-thead"><span class="tt">TESTS</span><button class="btn-blue" id="run"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M10 8l6 4-6 4z" fill="currentColor"/></svg>RUN TESTS</button></div>
         <div class="asm-tscroll" id="tscroll"></div>
@@ -109,13 +129,13 @@ window.KATA_V = "20261106181950";
     <div id="ovextra"></div>
   </div>
 </div>
-<script src="vendor/codemirror/codemirror.js?v=20261106181950"></script>
-<script src="vendor/codemirror/python.js?v=20261106181950"></script>
-<script src="vendor/codemirror/sql.js?v=20261106181950"></script>
-<script src="vendor/codemirror/matchbrackets.js?v=20261106181950"></script>
-<script src="vendor/codemirror/closebrackets.js?v=20261106181950"></script>
-<script src="assets/fiches.js?v=20261106181950"></script>
-<script src="assets/engines.js?v=20261106181950"></script>
-<script src="assets/app.js?v=20261106181950"></script>
+<script src="vendor/codemirror/codemirror.js?v=20261106211213"></script>
+<script src="vendor/codemirror/python.js?v=20261106211213"></script>
+<script src="vendor/codemirror/sql.js?v=20261106211213"></script>
+<script src="vendor/codemirror/matchbrackets.js?v=20261106211213"></script>
+<script src="vendor/codemirror/closebrackets.js?v=20261106211213"></script>
+<script src="assets/fiches.js?v=20261106211213"></script>
+<script src="assets/engines.js?v=20261106211213"></script>
+<script src="assets/app.js?v=20261106211213"></script>
 </body>
 </html>

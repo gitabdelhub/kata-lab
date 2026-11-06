@@ -809,6 +809,7 @@
     setTimeout(() => cm.refresh(), 0);
   }
 
+  let keepDrafts = null;
   async function openWorkspace(mode, id, force) {
     const key = mode + ":" + id;
     if (W.on && W.key === key && !force) return;
@@ -832,7 +833,7 @@
     }
     Object.assign(W, {
       on: true, key, mode, id, tasks, title, cur: 0, side: "desc", open: {}, showDiff: false, busy: false, recorded: false,
-      drafts: prev ? prev.drafts : tasks.map((t) => t.starter),
+      drafts: keepDrafts && keepDrafts.key === key ? keepDrafts.drafts : prev ? prev.drafts : tasks.map((t) => t.starter),
       results: prev ? prev.results : {},
       clock: prev ? prev.clock : { endsAt: null, pausedLeft: null, mode: mode === "exam" ? "strict" : "train", baseMin: minutes, dur: minutes * 60000 },
       hints: {}, fr: false, maxHints: null,
@@ -841,6 +842,7 @@
       const cs = findSession(P.cur.id), st = cs && cs.steps[P.cur.step];
       if (st && st.type === "exo" && st.task === id && st.hints != null) W.maxHints = st.hints;
     }
+    keepDrafts = null;
     W.lastSub = (prev && prev.lastSub) || {};
     if (prev) W.recorded = !!prev.recorded;
     ensureCM();
@@ -849,6 +851,8 @@
     $("#diff").textContent = "VIEW DIFF";
     $$(".asm-side button").forEach((x) => x.classList.toggle("on", x.dataset.side === "desc"));
     $("#showSol").hidden = mode !== "exo" || !solOK(id);
+    $("#restartKeep").hidden = mode !== "exo";
+    $("#restart").textContent = mode === "exo" ? "Recommencer à zéro" : "Recommencer";
     showTask(0);
     renderClock();
     markDay();
@@ -1027,7 +1031,7 @@
 
   async function runTests(submit) {
     if (!W.on || W.busy) return;
-    if (W.clock.endsAt && left() <= 0) return;
+    if (W.clock.endsAt && left() <= 0 && !isOver()) return;
     const ti = W.cur, t = W.tasks[ti];
     const code = W.drafts[ti];
     const tests = submit ? t.visible.concat(hiddenOf(t)) : t.visible;
@@ -1063,15 +1067,27 @@
 
   /* ---- chrono réel (heure de l'appareil) ---- */
   let tick = null;
+  const isOver = () => W.mode === "exo" && !!W.clock.over;
+  const elapsed = () => { const c = W.clock; return c.dur + (c.added || 0) - left(); };
+  const fmtDur = (ms) => { const t = Math.max(0, Math.round(ms / 1000)); return Math.floor(t / 60) + " min " + pad(t % 60) + " s"; };
   const left = () => { const c = W.clock; return c.pausedLeft != null ? c.pausedLeft : c.endsAt ? c.endsAt - Date.now() : c.dur; };
   function fmtLeft(ms) { ms = Math.max(0, ms); if (ms >= 10 * 60000) return Math.ceil(ms / 60000) + "m left"; const t = Math.ceil(ms / 1000); return Math.floor(t / 60) + "m " + pad(t % 60) + "s left"; }
   function renderClock() {
     if (!W.on) return;
     const l = left(), c = W.clock;
+    if (isOver()) { const t = Math.round(-l / 1000); $("#time").textContent = "Temps dépassé · +" + Math.floor(t / 60) + "m " + pad(t % 60) + "s"; $("#timer").classList.add("low"); return; }
     $("#time").textContent = (c.pausedLeft != null ? "Paused · " : "") + fmtLeft(l);
     $("#timer").classList.toggle("low", l < 5 * 60000);
     $("#timer").classList.toggle("paused", c.pausedLeft != null);
-    if (c.endsAt && c.pausedLeft == null && l <= 0) { stopClock(); finishScreen(true); }
+    if (c.endsAt && c.pausedLeft == null && l <= 0) { stopClock(); if (W.mode === "exo") overtimeAsk(); else finishScreen(true); }
+  }
+  function overtimeAsk() {
+    const m = $("#modal"), b = $("#mbox");
+    b.className = "box";
+    b.innerHTML = `<h3>Temps écoulé</h3><p style="margin:0;color:var(--as-dim)">Les ${W.clock.baseMin} min prévues sont passées. Tu peux continuer avec ton code : le chrono compte le temps en plus, et à la fin tu verras combien de temps tu as mis au total.</p><div class="row2"><button id="mStop">Terminer maintenant</button><button class="primary" id="mGo">Continuer mon code</button></div>`;
+    m.hidden = false;
+    $("#mGo").onclick = () => { m.hidden = true; W.clock.over = true; clearInterval(tick); tick = setInterval(renderClock, 250); renderClock(); saveAttempt(); };
+    $("#mStop").onclick = () => finishScreen(true);
   }
   function startClock(fresh) {
     const c = W.clock;
@@ -1079,7 +1095,7 @@
     clearInterval(tick); tick = setInterval(renderClock, 250); renderClock(); saveAttempt();
   }
   function stopClock() { clearInterval(tick); tick = null; }
-  function addTime(min) { const c = W.clock; if (c.mode !== "train") return; if (c.pausedLeft != null) c.pausedLeft += min * 60000; else if (c.endsAt) c.endsAt += min * 60000; renderClock(); saveAttempt(); }
+  function addTime(min) { const c = W.clock; if (c.mode !== "train") return; c.added = (c.added || 0) + min * 60000; if (c.pausedLeft != null) c.pausedLeft += min * 60000; else if (c.endsAt) c.endsAt += min * 60000; renderClock(); saveAttempt(); }
   function setMode(m) { const c = W.clock; c.mode = m; if (m === "strict" && c.pausedLeft != null) { c.endsAt = Date.now() + c.pausedLeft; c.pausedLeft = null; } renderClock(); saveAttempt(); }
   function togglePause() { const c = W.clock; if (c.mode !== "train" || !c.endsAt) return; if (c.pausedLeft == null) c.pausedLeft = c.endsAt - Date.now(); else { c.endsAt = Date.now() + c.pausedLeft; c.pausedLeft = null; } renderClock(); saveAttempt(); }
 
@@ -1155,9 +1171,9 @@
   }
   function finishScreen(timeUp) {
     const m = $("#modal"), b = $("#mbox");
-    if (!timeUp && W.clock.endsAt && left() > 0) {
+    if (!timeUp && W.clock.endsAt && (left() > 0 || isOver())) {
       b.className = "box";
-      b.innerHTML = `<h3>${W.mode === "exam" ? "Finish test?" : "Terminer l'exo ?"}</h3><p style="margin:0;color:var(--as-dim)">Il te reste ${fmtLeft(left())}. ${W.mode === "exam" ? "Les tasks non soumises comptent 0." : "Ta note est celle de ta dernière soumission."}</p><div class="row2"><button id="mNo">Continuer</button><button class="primary" id="mYes">${W.mode === "exam" ? "Finish test" : "Terminer"}</button></div>`;
+      b.innerHTML = `<h3>${W.mode === "exam" ? "Finish test?" : "Terminer l'exo ?"}</h3><p style="margin:0;color:var(--as-dim)">${isOver() ? "Temps total : " + fmtDur(elapsed()) + "." : "Il te reste " + fmtLeft(left()) + "."} ${W.mode === "exam" ? "Les tasks non soumises comptent 0." : "Ta note est celle de ta dernière soumission."}</p><div class="row2"><button id="mNo">Continuer</button><button class="primary" id="mYes">${W.mode === "exam" ? "Finish test" : "Terminer"}</button></div>`;
       m.hidden = false; $("#mNo").onclick = () => (m.hidden = true); $("#mYes").onclick = () => finishScreen(true);
       return;
     }
@@ -1175,16 +1191,20 @@
     save(LSA, null);
     const hash = (W.mode === "exam" ? "exam-" : "exo-") + W.id;
     const insess = P.cur && (inSessionStep(hash) || isMiniOfStep(W.id));
-    const outOfTime = W.clock.endsAt && left() <= 0;
+    const over = isOver(), took = W.mode === "exo" && W.clock.endsAt ? elapsed() : null;
+    const outOfTime = W.clock.endsAt && left() <= 0 && !over;
+    if (took != null && P.tasks[W.id]) { P.tasks[W.id].lastTime = took; persist(); }
     const dayHere = inDay(W.mode, W.id);
     b.className = "box";
     b.innerHTML = `<h3>${outOfTime ? "Time is up" : "Résultat"}</h3>${W.tasks.map((t, i) => `<div class="r"><span>${W.mode === "exam" ? "Task " + (i + 1) + " · " : ""}${esc(t.name)}</span><b>${scores[i]}/100</b></div>`).join("")}
+      ${took != null ? `<div class="r"><span>Ton temps</span><b>${fmtDur(took)}${took > W.clock.baseMin * 60000 ? " (prévu " + W.clock.baseMin + " min)" : ""}</b></div>` : ""}
       <p style="margin:0;color:var(--as-dim);font-size:14px">${W.mode === "exam" ? "L'analyse guidée te montre le corrigé de chaque task et t'aide à comprendre tes erreurs." : scores[0] >= 80 ? "Réussi (80 ou plus)." : solOK(W.id) ? "Sous 80 : cet exo reviendra en révision dans 2 séances. Regarde le corrigé, puis refais-le de mémoire." : "Sous 80 : recommence, tu peux y arriver. Le corrigé s'ouvre après 2 essais."}</p>
-      <div class="row2"><button id="mBack">Retour au site</button><button id="mAgain">Recommencer</button>${W.mode === "exo" ? (solOK(W.id) ? '<button id="mSol">Voir le corrigé</button>' : "") : `<button ${insess || dayHere ? "" : 'class="primary"'} id="mAna">Analyse guidée</button>`}${dayHere ? '<button class="primary" id="mDay">Retour à la séance</button>' : ""}${insess ? `<button class="primary" id="mNext">${isMiniOfStep(W.id) ? "Retour à la leçon" : esc(nextLabel())}</button>` : ""}</div>`;
+      <div class="row2"><button id="mBack">Retour au site</button>${W.mode === "exo" ? '<button id="mKeep">Recommencer avec mon code</button><button id="mAgain">Recommencer à zéro</button>' : '<button id="mAgain">Recommencer</button>'}${W.mode === "exo" ? (solOK(W.id) ? '<button id="mSol">Voir le corrigé</button>' : "") : `<button ${insess || dayHere ? "" : 'class="primary"'} id="mAna">Analyse guidée</button>`}${dayHere ? '<button class="primary" id="mDay">Retour à la séance</button>' : ""}${insess ? `<button class="primary" id="mNext">${isMiniOfStep(W.id) ? "Retour à la leçon" : esc(nextLabel())}</button>` : ""}</div>`;
     m.hidden = false;
     $("#mBack").onclick = () => { m.hidden = true; closeWorkspace(); goHash(P.cur ? "accueil" : backHash()); };
     if ($("#mDay")) $("#mDay").onclick = () => { m.hidden = true; closeWorkspace(); goHash("accueil"); };
     $("#mAgain").onclick = () => { m.hidden = true; restart(true); };
+    if ($("#mKeep")) $("#mKeep").onclick = () => { m.hidden = true; restart(true, true); };
     if ($("#mSol")) $("#mSol").onclick = () => showSolution();
     if ($("#mAna")) $("#mAna").onclick = () => { m.hidden = true; closeWorkspace(); goHash("analyse-" + W.id); };
     if ($("#mNext")) $("#mNext").onclick = () => { m.hidden = true; closeWorkspace(); if (isMiniOfStep(W.id)) goHash("reflexe-" + findSession(P.cur.id).steps[P.cur.step].reflex); else sessNext(); };
@@ -1197,7 +1217,7 @@
   function showSolution() {
     const t = W.tasks[W.cur], m = $("#modal"), b = $("#mbox");
     const sub = Object.keys(W.lastSub).length > 0;
-    if (!sub && W.clock.endsAt && left() > 0 && !confirm("Tu n'as pas encore soumis. Regarder le corrigé maintenant ? (Conseil : soumets d'abord, même incomplet.)")) return;
+    if (!sub && W.clock.endsAt && (left() > 0 || isOver()) && !confirm("Tu n'as pas encore soumis. Regarder le corrigé maintenant ? (Conseil : soumets d'abord, même incomplet.)")) return;
     if (W.mode === "exo") {
       P.solSeen[t.id] = Date.now();
       if (!P.review.some((r) => r.task === t.id)) P.review.push({ task: t.id, stage: 0, due: P.sessCount + INTERVALS[0] });
@@ -1205,10 +1225,11 @@
     }
     b.className = "box wide";
     b.innerHTML = `<h3>Corrigé · ${esc(t.name)}</h3>${codeBlock(solutionOf(t))}<p style="margin:0;color:var(--as-dim);font-size:14px">Ne le recopie pas : ferme-le et réécris la solution de mémoire, puis SUBMIT.</p><div class="row2"><button class="primary" id="mClose">Fermer</button></div>`;
-    m.hidden = false; $("#mClose").onclick = () => { m.hidden = true; if (!W.clock.endsAt || left() <= 0) finishScreen(true); };
+    m.hidden = false; $("#mClose").onclick = () => { m.hidden = true; if (!W.clock.endsAt || (left() <= 0 && !isOver())) finishScreen(true); };
   }
-  function restart(noConfirm) {
+  function restart(noConfirm, keep) {
     if (!noConfirm && !confirm("Recommencer depuis le début ? Ton code actuel sera remis à zéro. Tes notes passées restent dans ta Progression.")) return;
+    keepDrafts = keep ? { key: W.key, drafts: W.drafts.slice() } : null;
     if (W.mode === "exam" && !W.recorded && Object.keys(W.lastSub).length) { recordExam(W.id, W.tasks.map((_, i) => taskScore(i)), true); W.recorded = true; }
     const mode = W.mode, id = W.id;
     save(LSA, null); W.on = false;
@@ -1223,11 +1244,12 @@
     $("#diff").onclick = () => { W.showDiff = !W.showDiff; $("#diff").textContent = W.showDiff ? "HIDE DIFF" : "VIEW DIFF"; renderTests(); };
     $("#moreBtn").onclick = () => { const d = $("#morebox"); d.hidden = !d.hidden; $("#moreBtn").setAttribute("aria-expanded", String(!d.hidden)); };
     $("#restart").onclick = () => { $("#morebox").hidden = true; restart(); };
+    $("#restartKeep").onclick = () => { $("#morebox").hidden = true; restart(true, true); };
     $("#finish").onclick = () => { $("#morebox").hidden = true; finishScreen(false); };
     $("#showSol").onclick = () => { $("#morebox").hidden = true; showSolution(); };
     $("#leave").onclick = () => {
       saveAttempt();
-      const running = W.clock.endsAt && left() > 0;
+      const running = W.clock.endsAt && (left() > 0 || isOver());
       if (running && !confirm("Quitter l'espace ? Ton code est gardé et le chrono continue (il suit l'heure réelle). Tu pourras reprendre.")) return;
       closeWorkspace();
       goHash(P.cur ? "accueil" : backHash());

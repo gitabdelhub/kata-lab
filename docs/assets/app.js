@@ -45,6 +45,12 @@
   }
   const hiddenOf = (t) => (t._hidden || (t._hidden = dec(t.hidden)));
   const solutionOf = (t) => dec(t.solution);
+  // Corrigé : version simple (boucles, dict) d'abord quand elle existe, puis la version courte
+  function corrigeHtml(t) {
+    if (!t.simple) return codeBlock(solutionOf(t));
+    return `<h4 class="solh">Version simple : celle à savoir écrire au test</h4>${codeBlock(dec(t.simple))}
+      <details class="solalt"><summary>Version courte (bonus) : même résultat, avec des outils de Python à découvrir plus tard</summary>${codeBlock(solutionOf(t))}</details>`;
+  }
   const reflex = (id) => CAT.reflexes.find((r) => r.id === id);
   const exam = (id) => CAT.exams.find((e) => e.id === id);
 
@@ -650,7 +656,7 @@
     $$("[data-sol]").forEach((b) => (b.onclick = () => {
       const i = +b.dataset.sol, row = $("#sol" + i);
       row.hidden = !row.hidden;
-      if (!row.hidden) row.firstElementChild.innerHTML = codeBlock(solutionOf(tasks[i]));
+      if (!row.hidden) row.firstElementChild.innerHTML = corrigeHtml(tasks[i]);
     }));
   }
 
@@ -778,6 +784,12 @@
   let saveT = null;
   const saveSoon = () => { clearTimeout(saveT); saveT = setTimeout(saveAttempt, 400); };
 
+  function pasteWarn() {
+    let el = $("#pastewarn");
+    if (!el) { el = document.createElement("div"); el.id = "pastewarn"; el.className = "pastewarn"; $("#ed").appendChild(el); }
+    el.textContent = "Copier-coller désactivé, comme au vrai test : tape ton code toi-même.";
+    el.hidden = false; clearTimeout(el._t); el._t = setTimeout(() => (el.hidden = true), 3500);
+  }
   function ensureCM() {
     if (cm) return;
     cm = CodeMirror($("#cm"), {
@@ -787,6 +799,17 @@
         "Shift-Tab": (c) => c.indentSelection("subtract"),
         "Ctrl-Enter": () => runTests(false), "Cmd-Enter": () => runTests(false),
       },
+    });
+    // Copier-coller bloqué depuis l'extérieur de l'éditeur, comme au vrai test.
+    // Ce que tu copies dans ton propre code reste permis.
+    let ownCopy = null;
+    const remember = (c) => { ownCopy = c.getSelection(); };
+    cm.on("copy", remember); cm.on("cut", remember);
+    cm.on("beforeChange", (c, ch) => {
+      if (ch.origin !== "paste" && ch.origin !== "drop") return;
+      if (ch.origin === "paste" && ownCopy !== null && ch.text.join("\n") === ownCopy) return;
+      ch.cancel();
+      pasteWarn();
     });
     cm.on("change", () => {
       if (cmSilent || cm.getOption("readOnly")) return;
@@ -1230,7 +1253,7 @@
       persist();
     }
     b.className = "box wide";
-    b.innerHTML = `<h3>Corrigé · ${esc(t.name)}</h3>${codeBlock(solutionOf(t))}<p style="margin:0;color:var(--as-dim);font-size:14px">Ne le recopie pas : ferme-le et réécris la solution de mémoire, puis SUBMIT.</p><div class="row2"><button class="primary" id="mClose">Fermer</button></div>`;
+    b.innerHTML = `<h3>Corrigé · ${esc(t.name)}</h3>${corrigeHtml(t)}<p style="margin:0;color:var(--as-dim);font-size:14px">Ne le recopie pas : ferme-le et réécris la solution de mémoire, puis SUBMIT.</p><div class="row2"><button class="primary" id="mClose">Fermer</button></div>`;
     m.hidden = false; $("#mClose").onclick = () => { m.hidden = true; if (!W.clock.endsAt || (left() <= 0 && !isOver())) finishScreen(true); };
   }
   function restart(noConfirm, keep) {

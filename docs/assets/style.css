@@ -536,3 +536,8 @@ button.unit:hover{border-color:var(--mint)}
 .fichelink{font-size:14px;color:var(--as-dim);margin:12px 0 0}
 @media (max-width:1000px){.prat{grid-template-columns:1fr}.fiche{grid-template-columns:1fr}.ftoc{position:static;grid-auto-flow:column;overflow-x:auto}.fgrid,.doors{grid-template-columns:1fr 1fr}}
 @media (max-width:640px){.fgrid,.doors{grid-template-columns:1fr}.dstep{grid-template-columns:32px minmax(0,1fr)}.dstep .pill{grid-column:1/-1;justify-content:center}}
+.asm-modal h4.solh{margin:0;font-size:15px}
+.solalt summary{cursor:pointer;font-weight:600;font-size:14px;color:var(--as-dim);margin-bottom:8px}
+.asm-modal .box.wide{max-height:92vh;overflow:auto}
+.asm-ed{position:relative}
+.pastewarn{position:absolute;right:16px;bottom:16px;z-index:6;background:var(--as-sub);color:#fff;border-radius:8px;padding:10px 14px;font-size:14px;max-width:min(420px,80%);box-shadow:0 6px 20px rgba(0,0,0,.2)}

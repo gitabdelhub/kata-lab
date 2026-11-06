@@ -278,6 +278,12 @@ def b64(obj):
 DEFAULTS = {"python": ("solution", 4), "sql": (None, 10), "pyspark": ("solve", 30)}
 
 
+def _simple():
+    """Versions simples des corrigés (content_src/simple.py)."""
+    import simple
+    return {k: v.strip() + "\n" for k, v in simple.SIMPLE.items()}
+
+
 def load_task(path):
     spec = importlib.util.spec_from_file_location("t_" + os.path.basename(path)[:-3], path)
     m = importlib.util.module_from_spec(spec)
@@ -295,6 +301,7 @@ def load_task(path):
         "tests_in": m.tests(), "mutants": getattr(m, "MUTANTS", []), "io": getattr(m, "IO", []),
         # Vérifications en plus pour les banques : réponses officielles et solutions indépendantes
         "bank": m.expected() if hasattr(m, "expected") else None, "alts": getattr(m, "ALT", []),
+        "simple": _simple().get(m.ID),
         "wrapper": getattr(m, "WRAPPER", ""), "project": getattr(m, "PROJECT", None), "desc_raw": getattr(m, "DESC_RAW", False),
     }
     return t
@@ -332,6 +339,12 @@ def build_task(t):
             if not out_eq(got, x["expected"], t["ordered"]):
                 problems.append(f"la solution indépendante {k + 1} diffère au test {i + 1} : {got} au lieu de {x['expected']}")
                 break
+    if t["simple"]:
+        for i, x in enumerate(tests):
+            got = safe_run(t, t["simple"], x["input"])
+            if not out_eq(got, x["expected"], t["ordered"]):
+                problems.append(f"la version simple diffère au test {i + 1} : {got} au lieu de {x['expected']}")
+                break
     if all(out_eq(safe_run(t, t["starter"], x["input"]), x["expected"], t["ordered"]) for x in tests):
         problems.append("le code de départ passe tous les tests")
     for k, mut in enumerate(t["mutants"]):
@@ -365,6 +378,8 @@ def build_task(t):
         doc["project"] = t["project"]
     doc["howto"] = howto_html(t, tests)
     doc.update(files=files, visible=vis, hidden_n=len(hid), hidden=b64(hid), solution=b64(t["solution"]))
+    if t["simple"]:
+        doc["simple"] = b64(t["simple"])
     with open(os.path.join(OUT, "tasks", t["id"] + ".json"), "w", encoding="utf-8") as fh:
         json.dump(doc, fh, ensure_ascii=False, separators=(",", ":"))
     info = f"{t['id']:<10} {t['lang']:<8} {len(vis)}+{len(hid)} tests"
@@ -372,6 +387,8 @@ def build_task(t):
         info += f", {t['bank_n']} réponses officielles vérifiées"
     if t["alts"]:
         info += f", {len(t['alts'])} solution(s) indépendante(s) d'accord"
+    if t["simple"]:
+        info += ", version simple d'accord"
     if empty:
         info += f"  (sortie vide aux tests {empty})"
     print(info + ("  !! " + " ; ".join(problems) if problems else "  ok"))

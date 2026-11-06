@@ -564,3 +564,21 @@ body.resizing-y,body.resizing-y *{cursor:row-resize!important;user-select:none!i
 /* parenthèses : la jumelle bien visible, l'orpheline en rouge */
 .asm-code .CodeMirror span.CodeMirror-matchingbracket{color:inherit!important;background:rgba(31,111,235,.22);outline:1px solid #1f6feb;border-radius:2px;font-weight:700}
 .asm-code .CodeMirror span.CodeMirror-nonmatchingbracket{color:#fff!important;background:#d1242f;border-radius:2px;font-weight:700}
+
+/* fiche perso de 3 lignes par exo */
+.mynote{display:grid;gap:8px;margin:4px 0 2px;padding:12px 14px;border:1px solid var(--as-chip-line,#d8dde8);border-radius:8px;background:var(--as-chip,#f4f6fa);color:var(--as-paper-fg,#1b2232)}
+.mynote.hot{border:2px solid #1f6feb}
+.mynote>b{font-size:15px}
+.mynote>p{margin:0;font-size:14px;color:var(--as-dim,#5b6475)}
+.mynote .nf{display:grid;grid-template-columns:100px minmax(0,1fr);gap:10px;align-items:start;font-size:14px;font-weight:700}
+.mynote .nf span{padding-top:7px}
+.mynote textarea{width:100%;font:14px/1.45 var(--f-body,system-ui);border:1px solid var(--as-chip-line,#d8dde8);border-radius:6px;padding:6px 9px;resize:vertical;background:#fff;color:#1b2232;min-width:0}
+.mynote .nsaved{color:var(--as-dim,#5b6475);font-size:12px}
+.mynote-d{margin-top:16px}
+.mynote-d summary{cursor:pointer;font-weight:700;font-size:15px}
+.mynote-d summary span{font-weight:500;color:var(--as-dim,#5b6475);font-size:14px}
+.mynote-d .mynote{margin-top:10px}
+.mynotes{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-bottom:8px}
+.mynotes .mn{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:12px 14px;display:grid;gap:4px;font-size:14px;min-width:0;overflow-wrap:anywhere}
+.mynotes .mn a{font-weight:700;text-decoration:none;color:inherit;display:flex;gap:8px;align-items:center;margin-bottom:4px}
+@media (max-width:640px){.mynote .nf{grid-template-columns:minmax(0,1fr);gap:4px}.mynote .nf span{padding-top:0}}

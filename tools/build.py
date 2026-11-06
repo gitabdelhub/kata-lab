@@ -203,11 +203,28 @@ def run(task, code, inp):
     return run_pyspark(code, task["entry"], task["params"], inp)
 
 
+class _Timeout(Exception):
+    pass
+
+
+def _alarm(signum, frame):
+    raise _Timeout()
+
+
 def safe_run(task, code, inp):
+    """Exécute un code d'élève (mutant, version simple...). En Python, au-delà de 10 s c'est un échec (boucle infinie)."""
+    import signal
+    use_alarm = task["lang"] == "python"
+    if use_alarm:
+        signal.signal(signal.SIGALRM, _alarm)
+        signal.alarm(10)
     try:
         return run(task, code, inp)
-    except Exception:
+    except (Exception, _Timeout):
         return None
+    finally:
+        if use_alarm:
+            signal.alarm(0)
 
 
 def esc(x):

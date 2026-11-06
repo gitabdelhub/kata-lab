@@ -1602,6 +1602,66 @@
     renderHome();
   }
 
+  /* ============================================================ zones redimensionnables (glisser les barres) */
+  function bindSplitters() {
+    const body = document.querySelector(".asm-body"), right = document.querySelector(".asm-right");
+    const vbar = document.querySelector(".asm-split"), hbar = document.querySelector(".asm-hbar");
+    if (!body || !right || !vbar || !hbar) return;
+    const KEY = "kata.panes";
+    let saved = {};
+    try { saved = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch (_) {}
+    const save = () => { try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch (_) {} };
+    const apply = () => {
+      if (saved.paper) body.style.setProperty("--paper-w", saved.paper + "px"); else body.style.removeProperty("--paper-w");
+      if (saved.ed) right.style.setProperty("--ed-h", saved.ed + "px"); else right.style.removeProperty("--ed-h");
+    };
+    apply();
+    let raf = 0;
+    const refresh = () => { if (raf) return; raf = requestAnimationFrame(() => { raf = 0; if (cm) cm.refresh(); }); };
+    const drag = (bar, onMove) => {
+      bar.addEventListener("pointerdown", (e) => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        bar.setPointerCapture(e.pointerId);
+        bar.classList.add("dragging"); document.body.classList.add("resizing");
+        const move = (ev) => { onMove(ev); apply(); refresh(); };
+        const up = () => {
+          bar.removeEventListener("pointermove", move); bar.removeEventListener("pointerup", up); bar.removeEventListener("pointercancel", up);
+          bar.classList.remove("dragging"); document.body.classList.remove("resizing");
+          save(); refresh();
+        };
+        bar.addEventListener("pointermove", move); bar.addEventListener("pointerup", up); bar.addEventListener("pointercancel", up);
+      });
+    };
+    // Barre verticale : largeur de l'énoncé
+    drag(vbar, (ev) => {
+      const r = body.getBoundingClientRect(), side = document.querySelector(".asm-side").getBoundingClientRect().width;
+      const max = r.width - side - 8 - 380;
+      saved.paper = Math.round(Math.max(260, Math.min(max, ev.clientX - r.left - side)));
+    });
+    // Barre horizontale : hauteur de l'éditeur (le reste va aux tests)
+    drag(hbar, (ev) => {
+      const r = right.getBoundingClientRect();
+      const max = window.innerWidth > 1000 ? r.height - 6 - 110 : 1400;
+      saved.ed = Math.round(Math.max(120, Math.min(max, ev.clientY - r.top)));
+    });
+    // Double-clic : retour à la taille d'origine
+    vbar.addEventListener("dblclick", () => { delete saved.paper; apply(); save(); refresh(); });
+    hbar.addEventListener("dblclick", () => { delete saved.ed; apply(); save(); refresh(); });
+    vbar.title = hbar.title = "Glisse pour agrandir ou réduire. Double-clic : taille d'origine.";
+    // Clavier : flèches quand la barre a le focus
+    [[vbar, "paper", "ArrowLeft", "ArrowRight"], [hbar, "ed", "ArrowUp", "ArrowDown"]].forEach(([bar, k, less, more]) => {
+      bar.tabIndex = 0;
+      bar.addEventListener("keydown", (e) => {
+        if (e.key !== less && e.key !== more) return;
+        e.preventDefault();
+        const cur = saved[k] || (k === "paper" ? document.querySelector(".asm-paper").getBoundingClientRect().width : document.querySelector(".asm-ed").getBoundingClientRect().height);
+        saved[k] = Math.max(k === "paper" ? 260 : 120, Math.round(cur + (e.key === more ? 30 : -30)));
+        apply(); save(); refresh();
+      });
+    });
+  }
+
   async function init() {
     try {
       CAT = await (await fetch("content/catalog.json", { cache: "no-cache" })).json();
@@ -1613,6 +1673,7 @@
     buildOrder();
     seedMethodCards(); persist();
     bindWorkspace();
+    bindSplitters();
     window.addEventListener("hashchange", route);
     route();
   }

@@ -89,3 +89,18 @@ def october(tid):
     d["tests"] = lambda: [json.loads(json.dumps(x)) for x in tests]
     d["expected"] = lambda: bank
     return d
+
+
+# ---------------- dates (tasks « coriaces ») ----------------
+import datetime as _dt
+
+
+def ts(minutes, base="2026-03-02 08:00:00"):
+    """Horodatage texte : base + n minutes."""
+    b = _dt.datetime.strptime(base, "%Y-%m-%d %H:%M:%S")
+    return (b + _dt.timedelta(minutes=minutes)).strftime("%Y-%m-%d %H:%M:%S")
+
+
+def day(n, base="2026-01-01"):
+    """Date texte : base + n jours."""
+    return (_dt.date.fromisoformat(base) + _dt.timedelta(days=n)).isoformat()

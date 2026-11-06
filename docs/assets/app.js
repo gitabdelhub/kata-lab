@@ -15,7 +15,7 @@
   const LS = "kata.v1", LSA = "kata.attempt";
   const load = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (_) { return d; } };
   const save = (k, v) => { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); } catch (_) {} };
-  const P0 = () => ({ v: 1, done: {}, sessCount: 0, cur: null, cards: {}, tasks: {}, exams: {}, review: [], errors: {}, notes: {}, days: [], ump: false, dur: 70, live: [], v2: 1, solSeen: {}, day: null, dayN: 1 });
+  const P0 = () => ({ v: 1, done: {}, sessCount: 0, cur: null, cards: {}, tasks: {}, exams: {}, review: [], errors: {}, notes: {}, days: [], ump: false, dur: 70, live: [], v2: 1, solSeen: {}, day: null, dayN: 1, tnotes: {} });
   let P = Object.assign(P0(), load(LS, {}));
   // v2 (6 nov 2026) : séance du jour simple, plus de parcours guidé ni d'UMPIRE imposé
   if (!P.v2) { P.v2 = 1; P.ump = false; P.cur = null; P.solSeen = P.solSeen || {}; }
@@ -136,6 +136,28 @@
     persist();
   }
   function dueReviews() { return P.review.filter((r) => r.due <= P.sessCount); }
+  // Exo fini hors du temps prévu (même réussi) : il revient en révision espacée
+  function slowReview(tid) {
+    const item = P.review.find((r) => r.task === tid);
+    if (item) { item.stage = 0; item.due = P.sessCount + INTERVALS[0]; }
+    else P.review.push({ task: tid, stage: 0, due: P.sessCount + INTERVALS[0] });
+    persist();
+  }
+  // Fiche perso de 3 lignes par exo (déclencheur, outil, piège), écrite par AB
+  const NOTE_F = [["trig", "Déclencheur", "Ex. « part du groupe » dans la consigne"], ["tool", "Outil", "Ex. SUM(SUM(x)) OVER (PARTITION BY groupe)"], ["trap", "Piège", "Ex. 100.0 et pas 100 (division entière)"]];
+  const myNote = (tid) => ((P.tnotes || {})[tid]) || null;
+  const hasNote = (tid) => { const n = myNote(tid); return !!(n && NOTE_F.some(([k]) => (n[k] || "").trim())); };
+  function noteForm(tid) {
+    const n = myNote(tid) || {};
+    return NOTE_F.map(([k, lab, ph]) => `<label class="nf"><span>${lab}</span><textarea rows="2" data-note="${k}" data-tid="${tid}" placeholder="${esc(ph)}">${esc(n[k] || "")}</textarea></label>`).join("") + `<small class="nsaved">Enregistrée toute seule, dans ce navigateur.</small>`;
+  }
+  function bindNote(root) {
+    $$("[data-note]", root).forEach((ta) => (ta.oninput = () => {
+      P.tnotes = P.tnotes || {};
+      const n = P.tnotes[ta.dataset.tid] || (P.tnotes[ta.dataset.tid] = {});
+      n[ta.dataset.note] = ta.value; n.at = today(); persist();
+    }));
+  }
   function recordTask(tid, score, inReview) {
     const t = P.tasks[tid] || (P.tasks[tid] = { best: 0, last: 0, n: 0, hist: [] });
     t.best = Math.max(t.best, score); t.last = score; t.n++; t.hist.push({ at: today(), score }); t.hist = t.hist.slice(-20);
@@ -488,6 +510,14 @@
   }
 
   /* ============================================================ v2 : Fiches */
+  function myNotesHtml() {
+    const ids = Object.keys(P.tnotes || {}).filter((id) => CAT.tasks[id] && hasNote(id)).sort((a, b) => ((P.tnotes[b].at || "") > (P.tnotes[a].at || "") ? 1 : -1));
+    if (!ids.length) return `<h2 class="h2s">Mes fiches d'exos</h2><p class="muted">Après chaque exo, l'écran du résultat te propose d'écrire 3 lignes : déclencheur, outil, piège. Elles apparaîtront ici.</p>`;
+    return `<h2 class="h2s">Mes fiches d'exos <span class="muted" style="font-size:15px;font-weight:500">· ${ids.length}, écrites par toi</span></h2><div class="mynotes">${ids.map((id) => {
+      const n = P.tnotes[id];
+      return `<div class="mn"><a href="#exo-${id}"><span class="lg ${CAT.tasks[id].lang}">${SHORT[CAT.tasks[id].lang]}</span> ${esc(CAT.tasks[id].name)}</a>${NOTE_F.map(([k, lab]) => (n[k] || "").trim() ? `<div><b>${lab} :</b> ${esc(n[k])}</div>` : "").join("")}</div>`;
+    }).join("")}</div>`;
+  }
   function renderFiches() {
     const f = FI();
     const card = (l) => `<a class="fcard" href="#fiche-${l}"><span class="lg ${l}">${SHORT[l]}</span><h3>${esc(f[l].title)}</h3><ul>${f[l].secs.slice(0, 6).map((s) => `<li>${esc(s.t)}</li>`).join("")}</ul><span class="go">Lire la fiche →</span></a>`;
@@ -495,6 +525,7 @@
     view().innerHTML = `<section class="ws on">${band("Fiches", `<p class="lead" style="margin:-4px 0 28px">Quand tu as oublié une syntaxe : lis la partie qu'il te faut, puis fais un des exos liés.</p>`)}
       <div class="wrap"><div class="sect">
         <div class="fgrid">${["sql", "pyspark", "python"].map(card).join("")}</div>
+        ${myNotesHtml()}
         <h2 class="h2s">Autres outils</h2>
         <div class="fgrid">
           ${tool("#apprendre", "Réflexes", "Les 8 gestes de base, avec un exemple guidé et un mini-exo chacun.")}
@@ -982,6 +1013,7 @@
         extra = `<div class="hintbox">${fr ? '<button data-fr="1">Aide à la lecture (FR)</button>' : ""}${hs.map((_, k) => `<button data-h="${k}">Indice ${k + 1}</button>`).join("")}</div>`;
         if (W.maxHints != null && lim < all.length) extra += `<p class="muted" style="margin:6px 0 0">${lim === 0 ? "Pas d'indice dans cette séance : tu t'entraînes comme le jour J." : "Les indices s'effacent : " + lim + " indice dans cette séance."} Tu les retrouveras en refaisant l'exo depuis la Bibliothèque.</p>`;
         if (W.fr) extra += `<div class="fr"><b>En français :</b> ${esc(t.summary_fr)}</div>`;
+        if (hasNote(t.id)) extra += `<details class="mynote-d"><summary>Ta fiche sur cet exo <span>(ouvre-la seulement si tu bloques)</span></summary><div class="mynote">${noteForm(t.id)}</div></details>`;
         const fs = ficheSecFor(t.id);
         if (fs) extra += `<p class="fichelink">Une notion t'échappe ? <a href="#fiche-${fs.lang}-${fs.id}" target="_blank" rel="noopener">Relis la fiche « ${esc(fs.t)} »</a> (s'ouvre dans un nouvel onglet, ton code reste ici).</p>`;
         extra += `<p class="fichelink">${solOK(t.id) ? "Le corrigé est dans MORE, Voir le corrigé." : "Le corrigé s'ouvre après 2 essais (SUBMIT ou Terminer)."}</p>`;
@@ -994,6 +1026,7 @@
       $$("[data-h]", p).forEach((b) => (b.onclick = () => { const a = W.hints[W.cur] || (W.hints[W.cur] = []); const k = +b.dataset.h; if (!a.includes(k)) a.push(k); renderPaper(); }));
       const hw = $("details.howto", p); if (hw && exo) hw.ontoggle = () => { P.howto = hw.open; persist(); };
       const fr = $("[data-fr]", p); if (fr) fr.onclick = () => { W.fr = !W.fr; renderPaper(); };
+      bindNote(p);
     } else if (W.side === "info") {
       const total = t.visible.length + t.hidden_n;
       let strat = "";
@@ -1251,13 +1284,18 @@
     const over = isOver(), took = W.mode === "exo" && W.clock.endsAt ? elapsed() : null;
     const outOfTime = W.clock.endsAt && left() <= 0 && !over;
     if (took != null && P.tasks[W.id]) { P.tasks[W.id].lastTime = took; persist(); }
+    const slow = W.mode === "exo" && took != null && (took > W.clock.baseMin * 60000 || outOfTime);
+    if (slow) slowReview(W.id);
+    const revSoon = W.mode === "exo" && (slow || scores[0] < 80);
     const dayHere = inDay(W.mode, W.id);
     b.className = "box";
     b.innerHTML = `<h3>${outOfTime ? "Time is up" : "Résultat"}</h3>${W.tasks.map((t, i) => `<div class="r"><span>${W.mode === "exam" ? "Task " + (i + 1) + " · " : ""}${esc(t.name)}</span><b>${scores[i]}/100</b></div>`).join("")}
       ${took != null ? `<div class="r"><span>Ton temps</span><b>${fmtDur(took)}${took > W.clock.baseMin * 60000 ? " (prévu " + W.clock.baseMin + " min)" : ""}</b></div>` : ""}
-      <p style="margin:0;color:var(--as-dim);font-size:14px">${W.mode === "exam" ? "L'analyse guidée te montre le corrigé de chaque task et t'aide à comprendre tes erreurs." : scores[0] >= 80 ? "Réussi (80 ou plus)." : solOK(W.id) ? "Sous 80 : cet exo reviendra en révision dans 2 séances. Regarde le corrigé, puis refais-le de mémoire." : "Sous 80 : recommence, tu peux y arriver. Le corrigé s'ouvre après 2 essais."}</p>
+      <p style="margin:0;color:var(--as-dim);font-size:14px">${W.mode === "exam" ? "L'analyse guidée te montre le corrigé de chaque task et t'aide à comprendre tes erreurs." : scores[0] >= 80 ? (slow ? "Réussi, mais hors du temps prévu : cet exo reviendra en révision dans " + INTERVALS[0] + " séances, pour le refaire plus vite." : "Réussi (80 ou plus).") : solOK(W.id) ? "Sous 80 : cet exo reviendra en révision dans 2 séances. Regarde le corrigé, puis refais-le de mémoire." : "Sous 80 : recommence, tu peux y arriver. Le corrigé s'ouvre après 2 essais."}</p>
+      ${W.mode === "exo" ? `<div class="mynote${revSoon ? " hot" : ""}"><b>Ta fiche sur cet exo, avec tes mots</b><p>${revSoon ? "Écris-la maintenant, quand c'est frais : elle reviendra avec l'exo en révision." : "Optionnel : 3 lignes pour t'en souvenir dans 2 mois."}</p>${noteForm(W.id)}</div>` : ""}
       <div class="row2"><button id="mBack">Retour au site</button>${W.mode === "exo" ? '<button id="mKeep">Recommencer avec mon code</button><button id="mAgain">Recommencer à zéro</button>' : '<button id="mAgain">Recommencer</button>'}${W.mode === "exo" ? (solOK(W.id) ? '<button id="mSol">Voir le corrigé</button>' : "") : `<button ${insess || dayHere ? "" : 'class="primary"'} id="mAna">Analyse guidée</button>`}${dayHere ? '<button class="primary" id="mDay">Retour à la séance</button>' : ""}${insess ? `<button class="primary" id="mNext">${isMiniOfStep(W.id) ? "Retour à la leçon" : esc(nextLabel())}</button>` : ""}</div>`;
     m.hidden = false;
+    bindNote(b);
     $("#mBack").onclick = () => { m.hidden = true; closeWorkspace(); goHash(P.cur ? "accueil" : backHash()); };
     if ($("#mDay")) $("#mDay").onclick = () => { m.hidden = true; closeWorkspace(); goHash("accueil"); };
     $("#mAgain").onclick = () => { m.hidden = true; restart(true); };

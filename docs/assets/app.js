@@ -351,7 +351,10 @@
 
   /* ============================================================ v2 : séance du jour */
   const isDoneTask = (id) => (P.tasks[id] && P.tasks[id].best >= 80) || !!(P.solSeen || {})[id];
-  function nextOf(lang, taken) { return QUEUE[lang].find((id) => !isDoneTask(id) && !taken.includes(id)) || null; }
+  // Pour la séance : un exo raté mais fini, avec au moins une ligne dans sa fiche, est terminé.
+  // Il revient plus tard en révision. (La fiche n'apparaît qu'à la fin d'un exo.)
+  const isClosedTask = (id) => isDoneTask(id) || hasNote(id);
+  function nextOf(lang, taken) { return QUEUE[lang].find((id) => !isClosedTask(id) && !taken.includes(id)) || null; }
   function nextExam() { return CAT.exams.find((e) => !((P.exams[e.id] || {}).hist || []).length) || null; }
   function makeDay(n) {
     const at = Date.now();
@@ -377,8 +380,8 @@
     return { n, at, items, rev, shuf: 1 };
   }
   function dayStepDone(st) {
-    if (st.kind === "exo") return isDoneTask(st.id);
-    if (st.kind === "redo") { const t = P.tasks[st.id] || {}; return ((t.n || 0) > st.n0 && t.last >= 80) || ((P.solSeen || {})[st.id] || 0) > P.day.at; }
+    if (st.kind === "exo") return isClosedTask(st.id);
+    if (st.kind === "redo") { const t = P.tasks[st.id] || {}; return ((t.n || 0) > st.n0 && t.last >= 80) || ((P.solSeen || {})[st.id] || 0) > P.day.at || (((P.ended || {})[st.id] || 0) > P.day.at && hasNote(st.id)); }
     if (st.kind === "fiche") return !!P.day.rev.read;
     if (st.kind === "exam") return (((P.exams[st.id] || {}).hist || []).filter((h) => (h.ts || 0) >= P.day.at)).length > 0;
     return false;
@@ -444,7 +447,7 @@
         <div class="ph-track" style="margin:0"><i style="width:${Math.round((100 * done) / steps.length)}%"></i></div>
         <div class="dsteps">${steps.map(row).join("")}</div>
         ${all ? `<div class="dunlock"><span>Séance ${d.n} terminée. Bravo, une de plus.</span><button class="pill sm" id="nextDay">Voir la séance suivante</button></div>`
-          : `<p class="muted" style="margin:0;font-size:14px">${d.exam ? "L'étape est cochée quand tu termines l'examen (Finish test)." : "Un exo est coché quand tu as 80/100 ou plus. Si tu regardes le corrigé, il est coché aussi et il revient plus tard en révision."} La séance suivante apparaît quand tout est coché, peu importe le jour.</p>`}</div>`;
+          : `<p class="muted" style="margin:0;font-size:14px">${d.exam ? "L'étape est cochée quand tu termines l'examen (Finish test)." : "Un exo est coché quand tu as 80/100 ou plus. Raté ou hors du temps, il est coché aussi dès que tu écris au moins une ligne dans sa fiche (écran du résultat) ; idem si tu regardes le corrigé. Dans ces cas, il revient plus tard en révision."} La séance suivante apparaît quand tout est coché, peu importe le jour.</p>`}</div>`;
     }
     const nOk = Object.keys(CAT.tasks).filter((id) => statusOf(id) === "ok").length;
     view().innerHTML = `<section class="ws on"><div class="pband"><div class="wrap hero2"><h1 class="ptitle">Bonjour AB</h1><p class="lead">Ta séance du jour t'attend : 4 exos, tu découvres chacun en l'ouvrant. Le reste du site est libre, à côté.</p></div></div>
@@ -1299,6 +1302,7 @@
     const over = isOver(), took = W.mode === "exo" && W.clock.endsAt ? elapsed() : null;
     const outOfTime = W.clock.endsAt && left() <= 0 && !over;
     if (took != null && P.tasks[W.id]) { P.tasks[W.id].lastTime = took; persist(); }
+    if (W.mode === "exo") { P.ended = P.ended || {}; P.ended[W.id] = Date.now(); persist(); }
     // Marge : un exo ne part en révision que s'il dépasse le temps prévu de plus de 2 min (ou 10 % si c'est plus)
     const baseMs = W.clock.baseMin * 60000, tolMs = Math.max(120000, Math.round(baseMs * 0.1));
     const slow = W.mode === "exo" && took != null && took > baseMs + tolMs;
@@ -1310,7 +1314,7 @@
     b.innerHTML = `<h3>${outOfTime ? "Time is up" : "Résultat"}</h3>${W.tasks.map((t, i) => `<div class="r"><span>${W.mode === "exam" ? "Task " + (i + 1) + " · " : ""}${esc(t.name)}</span><b>${scores[i]}/100</b></div>`).join("")}
       ${took != null ? `<div class="r"><span>Ton temps</span><b>${fmtDur(took)}${took > W.clock.baseMin * 60000 ? " (prévu " + W.clock.baseMin + " min)" : ""}</b></div>` : ""}
       <p style="margin:0;color:var(--as-dim);font-size:14px">${W.mode === "exam" ? "L'analyse guidée te montre le corrigé de chaque task et t'aide à comprendre tes erreurs." : scores[0] >= 80 ? (slow ? "Réussi, mais plus de " + Math.round(tolMs / 60000) + " min au-delà du temps prévu : cet exo reviendra en révision dans " + INTERVALS[0] + " séances, pour le refaire plus vite." : inTol ? "Réussi, dans la marge de temps (jusqu'à " + Math.round(tolMs / 60000) + " min de plus). Pas de révision." : "Réussi (80 ou plus).") : solOK(W.id) ? "Sous 80 : cet exo reviendra en révision dans 2 séances. Regarde le corrigé, puis refais-le de mémoire." : "Sous 80 : recommence, tu peux y arriver. Le corrigé s'ouvre après 2 essais."}</p>
-      ${W.mode === "exo" ? `<div class="mynote${revSoon ? " hot" : ""}"><b>Ta fiche sur cet exo, avec tes mots</b><p>${revSoon ? "Écris-la maintenant, quand c'est frais : elle reviendra avec l'exo en révision." : "Optionnel : 3 lignes pour t'en souvenir dans 2 mois."}</p>${noteForm(W.id)}</div>` : ""}
+      ${W.mode === "exo" ? `<div class="mynote${revSoon ? " hot" : ""}"><b>Ta fiche sur cet exo, avec tes mots</b><p>${revSoon ? (dayHere && scores[0] < 80 ? "Écris au moins une ligne : l'exo est alors coché dans ta séance, et il reviendra en révision avec ta fiche." : "Écris-la maintenant, quand c'est frais : elle reviendra avec l'exo en révision.") : "Optionnel : 3 lignes pour t'en souvenir dans 2 mois."}</p>${noteForm(W.id)}</div>` : ""}
       <div class="row2"><button id="mBack">Retour au site</button>${W.mode === "exo" ? '<button id="mKeep">Recommencer avec mon code</button><button id="mAgain">Recommencer à zéro</button>' : '<button id="mAgain">Recommencer</button>'}${W.mode === "exo" ? (solOK(W.id) ? '<button id="mSol">Voir le corrigé</button>' : "") : `<button ${insess || dayHere ? "" : 'class="primary"'} id="mAna">Analyse guidée</button>`}${dayHere ? '<button class="primary" id="mDay">Retour à la séance</button>' : ""}${insess ? `<button class="primary" id="mNext">${isMiniOfStep(W.id) ? "Retour à la leçon" : esc(nextLabel())}</button>` : ""}</div>`;
     m.hidden = false;
     bindNote(b);

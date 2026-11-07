@@ -11,7 +11,10 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # Questions non notables automatiquement : sortie libre ou seulement physique (partitions)
 SKIP = {1: "n'importe quelles 10 lignes", 73: "seulement le partitionnement", 74: "seulement le partitionnement",
-        76: "égalités libres à la limite des 10"}
+        76: "égalités libres à la limite des 10",
+        # hors sujet pour le test CodeSignal (noté sur le résultat seulement) : choix d'AB du 7 nov 2026
+        30: "comptage approximatif", 38: "broadcast", 66: "audit du schéma", 70: "quarantaine de JSON cassé",
+        72: "répartition par partition", 75: "cache", 80: "explain"}
 ORDERED = {14, 15}  # seules sorties dont l'ordre est imposé et sans égalité possible
 CATS = {1: ("Bases", ["bases DataFrame", "select", "filtre"]), 2: ("Filtres", ["filtre", "tri", "expression"]),
         3: ("Agrégation", ["groupBy", "agrégation"]), 4: ("Jointures", ["jointure", "join"]),

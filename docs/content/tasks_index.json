@@ -2976,19 +2976,6 @@
 "tests": 6
 },
 {
-"id": "k30",
-"name": "Approx distinct",
-"lang": "pyspark",
-"tags": [
-"groupBy",
-"agrégation",
-"banque DE"
-],
-"minutes": 8,
-"source": "kursad-can/data-engineering-interview-practice (MIT) · Q30",
-"tests": 6
-},
-{
 "id": "k31",
 "name": "Enrich orders",
 "lang": "pyspark",
@@ -3077,19 +3064,6 @@
 ],
 "minutes": 10,
 "source": "kursad-can/data-engineering-interview-practice (MIT) · Q37",
-"tests": 6
-},
-{
-"id": "k38",
-"name": "Broadcast dimension",
-"lang": "pyspark",
-"tags": [
-"jointure",
-"join",
-"banque DE"
-],
-"minutes": 10,
-"source": "kursad-can/data-engineering-interview-practice (MIT) · Q38",
 "tests": 6
 },
 {
@@ -3479,22 +3453,6 @@
 "tests": 6
 },
 {
-"id": "k66",
-"name": "Schema type audit",
-"lang": "pyspark",
-"tags": [
-"nettoyage",
-"null",
-"doublon",
-"cdc",
-"json",
-"banque DE"
-],
-"minutes": 12,
-"source": "kursad-can/data-engineering-interview-practice (MIT) · Q66",
-"tests": 6
-},
-{
 "id": "k67",
 "name": "Order-line reconciliation",
 "lang": "pyspark",
@@ -3543,22 +3501,6 @@
 "tests": 6
 },
 {
-"id": "k70",
-"name": "Malformed JSON quarantine",
-"lang": "pyspark",
-"tags": [
-"nettoyage",
-"null",
-"doublon",
-"cdc",
-"json",
-"banque DE"
-],
-"minutes": 12,
-"source": "kursad-can/data-engineering-interview-practice (MIT) · Q70",
-"tests": 6
-},
-{
 "id": "k71",
 "name": "Idempotent union",
 "lang": "pyspark",
@@ -3569,32 +3511,6 @@
 ],
 "minutes": 10,
 "source": "kursad-can/data-engineering-interview-practice (MIT) · Q71",
-"tests": 6
-},
-{
-"id": "k72",
-"name": "Partition distribution",
-"lang": "pyspark",
-"tags": [
-"etl production",
-"agrégation",
-"banque DE"
-],
-"minutes": 10,
-"source": "kursad-can/data-engineering-interview-practice (MIT) · Q72",
-"tests": 6
-},
-{
-"id": "k75",
-"name": "Cache reused data",
-"lang": "pyspark",
-"tags": [
-"etl production",
-"agrégation",
-"banque DE"
-],
-"minutes": 10,
-"source": "kursad-can/data-engineering-interview-practice (MIT) · Q75",
 "tests": 6
 },
 {
@@ -3634,19 +3550,6 @@
 ],
 "minutes": 10,
 "source": "kursad-can/data-engineering-interview-practice (MIT) · Q79",
-"tests": 6
-},
-{
-"id": "k80",
-"name": "Explain physical plan",
-"lang": "pyspark",
-"tags": [
-"etl production",
-"agrégation",
-"banque DE"
-],
-"minutes": 10,
-"source": "kursad-can/data-engineering-interview-practice (MIT) · Q80",
 "tests": 6
 },
 {

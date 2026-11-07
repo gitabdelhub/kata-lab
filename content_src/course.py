@@ -137,7 +137,7 @@ REFLEXES = [
     },
     {
         "id": "r8", "lang": "Python", "title": "Méthode ENTRÉE, CLÉ, RÈGLES, SORTIE", "mini": "p1m8",
-        "why": "Les tasks Python de CodeSignal sont des simulations avec beaucoup de règles. La méthode évite de se perdre.",
+        "why": "Les tasks Python du test sont des simulations avec beaucoup de règles. La méthode évite de se perdre.",
         "body": [
             "<b>ENTRÉE</b> : qu'est-ce que je reçois exactement (trié ? doublons ? vide ?). <b>CLÉ</b> : par quoi je regroupe (un dict). <b>RÈGLES</b> : je les numérote dans l'ordre de la consigne. <b>SORTIE</b> : format exact et tri.",
             "Regrouper : <code>d.setdefault(k, []).append(v)</code> ou <code>collections.defaultdict(list)</code>. Compter : <code>collections.Counter</code>.",
@@ -158,8 +158,8 @@ REFLEXES = [
 # Cartes « méthode » données dès la séance 1
 METHOD_CARDS = [
     ["UMPIRE : que veut dire chaque lettre ?", "Understand (comprendre), Match (reconnaître le pattern), Plan, Implement, Review (relire), Evaluate (tester les cas limites)."],
-    ["Les 2 premières minutes d'un examen ?", "Lire les 4 tasks, repérer la plus facile, et écrire le plan (le temps par task)."],
-    ["Stratégie CodeSignal pour ne jamais avoir 0 ?", "Une version simple qui passe quelques tests, SUBMIT tôt, puis améliorer et resoumettre."],
+    ["Les 2 premières minutes d'un examen ?", "Lire les 4 tasks, choisir par laquelle commencer, et écrire ton plan."],
+    ["Stratégie du test pour ne jamais avoir 0 ?", "Une version simple qui passe quelques tests, SUBMIT tôt, puis améliorer et resoumettre."],
     ["Que faire si une task bloque plus de 10 minutes ?", "Soumettre ce qui marche, passer à la suivante, revenir à la fin."],
 ]
 

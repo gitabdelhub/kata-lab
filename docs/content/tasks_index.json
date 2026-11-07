@@ -1804,6 +1804,111 @@
 "tests": 8
 },
 {
+"id": "g01",
+"name": "Longest Character Run",
+"lang": "python",
+"tags": [
+"parcours de chaîne",
+"compteur",
+"égalité à droite",
+"BCG"
+],
+"minutes": 12,
+"source": "Question rapportée du test BCG (fastprep.io), réécrite et testée par Kata Lab",
+"tests": 13
+},
+{
+"id": "g02",
+"name": "Even-Position Trend",
+"lang": "python",
+"tags": [
+"indices pairs",
+"parcours de liste",
+"strictement",
+"BCG"
+],
+"minutes": 10,
+"source": "Question rapportée du test BCG (fastprep.io), réécrite et testée par Kata Lab",
+"tests": 13
+},
+{
+"id": "g03",
+"name": "Pair Sum Queries",
+"lang": "python",
+"tags": [
+"hashmap",
+"compteur",
+"requêtes",
+"mise à jour",
+"BCG"
+],
+"minutes": 20,
+"source": "Question rapportée du test BCG (fastprep.io), réécrite et testée par Kata Lab",
+"tests": 10
+},
+{
+"id": "g04",
+"name": "Pattern in a Digit Grid",
+"lang": "python",
+"tags": [
+"grille",
+"sous-matrice",
+"dict de correspondance",
+"bijection",
+"BCG"
+],
+"minutes": 25,
+"source": "Question rapportée du test BCG (fastprep.io), réécrite et testée par Kata Lab",
+"tests": 15
+},
+{
+"id": "g05",
+"name": "Taxi Drivers and Rides Summary",
+"lang": "pyspark",
+"tags": [
+"union de partitions",
+"agrégation",
+"ratio",
+"égalité exacte",
+"BCG"
+],
+"minutes": 15,
+"source": "Question rapportée du test BCG (fastprep.io, à l'origine en Pandas), réécrite en PySpark et testée par Kata Lab",
+"tests": 7
+},
+{
+"id": "g06",
+"name": "Taxi Driver Features",
+"lang": "pyspark",
+"tags": [
+"union de partitions",
+"jointure gauche",
+"agrégation conditionnelle",
+"dates",
+"zéro si aucune course",
+"BCG"
+],
+"minutes": 25,
+"source": "Question rapportée du test BCG (fastprep.io, à l'origine en Pandas), réécrite en PySpark et testée par Kata Lab",
+"tests": 7
+},
+{
+"id": "g07",
+"name": "Prepare Driver Classification Data",
+"lang": "pyspark",
+"tags": [
+"statistiques du train seulement",
+"encodage",
+"standardisation",
+"valeurs manquantes",
+"union",
+"BCG"
+],
+"minutes": 30,
+"source": "Question rapportée du test BCG (fastprep.io, à l'origine en Pandas), réécrite en PySpark et testée par Kata Lab",
+"tests": 7
+},
+{
 "id": "h04t3",
 "name": "Courier Shifts and Idle Time",
 "lang": "sql",
@@ -2486,6 +2591,1063 @@
 "minutes": 40,
 "source": "Kata Lab",
 "tests": 11
+},
+{
+"id": "k02",
+"name": "Project columns",
+"lang": "pyspark",
+"tags": [
+"bases DataFrame",
+"select",
+"filtre",
+"banque DE"
+],
+"minutes": 6,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q02",
+"tests": 6
+},
+{
+"id": "k03",
+"name": "Completed orders",
+"lang": "pyspark",
+"tags": [
+"bases DataFrame",
+"select",
+"filtre",
+"banque DE"
+],
+"minutes": 6,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q03",
+"tests": 6
+},
+{
+"id": "k04",
+"name": "High value",
+"lang": "pyspark",
+"tags": [
+"bases DataFrame",
+"select",
+"filtre",
+"banque DE"
+],
+"minutes": 6,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q04",
+"tests": 6
+},
+{
+"id": "k05",
+"name": "Rename field",
+"lang": "pyspark",
+"tags": [
+"bases DataFrame",
+"select",
+"filtre",
+"banque DE"
+],
+"minutes": 6,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q05",
+"tests": 6
+},
+{
+"id": "k06",
+"name": "Derived CAD amount",
+"lang": "pyspark",
+"tags": [
+"bases DataFrame",
+"select",
+"filtre",
+"banque DE"
+],
+"minutes": 6,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q06",
+"tests": 6
+},
+{
+"id": "k07",
+"name": "Distinct statuses",
+"lang": "pyspark",
+"tags": [
+"bases DataFrame",
+"select",
+"filtre",
+"banque DE"
+],
+"minutes": 6,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q07",
+"tests": 6
+},
+{
+"id": "k08",
+"name": "Missing customer IDs",
+"lang": "pyspark",
+"tags": [
+"bases DataFrame",
+"select",
+"filtre",
+"banque DE"
+],
+"minutes": 6,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q08",
+"tests": 6
+},
+{
+"id": "k09",
+"name": "Add literal source",
+"lang": "pyspark",
+"tags": [
+"bases DataFrame",
+"select",
+"filtre",
+"banque DE"
+],
+"minutes": 6,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q09",
+"tests": 6
+},
+{
+"id": "k10",
+"name": "Conditional band",
+"lang": "pyspark",
+"tags": [
+"bases DataFrame",
+"select",
+"filtre",
+"banque DE"
+],
+"minutes": 6,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q10",
+"tests": 6
+},
+{
+"id": "k11",
+"name": "Multiple predicates",
+"lang": "pyspark",
+"tags": [
+"filtre",
+"tri",
+"expression",
+"banque DE"
+],
+"minutes": 7,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q11",
+"tests": 6
+},
+{
+"id": "k12",
+"name": "IN predicate",
+"lang": "pyspark",
+"tags": [
+"filtre",
+"tri",
+"expression",
+"banque DE"
+],
+"minutes": 7,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q12",
+"tests": 6
+},
+{
+"id": "k13",
+"name": "Exclude cancelled",
+"lang": "pyspark",
+"tags": [
+"filtre",
+"tri",
+"expression",
+"banque DE"
+],
+"minutes": 7,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q13",
+"tests": 6
+},
+{
+"id": "k14",
+"name": "Top five",
+"lang": "pyspark",
+"tags": [
+"filtre",
+"tri",
+"expression",
+"banque DE"
+],
+"minutes": 7,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q14",
+"tests": 6
+},
+{
+"id": "k15",
+"name": "Multi-column sort",
+"lang": "pyspark",
+"tags": [
+"filtre",
+"tri",
+"expression",
+"banque DE"
+],
+"minutes": 7,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q15",
+"tests": 6
+},
+{
+"id": "k16",
+"name": "Case insensitive",
+"lang": "pyspark",
+"tags": [
+"filtre",
+"tri",
+"expression",
+"banque DE"
+],
+"minutes": 7,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q16",
+"tests": 6
+},
+{
+"id": "k17",
+"name": "Log keyword match",
+"lang": "pyspark",
+"tags": [
+"filtre",
+"tri",
+"expression",
+"banque DE"
+],
+"minutes": 7,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q17",
+"tests": 6
+},
+{
+"id": "k18",
+"name": "Range predicate",
+"lang": "pyspark",
+"tags": [
+"filtre",
+"tri",
+"expression",
+"banque DE"
+],
+"minutes": 7,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q18",
+"tests": 6
+},
+{
+"id": "k19",
+"name": "Null-safe fallback",
+"lang": "pyspark",
+"tags": [
+"filtre",
+"tri",
+"expression",
+"banque DE"
+],
+"minutes": 7,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q19",
+"tests": 6
+},
+{
+"id": "k20",
+"name": "SQL expression",
+"lang": "pyspark",
+"tags": [
+"filtre",
+"tri",
+"expression",
+"banque DE"
+],
+"minutes": 7,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q20",
+"tests": 6
+},
+{
+"id": "k21",
+"name": "Order status counts",
+"lang": "pyspark",
+"tags": [
+"groupBy",
+"agrégation",
+"banque DE"
+],
+"minutes": 8,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q21",
+"tests": 6
+},
+{
+"id": "k22",
+"name": "Revenue by status",
+"lang": "pyspark",
+"tags": [
+"groupBy",
+"agrégation",
+"banque DE"
+],
+"minutes": 8,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q22",
+"tests": 6
+},
+{
+"id": "k23",
+"name": "Customer spend",
+"lang": "pyspark",
+"tags": [
+"groupBy",
+"agrégation",
+"banque DE"
+],
+"minutes": 8,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q23",
+"tests": 6
+},
+{
+"id": "k24",
+"name": "Order KPIs",
+"lang": "pyspark",
+"tags": [
+"groupBy",
+"agrégation",
+"banque DE"
+],
+"minutes": 8,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q24",
+"tests": 6
+},
+{
+"id": "k25",
+"name": "Segment distribution",
+"lang": "pyspark",
+"tags": [
+"groupBy",
+"agrégation",
+"banque DE"
+],
+"minutes": 8,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q25",
+"tests": 6
+},
+{
+"id": "k26",
+"name": "Completed revenue",
+"lang": "pyspark",
+"tags": [
+"groupBy",
+"agrégation",
+"banque DE"
+],
+"minutes": 8,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q26",
+"tests": 6
+},
+{
+"id": "k27",
+"name": "Product units",
+"lang": "pyspark",
+"tags": [
+"groupBy",
+"agrégation",
+"banque DE"
+],
+"minutes": 8,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q27",
+"tests": 6
+},
+{
+"id": "k28",
+"name": "Line sales",
+"lang": "pyspark",
+"tags": [
+"groupBy",
+"agrégation",
+"banque DE"
+],
+"minutes": 8,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q28",
+"tests": 6
+},
+{
+"id": "k29",
+"name": "Conditional counts",
+"lang": "pyspark",
+"tags": [
+"groupBy",
+"agrégation",
+"banque DE"
+],
+"minutes": 8,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q29",
+"tests": 6
+},
+{
+"id": "k30",
+"name": "Approx distinct",
+"lang": "pyspark",
+"tags": [
+"groupBy",
+"agrégation",
+"banque DE"
+],
+"minutes": 8,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q30",
+"tests": 6
+},
+{
+"id": "k31",
+"name": "Enrich orders",
+"lang": "pyspark",
+"tags": [
+"jointure",
+"join",
+"banque DE"
+],
+"minutes": 10,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q31",
+"tests": 6
+},
+{
+"id": "k32",
+"name": "Customer order counts",
+"lang": "pyspark",
+"tags": [
+"jointure",
+"join",
+"banque DE"
+],
+"minutes": 10,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q32",
+"tests": 6
+},
+{
+"id": "k33",
+"name": "Order line enrichment",
+"lang": "pyspark",
+"tags": [
+"jointure",
+"join",
+"banque DE"
+],
+"minutes": 10,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q33",
+"tests": 6
+},
+{
+"id": "k34",
+"name": "Product category enrichment",
+"lang": "pyspark",
+"tags": [
+"jointure",
+"join",
+"banque DE"
+],
+"minutes": 10,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q34",
+"tests": 6
+},
+{
+"id": "k35",
+"name": "Category revenue",
+"lang": "pyspark",
+"tags": [
+"jointure",
+"join",
+"banque DE"
+],
+"minutes": 10,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q35",
+"tests": 6
+},
+{
+"id": "k36",
+"name": "Left anti join",
+"lang": "pyspark",
+"tags": [
+"jointure",
+"join",
+"banque DE"
+],
+"minutes": 10,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q36",
+"tests": 6
+},
+{
+"id": "k37",
+"name": "Orphan orders",
+"lang": "pyspark",
+"tags": [
+"jointure",
+"join",
+"banque DE"
+],
+"minutes": 10,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q37",
+"tests": 6
+},
+{
+"id": "k38",
+"name": "Broadcast dimension",
+"lang": "pyspark",
+"tags": [
+"jointure",
+"join",
+"banque DE"
+],
+"minutes": 10,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q38",
+"tests": 6
+},
+{
+"id": "k39",
+"name": "Semi join",
+"lang": "pyspark",
+"tags": [
+"jointure",
+"join",
+"banque DE"
+],
+"minutes": 10,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q39",
+"tests": 6
+},
+{
+"id": "k40",
+"name": "Join validation",
+"lang": "pyspark",
+"tags": [
+"jointure",
+"join",
+"banque DE"
+],
+"minutes": 10,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q40",
+"tests": 6
+},
+{
+"id": "k41",
+"name": "Latest order",
+"lang": "pyspark",
+"tags": [
+"window",
+"row_number",
+"lag",
+"banque DE"
+],
+"minutes": 12,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q41",
+"tests": 6
+},
+{
+"id": "k42",
+"name": "Customer running spend",
+"lang": "pyspark",
+"tags": [
+"window",
+"row_number",
+"lag",
+"banque DE"
+],
+"minutes": 12,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q42",
+"tests": 6
+},
+{
+"id": "k43",
+"name": "Previous amount",
+"lang": "pyspark",
+"tags": [
+"window",
+"row_number",
+"lag",
+"banque DE"
+],
+"minutes": 12,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q43",
+"tests": 6
+},
+{
+"id": "k44",
+"name": "Next order date",
+"lang": "pyspark",
+"tags": [
+"window",
+"row_number",
+"lag",
+"banque DE"
+],
+"minutes": 12,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q44",
+"tests": 6
+},
+{
+"id": "k45",
+"name": "Rank by amount",
+"lang": "pyspark",
+"tags": [
+"window",
+"row_number",
+"lag",
+"banque DE"
+],
+"minutes": 12,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q45",
+"tests": 6
+},
+{
+"id": "k46",
+"name": "Top three customers",
+"lang": "pyspark",
+"tags": [
+"window",
+"row_number",
+"lag",
+"banque DE"
+],
+"minutes": 12,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q46",
+"tests": 6
+},
+{
+"id": "k47",
+"name": "Customer order count",
+"lang": "pyspark",
+"tags": [
+"window",
+"row_number",
+"lag",
+"banque DE"
+],
+"minutes": 12,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q47",
+"tests": 6
+},
+{
+"id": "k48",
+"name": "Spend share",
+"lang": "pyspark",
+"tags": [
+"window",
+"row_number",
+"lag",
+"banque DE"
+],
+"minutes": 12,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q48",
+"tests": 6
+},
+{
+"id": "k49",
+"name": "Deduplicate CDC",
+"lang": "pyspark",
+"tags": [
+"window",
+"row_number",
+"lag",
+"banque DE"
+],
+"minutes": 12,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q49",
+"tests": 6
+},
+{
+"id": "k50",
+"name": "Days since prior order",
+"lang": "pyspark",
+"tags": [
+"window",
+"row_number",
+"lag",
+"banque DE"
+],
+"minutes": 12,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q50",
+"tests": 6
+},
+{
+"id": "k51",
+"name": "Parse timestamps",
+"lang": "pyspark",
+"tags": [
+"dates",
+"timestamps",
+"événements",
+"banque DE"
+],
+"minutes": 12,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q51",
+"tests": 6
+},
+{
+"id": "k52",
+"name": "Monthly revenue",
+"lang": "pyspark",
+"tags": [
+"dates",
+"timestamps",
+"événements",
+"banque DE"
+],
+"minutes": 12,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q52",
+"tests": 6
+},
+{
+"id": "k53",
+"name": "Daily transaction count",
+"lang": "pyspark",
+"tags": [
+"dates",
+"timestamps",
+"événements",
+"banque DE"
+],
+"minutes": 12,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q53",
+"tests": 6
+},
+{
+"id": "k54",
+"name": "Event daily active users",
+"lang": "pyspark",
+"tags": [
+"dates",
+"timestamps",
+"événements",
+"banque DE"
+],
+"minutes": 12,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q54",
+"tests": 6
+},
+{
+"id": "k55",
+"name": "Session duration",
+"lang": "pyspark",
+"tags": [
+"dates",
+"timestamps",
+"événements",
+"banque DE"
+],
+"minutes": 12,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q55",
+"tests": 6
+},
+{
+"id": "k56",
+"name": "Watermark filter",
+"lang": "pyspark",
+"tags": [
+"dates",
+"timestamps",
+"événements",
+"banque DE"
+],
+"minutes": 12,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q56",
+"tests": 6
+},
+{
+"id": "k57",
+"name": "Hour buckets",
+"lang": "pyspark",
+"tags": [
+"dates",
+"timestamps",
+"événements",
+"banque DE"
+],
+"minutes": 12,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q57",
+"tests": 6
+},
+{
+"id": "k58",
+"name": "Event-type distribution",
+"lang": "pyspark",
+"tags": [
+"dates",
+"timestamps",
+"événements",
+"banque DE"
+],
+"minutes": 12,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q58",
+"tests": 6
+},
+{
+"id": "k59",
+"name": "Pipeline daily failures",
+"lang": "pyspark",
+"tags": [
+"dates",
+"timestamps",
+"événements",
+"banque DE"
+],
+"minutes": 12,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q59",
+"tests": 6
+},
+{
+"id": "k60",
+"name": "Event time windows",
+"lang": "pyspark",
+"tags": [
+"dates",
+"timestamps",
+"événements",
+"banque DE"
+],
+"minutes": 12,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q60",
+"tests": 6
+},
+{
+"id": "k61",
+"name": "Normalize email",
+"lang": "pyspark",
+"tags": [
+"nettoyage",
+"null",
+"doublon",
+"cdc",
+"json",
+"banque DE"
+],
+"minutes": 12,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q61",
+"tests": 6
+},
+{
+"id": "k62",
+"name": "Blank emails",
+"lang": "pyspark",
+"tags": [
+"nettoyage",
+"null",
+"doublon",
+"cdc",
+"json",
+"banque DE"
+],
+"minutes": 12,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q62",
+"tests": 6
+},
+{
+"id": "k63",
+"name": "Invalid transaction amounts",
+"lang": "pyspark",
+"tags": [
+"nettoyage",
+"null",
+"doublon",
+"cdc",
+"json",
+"banque DE"
+],
+"minutes": 12,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q63",
+"tests": 6
+},
+{
+"id": "k64",
+"name": "Duplicate customer emails",
+"lang": "pyspark",
+"tags": [
+"nettoyage",
+"null",
+"doublon",
+"cdc",
+"json",
+"banque DE"
+],
+"minutes": 12,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q64",
+"tests": 6
+},
+{
+"id": "k65",
+"name": "CDC current state",
+"lang": "pyspark",
+"tags": [
+"nettoyage",
+"null",
+"doublon",
+"cdc",
+"json",
+"banque DE"
+],
+"minutes": 12,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q65",
+"tests": 6
+},
+{
+"id": "k66",
+"name": "Schema type audit",
+"lang": "pyspark",
+"tags": [
+"nettoyage",
+"null",
+"doublon",
+"cdc",
+"json",
+"banque DE"
+],
+"minutes": 12,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q66",
+"tests": 6
+},
+{
+"id": "k67",
+"name": "Order-line reconciliation",
+"lang": "pyspark",
+"tags": [
+"nettoyage",
+"null",
+"doublon",
+"cdc",
+"json",
+"banque DE"
+],
+"minutes": 12,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q67",
+"tests": 6
+},
+{
+"id": "k68",
+"name": "Missing key summary",
+"lang": "pyspark",
+"tags": [
+"nettoyage",
+"null",
+"doublon",
+"cdc",
+"json",
+"banque DE"
+],
+"minutes": 12,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q68",
+"tests": 6
+},
+{
+"id": "k69",
+"name": "Parse nested JSON",
+"lang": "pyspark",
+"tags": [
+"nettoyage",
+"null",
+"doublon",
+"cdc",
+"json",
+"banque DE"
+],
+"minutes": 12,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q69",
+"tests": 6
+},
+{
+"id": "k70",
+"name": "Malformed JSON quarantine",
+"lang": "pyspark",
+"tags": [
+"nettoyage",
+"null",
+"doublon",
+"cdc",
+"json",
+"banque DE"
+],
+"minutes": 12,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q70",
+"tests": 6
+},
+{
+"id": "k71",
+"name": "Idempotent union",
+"lang": "pyspark",
+"tags": [
+"etl production",
+"agrégation",
+"banque DE"
+],
+"minutes": 10,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q71",
+"tests": 6
+},
+{
+"id": "k72",
+"name": "Partition distribution",
+"lang": "pyspark",
+"tags": [
+"etl production",
+"agrégation",
+"banque DE"
+],
+"minutes": 10,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q72",
+"tests": 6
+},
+{
+"id": "k75",
+"name": "Cache reused data",
+"lang": "pyspark",
+"tags": [
+"etl production",
+"agrégation",
+"banque DE"
+],
+"minutes": 10,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q75",
+"tests": 6
+},
+{
+"id": "k77",
+"name": "Pipeline SLA",
+"lang": "pyspark",
+"tags": [
+"etl production",
+"agrégation",
+"banque DE"
+],
+"minutes": 10,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q77",
+"tests": 6
+},
+{
+"id": "k78",
+"name": "Currency normalization",
+"lang": "pyspark",
+"tags": [
+"etl production",
+"agrégation",
+"banque DE"
+],
+"minutes": 10,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q78",
+"tests": 6
+},
+{
+"id": "k79",
+"name": "Data quality metrics",
+"lang": "pyspark",
+"tags": [
+"etl production",
+"agrégation",
+"banque DE"
+],
+"minutes": 10,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q79",
+"tests": 6
+},
+{
+"id": "k80",
+"name": "Explain physical plan",
+"lang": "pyspark",
+"tags": [
+"etl production",
+"agrégation",
+"banque DE"
+],
+"minutes": 10,
+"source": "kursad-can/data-engineering-interview-practice (MIT) · Q80",
+"tests": 6
 },
 {
 "id": "p1m1",

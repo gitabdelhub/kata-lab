@@ -306,10 +306,14 @@
     const num = (id) => parseInt(id.replace(/\D/g, ""), 10) || 0;
     ["sql", "pyspark", "python"].forEach((l) => {
       const s = Object.keys(CAT.tasks).filter((id) => !EXAM_OF[id] && CAT.tasks[id].lang === l).sort((a, b) => g(a) - g(b) || num(a) - num(b));
-      const bp = s.filter((x) => /^bp/.test(x)), d = s.filter((x) => /^d\d/.test(x)), rest = s.filter((x) => !/^(bp|d\d)/.test(x));
+      const bp = s.filter((x) => /^bp/.test(x)), d = s.filter((x) => /^d\d/.test(x));
+      // g : questions rapportées du test BCG, en tête de file ; k : banque PySpark kursad-can, une sur deux avec les exos Kata Lab
+      const gq = s.filter((x) => /^g\d/.test(x)), kq = s.filter((x) => /^k\d/.test(x));
+      const base = s.filter((x) => !/^(bp|d\d|g\d|k\d)/.test(x)), rest = [];
+      for (let i = 0; i < Math.max(base.length, kq.length); i++) { if (base[i]) rest.push(base[i]); if (kq[i]) rest.push(kq[i]); }
       const mix = [];
       for (let i = 0; i < Math.max(bp.length, d.length); i++) { if (d[i]) mix.push(d[i]); if (bp[i]) mix.push(bp[i]); }
-      QUEUE[l] = rest.concat(mix);
+      QUEUE[l] = gq.concat(rest, mix);
       const inExam = Object.keys(CAT.tasks).filter((id) => EXAM_OF[id] && CAT.tasks[id].lang === l).sort((a, b) => EXAM_OF[a].i - EXAM_OF[b].i || a.localeCompare(b));
       QUEUE[l].concat(inExam).forEach((id, i) => (RANK[id] = i));
     });

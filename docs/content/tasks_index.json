@@ -1804,6 +1804,111 @@
 "tests": 8
 },
 {
+"id": "g01",
+"name": "Longest Character Run",
+"lang": "python",
+"tags": [
+"parcours de chaîne",
+"compteur",
+"égalité à droite",
+"BCG"
+],
+"minutes": 12,
+"source": "Question rapportée du test BCG (fastprep.io), réécrite et testée par Kata Lab",
+"tests": 13
+},
+{
+"id": "g02",
+"name": "Even-Position Trend",
+"lang": "python",
+"tags": [
+"indices pairs",
+"parcours de liste",
+"strictement",
+"BCG"
+],
+"minutes": 10,
+"source": "Question rapportée du test BCG (fastprep.io), réécrite et testée par Kata Lab",
+"tests": 13
+},
+{
+"id": "g03",
+"name": "Pair Sum Queries",
+"lang": "python",
+"tags": [
+"hashmap",
+"compteur",
+"requêtes",
+"mise à jour",
+"BCG"
+],
+"minutes": 20,
+"source": "Question rapportée du test BCG (fastprep.io), réécrite et testée par Kata Lab",
+"tests": 10
+},
+{
+"id": "g04",
+"name": "Pattern in a Digit Grid",
+"lang": "python",
+"tags": [
+"grille",
+"sous-matrice",
+"dict de correspondance",
+"bijection",
+"BCG"
+],
+"minutes": 25,
+"source": "Question rapportée du test BCG (fastprep.io), réécrite et testée par Kata Lab",
+"tests": 15
+},
+{
+"id": "g05",
+"name": "Taxi Drivers and Rides Summary",
+"lang": "pyspark",
+"tags": [
+"union de partitions",
+"agrégation",
+"ratio",
+"égalité exacte",
+"BCG"
+],
+"minutes": 15,
+"source": "Question rapportée du test BCG (fastprep.io, à l'origine en Pandas), réécrite en PySpark et testée par Kata Lab",
+"tests": 7
+},
+{
+"id": "g06",
+"name": "Taxi Driver Features",
+"lang": "pyspark",
+"tags": [
+"union de partitions",
+"jointure gauche",
+"agrégation conditionnelle",
+"dates",
+"zéro si aucune course",
+"BCG"
+],
+"minutes": 25,
+"source": "Question rapportée du test BCG (fastprep.io, à l'origine en Pandas), réécrite en PySpark et testée par Kata Lab",
+"tests": 7
+},
+{
+"id": "g07",
+"name": "Prepare Driver Classification Data",
+"lang": "pyspark",
+"tags": [
+"statistiques du train seulement",
+"encodage",
+"standardisation",
+"valeurs manquantes",
+"union",
+"BCG"
+],
+"minutes": 30,
+"source": "Question rapportée du test BCG (fastprep.io, à l'origine en Pandas), réécrite en PySpark et testée par Kata Lab",
+"tests": 7
+},
+{
 "id": "h04t3",
 "name": "Courier Shifts and Idle Time",
 "lang": "sql",

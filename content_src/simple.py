@@ -840,3 +840,109 @@ def solution(changes, queries):
             out.append(str(count))
     return out
 '''
+
+SIMPLE["g01"] = '''
+def solution(source):
+    best_ch = ""
+    best_len = 0
+    i = 0
+    while i < len(source):
+        # 1. Avancer j jusqu'à la fin de la suite qui commence en i
+        j = i
+        while j < len(source) and source[j] == source[i]:
+            j = j + 1
+        length = j - i
+        # 2. >= et pas > : en cas d'égalité, la suite la plus à droite gagne
+        if length >= best_len:
+            best_ch = source[i]
+            best_len = length
+        # 3. Passer à la suite suivante
+        i = j
+    return best_ch + str(best_len)
+'''
+
+SIMPLE["g02"] = '''
+def solution(numbers):
+    # 1. Garder les valeurs aux indices 0, 2, 4...
+    even = []
+    for i in range(0, len(numbers), 2):
+        even.append(numbers[i])
+
+    # 2. Vérifier les deux tendances, strictement (< et >, jamais <=)
+    increasing = True
+    decreasing = True
+    for i in range(len(even) - 1):
+        if not even[i] < even[i + 1]:
+            increasing = False
+        if not even[i] > even[i + 1]:
+            decreasing = False
+
+    if increasing:
+        return "increasing"
+    if decreasing:
+        return "decreasing"
+    return "none"
+'''
+
+SIMPLE["g03"] = '''
+def solution(a, b, queries):
+    a = list(a)
+    # 1. Compter les valeurs de b une seule fois : valeur -> nombre d'apparitions
+    count_b = {}
+    for v in b:
+        if v in count_b:
+            count_b[v] = count_b[v] + 1
+        else:
+            count_b[v] = 1
+
+    result = []
+    for q in queries:
+        if q[0] == 0:
+            # 2. Mise à jour : a change, b ne change jamais
+            a[q[1]] = q[2]
+        else:
+            # 3. Pour chaque a[i], il faut b[j] = x - a[i] : on lit le compte dans le dict
+            x = q[1]
+            total = 0
+            for v in a:
+                if x - v in count_b:
+                    total = total + count_b[x - v]
+            result.append(total)
+    return result
+'''
+
+SIMPLE["g04"] = '''
+def matches(board, pattern, r, c):
+    n = len(pattern)
+    letter_to_digit = {}
+    digit_to_letter = {}
+    for i in range(n):
+        for j in range(n):
+            p = pattern[i][j]
+            d = board[r + i][c + j]
+            if p.isdigit():
+                # un chiffre du motif doit être égal à la case
+                if int(p) != d:
+                    return False
+            elif p in letter_to_digit:
+                # lettre déjà vue : même chiffre obligatoire
+                if letter_to_digit[p] != d:
+                    return False
+            elif d in digit_to_letter:
+                # chiffre déjà pris par une AUTRE lettre
+                return False
+            else:
+                letter_to_digit[p] = d
+                digit_to_letter[d] = p
+    return True
+
+
+def solution(board, pattern):
+    n = len(pattern)
+    # ligne par ligne, puis colonne par colonne : le premier coin trouvé est le bon
+    for r in range(len(board) - n + 1):
+        for c in range(len(board[0]) - n + 1):
+            if matches(board, pattern, r, c):
+                return [r, c]
+    return [-1, -1]
+'''

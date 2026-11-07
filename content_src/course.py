@@ -277,6 +277,7 @@ EXAMS = [
     {"id": "e16", "title": "Practice Assessment · 16", "minutes": 70, "tasks": ["f14t2", "h15t3", "e07t4", "h14t4"]},
     {"id": "e17", "title": "Practice Assessment · 17", "minutes": 70, "tasks": ["h16t3", "f15t1", "h15t4", "f15t2"]},
     {"id": "e18", "title": "Practice Assessment · 18", "minutes": 70, "tasks": ["e09t2", "h16t4", "h17t3", "e10t1"]},
+    {"id": "e19", "title": "Practice Assessment · BCG", "minutes": 70, "tasks": ["g05", "g06", "g02", "g04"]},
     {"id": "e19", "title": "Practice Assessment · 19", "minutes": 70, "tasks": ["h19t4", "h19t1", "h19t3", "h19t2"]},
     {"id": "e20", "title": "Practice Assessment · 20", "minutes": 70, "tasks": ["h20t3", "h20t4", "h20t1", "h20t2"]},
     {"id": "e21", "title": "Practice Assessment · 21", "minutes": 70, "tasks": ["h21t1", "h21t3", "h21t2", "h21t4"]},

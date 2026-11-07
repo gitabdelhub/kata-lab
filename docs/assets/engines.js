@@ -43,27 +43,40 @@
     const st = { w: null, ready: null, pending: new Map(), seq: 0 };
     st.start = () => {
       if (st.w) return st.ready;
-      st.w = type === "module" ? new Worker(url, { type: "module" }) : new Worker(url);
+      const w = (st.w = type === "module" ? new Worker(url, { type: "module" }) : new Worker(url));
+      let started = false;
       st.ready = new Promise((res, rej) => {
-        st.w.onmessage = (e) => {
+        w.onmessage = (e) => {
           const m = e.data;
-          if (m.type === "ready") return res();
+          if (m.type === "ready") { started = true; return res(); }
           if (m.type === "fatal") return rej(new Error(m.error));
           const p = st.pending.get(m.id);
           if (p) { st.pending.delete(m.id); clearTimeout(p.timer); p.res(m.result); }
         };
-        st.w.onerror = (e) => rej(new Error(e.message || "worker error"));
+        w.onerror = (e) => {
+          if (e && e.preventDefault) e.preventDefault();
+          if (!started) return rej(new Error(e.message || "worker error"));
+          // Le moteur a planté après son démarrage : on le jette, il redémarre au prochain RUN
+          if (st.w === w) st.kill("Le moteur s'est arrêté. Relance RUN TESTS : il redémarre tout seul.");
+        };
       });
+      // Démarrage raté (réseau, mémoire...) : on oublie ce worker pour pouvoir réessayer
+      st.ready.catch(() => { if (st.w === w) st.kill(); });
       return st.ready;
     };
-    st.kill = () => {
+    st.kill = (why) => {
       if (st.w) st.w.terminate();
       st.w = null; st.ready = null;
-      for (const p of st.pending.values()) { clearTimeout(p.timer); p.res({ ok: false, error: "Arrêté", stdout: "" }); }
+      for (const p of st.pending.values()) { clearTimeout(p.timer); p.res({ ok: false, error: why || "Arrêté", stdout: "" }); }
       st.pending.clear();
     };
     st.call = async (msg, limitS) => {
-      await st.start();
+      // 2 essais de démarrage avant d'abandonner
+      try { await st.start(); }
+      catch (e1) {
+        try { await st.start(); }
+        catch (e2) { return { ok: false, error: "Le moteur n'a pas pu démarrer (" + (e2.message || "worker error") + "). Relance RUN TESTS ; si ça continue, recharge la page : ton code est gardé.", stdout: "" }; }
+      }
       const id = ++st.seq;
       return new Promise((res) => {
         const timer = setTimeout(() => {

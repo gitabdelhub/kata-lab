@@ -433,3 +433,410 @@ def solution(requests, limit, window):
             out.append(False)          # refusée : on ne la compte pas
     return out
 '''
+
+SIMPLE["e03t4"] = '''
+def solution(requests, rooms):
+    # 1. Ranger les demandes par heure d'arrivée, puis par id
+    order = []
+    for r in requests:
+        order.append((r[1], r[0], r[2]))      # (arrivée, id, durée)
+    order.sort()
+
+    # 2. free_at[salle] = heure où la salle se libère (None = jamais utilisée)
+    free_at = []
+    for room in range(rooms):
+        free_at.append(None)
+
+    out = []
+    for arrival, pid, duration in order:
+        # 3. La plus petite salle libre à l'arrivée
+        chosen = -1
+        for room in range(rooms):
+            if free_at[room] is None or free_at[room] <= arrival:
+                chosen = room
+                break
+        if chosen != -1:
+            start = arrival
+        else:
+            # 4. Aucune : la salle qui se libère le plus tôt (plus petit numéro si égalité)
+            chosen = 0
+            for room in range(1, rooms):
+                if free_at[room] < free_at[chosen]:
+                    chosen = room
+            start = free_at[chosen]
+        free_at[chosen] = start + duration
+        out.append([pid, chosen, start, start + duration])
+    out.sort()
+    return out
+'''
+
+SIMPLE["e18t4"] = '''
+def solution(meetings, rooms):
+    # 1. Ordre de traitement : par heure de début, puis par position d'origine
+    order = []
+    for i in range(len(meetings)):
+        order.append((meetings[i][0], i))
+    order.sort()
+
+    # 2. free_at[salle] = heure où la salle se libère (None = jamais utilisée)
+    free_at = []
+    for room in range(rooms):
+        free_at.append(None)
+
+    out = []
+    for i in range(len(meetings)):
+        out.append(None)
+
+    for start, idx in order:
+        end = meetings[idx][1]
+        # 3. La plus petite salle libre au début de la réunion
+        chosen = -1
+        for room in range(rooms):
+            if free_at[room] is None or free_at[room] <= start:
+                chosen = room
+                break
+        if chosen != -1:
+            free_at[chosen] = end
+        else:
+            # 4. Aucune : on attend la salle qui se libère le plus tôt, la réunion est décalée
+            chosen = 0
+            for room in range(1, rooms):
+                if free_at[room] < free_at[chosen]:
+                    chosen = room
+            free_at[chosen] = free_at[chosen] + (end - start)
+        out[idx] = chosen
+    return out
+'''
+
+SIMPLE["e08t4"] = '''
+def solution(jobs):
+    # 1. deps[job] = ensemble de ses prérequis (chaque job cité existe)
+    deps = {}
+    for line in jobs:
+        name, _, rest = line.partition(":")
+        name = name.strip()
+        if name not in deps:
+            deps[name] = set()
+        for d in rest.split(","):
+            d = d.strip()
+            if d:
+                deps[name].add(d)
+                if d not in deps:
+                    deps[d] = set()
+
+    # 2. users[d] = jobs qui attendent d ; left[job] = prérequis pas encore faits
+    users = {}
+    left = {}
+    for job in deps:
+        left[job] = len(deps[job])
+        for d in deps[job]:
+            if d not in users:
+                users[d] = []
+            users[d].append(job)
+
+    # 3. Jobs prêts tout de suite
+    ready = []
+    for job in left:
+        if left[job] == 0:
+            ready.append(job)
+
+    # 4. Toujours prendre le prêt le plus petit dans l'ordre alphabétique
+    order = []
+    while ready:
+        ready.sort()
+        j = ready.pop(0)
+        order.append(j)
+        if j in users:
+            for u in users[j]:
+                left[u] -= 1
+                if left[u] == 0:
+                    ready.append(u)
+
+    # 5. Des jobs jamais prêts = un cycle
+    if len(order) == len(deps):
+        return order
+    return ["CYCLE"]
+'''
+
+SIMPLE["e10t4"] = '''
+import json
+
+
+def clean_str(value):
+    # Chaîne nettoyée, ou None si absente, null, pas une str, ou vide après strip
+    if not isinstance(value, str):
+        return None
+    value = value.strip()
+    if value == "":
+        return None
+    return value
+
+
+def ingest_users(fetch_page):
+    rows = []
+    cursor = None
+    while True:
+        page = json.loads(fetch_page(cursor))          # le corps est une str JSON
+        data = page.get("data")
+        if data is None:
+            data = []
+        for rec in data:
+            if rec.get("id") is None:                  # id absent ou null : ignoré (id 0 gardé)
+                continue
+            profile = rec.get("profile") or {}         # absent ou null : dict vide
+            address = rec.get("address") or {}
+            geo = address.get("geo") or {}
+
+            email = clean_str(rec.get("email"))
+            if email is not None:
+                email = email.lower()
+
+            parts = []
+            for key in ["first_name", "last_name"]:
+                p = clean_str(profile.get(key))
+                if p:
+                    parts.append(p)
+            full_name = None
+            if parts:
+                full_name = " ".join(parts)
+
+            country = clean_str(address.get("country_code"))
+            if country is not None:
+                country = country.upper()
+
+            lat = geo.get("lat")
+            if lat is not None:
+                lat = float(lat)                       # 0.0 reste 0.0
+            lng = geo.get("lng")
+            if lng is not None:
+                lng = float(lng)
+
+            tags = rec.get("tags")
+            if tags is None:
+                tags = []
+
+            rows.append({
+                "user_id": str(rec["id"]),
+                "email": email,
+                "full_name": full_name,
+                "city": address.get("city"),
+                "country": country,
+                "lat": lat,
+                "lng": lng,
+                "n_tags": len(tags),
+            })
+        if not page.get("has_more"):                   # on s'arrête sur has_more, pas sur next_cursor
+            break
+        cursor = page["next_cursor"]
+    return rows
+'''
+
+SIMPLE["e12t4"] = '''
+import json
+
+
+def is_int_text(s):
+    # "12", "-3" : oui ; "1.5", "", "abc" : non
+    s = s.strip()
+    if s.startswith("-"):
+        s = s[1:]
+    return s != "" and s.isdigit()
+
+
+def convert(field, v):
+    # Renvoie (ok, valeur convertie)
+    if field == "id":
+        if isinstance(v, bool):                 # bool est une sous-classe de int en Python
+            return False, None
+        if isinstance(v, int):
+            return True, v
+        if isinstance(v, str) and is_int_text(v):
+            return True, int(v.strip())
+        return False, None
+    if field == "event":
+        if isinstance(v, str) and v.strip():
+            return True, v.strip()
+        return False, None
+    # field == "value"
+    if v is None:
+        return True, None
+    if isinstance(v, bool):
+        return False, None
+    if isinstance(v, int) or isinstance(v, float):
+        return True, float(v)
+    if isinstance(v, str):
+        try:
+            return True, float(v.strip())
+        except ValueError:
+            return False, None
+    return False, None
+
+
+def parse_events(ndjson_text):
+    records = []
+    errors = []
+    line_no = 0
+    for line in ndjson_text.split("\\n"):
+        line_no += 1                              # numéro de ligne physique
+        if not line.strip():
+            continue                              # ligne vide : ni record ni erreur
+        try:
+            obj = json.loads(line)
+        except json.JSONDecodeError:
+            errors.append({"line": line_no, "reason": "invalid_json"})
+            continue
+        if not isinstance(obj, dict):
+            errors.append({"line": line_no, "reason": "not_an_object"})
+            continue
+
+        missing = None
+        for f in ["id", "event"]:
+            if obj.get(f) is None:
+                missing = f
+                break
+        if missing:
+            errors.append({"line": line_no, "reason": "missing_field:" + missing})
+            continue
+
+        out = {}
+        bad = None
+        for field in ["id", "event", "value"]:
+            ok, value = convert(field, obj.get(field))
+            if not ok:
+                bad = field
+                break
+            out[field] = value
+        if bad:
+            errors.append({"line": line_no, "reason": "invalid_field:" + bad})
+        else:
+            records.append(out)
+    return records, errors
+'''
+
+SIMPLE["e13t4"] = '''
+def load_invoices(fetch_page, page_size, max_pages):
+    seen = set()
+    totals = {}
+    invoice_count = 0
+    duplicates_skipped = 0
+    pages_fetched = 0
+    complete = False
+
+    page = 1
+    while page <= max_pages:                      # jamais plus de max_pages appels
+        try:
+            response = fetch_page(page, page_size)
+        except Exception:                         # API en erreur : on garde ce qui est déjà chargé
+            complete = False
+            break
+        pages_fetched += 1
+        results = response.get("results")
+        if results is None:
+            results = []
+
+        for record in results:
+            invoice_id = record["invoice_id"]
+            if invoice_id in seen:                # recouvrement entre pages
+                duplicates_skipped += 1
+                continue
+            seen.add(invoice_id)
+            status = record.get("status")
+            if status is None:
+                status = ""
+            if str(status).strip().lower() == "void":
+                continue
+            currency = str(record["currency"]).strip().upper()
+            if currency not in totals:
+                totals[currency] = 0.0
+            totals[currency] += float(record["amount"])
+            invoice_count += 1
+
+        if len(results) < page_size:              # page vide ou partielle = dernière page
+            complete = True
+            break
+        page += 1
+
+    rounded = {}
+    for cur in totals:
+        rounded[cur] = round(totals[cur], 2)
+
+    return {
+        "pages_fetched": pages_fetched,
+        "complete": complete,
+        "invoice_count": invoice_count,
+        "duplicates_skipped": duplicates_skipped,
+        "totals": rounded,
+    }
+'''
+
+SIMPLE["h12t4"] = '''
+def solution(changes, queries):
+    # 1. Dernière valeur pour chaque (produit, heure)
+    last = {}
+    for line in changes:
+        product, time, price = line.split(",")
+        last[(product, int(time))] = int(price)
+
+    # 2. Pour chaque produit : heures triées et prix dans le même ordre
+    keys = list(last.keys())
+    keys.sort()
+    times = {}
+    prices = {}
+    for product, time in keys:
+        if product not in times:
+            times[product] = []
+            prices[product] = []
+        times[product].append(time)
+        prices[product].append(last[(product, time)])
+
+    out = []
+    for q in queries:
+        p = q.split()
+        product = p[1]
+        ts = times.get(product, [])
+        ps = prices.get(product, [])
+        if p[0] == "PRICE":
+            t = int(p[2])
+            # dernier changement à l'heure t ou avant
+            i = -1
+            for k in range(len(ts)):
+                if ts[k] <= t:
+                    i = k
+            if i >= 0:
+                out.append(str(ps[i]))
+            else:
+                out.append("-1")
+        elif p[0] == "MIN":
+            t1 = int(p[2])
+            t2 = int(p[3])
+            # le prix en vigueur à t1 compte, puis tous les changements jusqu'à t2
+            i = -1
+            for k in range(len(ts)):
+                if ts[k] <= t1:
+                    i = k
+            if i < 0:
+                i = 0
+            best = None
+            while i < len(ts) and ts[i] <= t2:
+                if best is None or ps[i] < best:
+                    best = ps[i]
+                i += 1
+            if best is not None:
+                out.append(str(best))
+            else:
+                out.append("-1")
+        else:
+            t1 = int(p[2])
+            t2 = int(p[3])
+            # premier changement à t1 ou après
+            i = 0
+            while i < len(ts) and ts[i] < t1:
+                i += 1
+            count = 0
+            while i < len(ts) and ts[i] <= t2:
+                if i == 0 or ps[i] != ps[i - 1]:
+                    count += 1
+                i += 1
+            out.append(str(count))
+    return out
+'''

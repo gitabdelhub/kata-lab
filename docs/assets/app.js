@@ -211,9 +211,9 @@
       <div class="wrap"><div class="sect guide">
         ${sec("1", "Chaque jour : la séance sur l'Accueil", `<p>L'Accueil te donne 4 exos : un SQL, un PySpark, un Python et une révision. Tu ne vois ni leur titre ni leur langage avant de les ouvrir, et leur ordre change à chaque séance : pas de choix à la carte. Un exo est coché quand tu as 80/100 ou plus, ou quand tu as regardé le corrigé (il revient alors plus tard en révision). Quand tout est coché, la séance suivante apparaît, peu importe le jour. Toutes les 7 séances, la séance est un examen complet.</p><div class="btnrow"><a class="pill" href="#accueil">Ma séance</a></div>`)}
         ${sec("2", "Pratiquer", `<p>Tous les exos dans une liste, dans l'ordre conseillé. Filtre par langage, thème ou statut (À faire, Réussi, À refaire), ou cherche un mot comme « Window ».</p>`)}
-        ${sec("3", "Examens", `<p>19 examens au format du test : 4 tasks, 70 minutes, chaque task notée sur 100. Le chrono est strict. Après l'examen, l'analyse guidée te montre le corrigé de chaque task.</p>`)}
+        ${sec("3", "Examens", `<p>${CAT.exams.filter((e) => !e.mini).length} examens au format du test : 4 tasks, 70 minutes, chaque task notée sur 100, avec PySpark, SQL et Python dans chacun. Le chrono est strict et aucun temps n'est conseillé par task : tu gères ton temps. Après l'examen, l'analyse guidée te montre le corrigé de chaque task.</p>`)}
         ${sec("4", "Fiches", `<p>Le résumé de SQL, PySpark et Python : syntaxe, exemple court, piège, et les exos liés. Dans chaque exo, un lien ouvre la bonne partie de la fiche dans un nouvel onglet.</p>`)}
-        ${sec("5", "L'écran d'exo", `<ul><li>L'encadré bleu <b>Comment faire, exactement</b> dit en français où écrire, quoi renvoyer et ce que tu dois voir.</li><li><b>RUN TESTS</b> lance les tests visibles. <b>SUBMIT</b> note ta task sur 100 : soumets tôt, puis améliore.</li><li>Les indices sont sous l'énoncé. Le corrigé s'ouvre après 2 essais (MORE, Voir le corrigé).</li></ul>`)}
+        ${sec("5", "L'écran d'exo", `<ul><li>L'encadré bleu <b>Comment faire, exactement</b> dit en français où écrire, quoi renvoyer et ce que tu dois voir.</li><li><b>RUN TESTS</b> lance les tests visibles. <b>SUBMIT</b> note ta task sur 100 : soumets tôt, puis améliore.</li><li>Les indices sont sous l'énoncé. Le corrigé s'ouvre après 2 essais (MORE, Voir le corrigé).</li><li>Coller un texte venu d'ailleurs est bloqué, comme au vrai test. Copier-coller ton propre code marche.</li><li>Chaque zone s'agrandit en tirant sa barre ; un double-clic sur la barre remet la taille d'origine.</li><li>Un exo fini plus de 2 minutes après le temps prévu (10 % pour les longs) revient en révision, même réussi. Sur l'écran du résultat, écris ta fiche de 3 lignes : elle reste dans Fiches, Mes fiches d'exos.</li></ul>`)}
         ${sec("6", "PySpark : une clé, une seule fois", `<p>SQL et Python marchent tout de suite. Pour PySpark, colle ta clé GitHub une fois dans <a href="#connexion">Connexion</a>. Spark démarre en 1 à 2 minutes au premier exo, puis s'éteint seul après 30 minutes sans utilisation.</p>`)}
         ${sec("7", "Sauvegarder", `<p>Ta progression reste dans ce navigateur : utilise toujours le même, et exporte-la de temps en temps dans <a href="#progression">Progression et sauvegarde</a>.</p>`)}
       </div></div></section>`;
@@ -859,12 +859,32 @@
       return false;
     };
     cm.on("copy", remember); cm.on("cut", remember);
+    // Un gros bloc qui arrive d'un coup sans événement « coller » (presse-papiers du clavier
+    // sur téléphone, historique Windows, glisser depuis une autre fenêtre) : traité comme un collage.
+    // Taper au clavier n'ajoute jamais plus d'une ligne ou 20 caractères d'un coup.
+    const bigInsert = (x) => x.replace(/\s/g, "").length > 20 || /\n[^\n]*\S/.test(x);
     cm.on("beforeChange", (c, ch) => {
-      if (ch.origin !== "paste" && ch.origin !== "drop") return;
-      if (isOwn(ch.text.join("\n"))) return;
+      const ins = ch.text.join("\n");
+      const o = ch.origin || "";
+      const pasted = o === "paste" || o === "drop" || ((/^\+input/.test(o) || /^\*compose/.test(o)) && bigInsert(ins));
+      if (!pasted) return;
+      if (isOwn(ins)) return;
       ch.cancel();
       pasteWarn();
     });
+    // Filet de sécurité au niveau du navigateur : collage ou dépôt qui contourne CodeMirror.
+    const inp = cm.getInputField();
+    const guardIn = (e) => {
+      if (!/^insertFrom(Paste|Drop|Yank|PasteAsQuotation)$/.test(e.inputType || "")) return;
+      const txt = e.data || (e.dataTransfer && e.dataTransfer.getData("text/plain")) || "";
+      if (!txt || isOwn(txt)) return;
+      e.preventDefault(); pasteWarn();
+    };
+    inp.addEventListener("beforeinput", guardIn, true);
+    cm.getWrapperElement().addEventListener("drop", (e) => {
+      const txt = (e.dataTransfer && e.dataTransfer.getData("text/plain")) || "";
+      if (txt && !isOwn(txt)) { e.preventDefault(); e.stopPropagation(); pasteWarn(); }
+    }, true);
     cm.on("change", () => {
       if (cmSilent || cm.getOption("readOnly")) return;
       const t = W.tasks[W.cur];
@@ -1279,14 +1299,17 @@
     const over = isOver(), took = W.mode === "exo" && W.clock.endsAt ? elapsed() : null;
     const outOfTime = W.clock.endsAt && left() <= 0 && !over;
     if (took != null && P.tasks[W.id]) { P.tasks[W.id].lastTime = took; persist(); }
-    const slow = W.mode === "exo" && took != null && (took > W.clock.baseMin * 60000 || outOfTime);
+    // Marge : un exo ne part en révision que s'il dépasse le temps prévu de plus de 2 min (ou 10 % si c'est plus)
+    const baseMs = W.clock.baseMin * 60000, tolMs = Math.max(120000, Math.round(baseMs * 0.1));
+    const slow = W.mode === "exo" && took != null && took > baseMs + tolMs;
+    const inTol = W.mode === "exo" && took != null && took > baseMs && !slow;
     if (slow) slowReview(W.id);
     const revSoon = W.mode === "exo" && (slow || scores[0] < 80);
     const dayHere = inDay(W.mode, W.id);
     b.className = "box";
     b.innerHTML = `<h3>${outOfTime ? "Time is up" : "Résultat"}</h3>${W.tasks.map((t, i) => `<div class="r"><span>${W.mode === "exam" ? "Task " + (i + 1) + " · " : ""}${esc(t.name)}</span><b>${scores[i]}/100</b></div>`).join("")}
       ${took != null ? `<div class="r"><span>Ton temps</span><b>${fmtDur(took)}${took > W.clock.baseMin * 60000 ? " (prévu " + W.clock.baseMin + " min)" : ""}</b></div>` : ""}
-      <p style="margin:0;color:var(--as-dim);font-size:14px">${W.mode === "exam" ? "L'analyse guidée te montre le corrigé de chaque task et t'aide à comprendre tes erreurs." : scores[0] >= 80 ? (slow ? "Réussi, mais hors du temps prévu : cet exo reviendra en révision dans " + INTERVALS[0] + " séances, pour le refaire plus vite." : "Réussi (80 ou plus).") : solOK(W.id) ? "Sous 80 : cet exo reviendra en révision dans 2 séances. Regarde le corrigé, puis refais-le de mémoire." : "Sous 80 : recommence, tu peux y arriver. Le corrigé s'ouvre après 2 essais."}</p>
+      <p style="margin:0;color:var(--as-dim);font-size:14px">${W.mode === "exam" ? "L'analyse guidée te montre le corrigé de chaque task et t'aide à comprendre tes erreurs." : scores[0] >= 80 ? (slow ? "Réussi, mais plus de " + Math.round(tolMs / 60000) + " min au-delà du temps prévu : cet exo reviendra en révision dans " + INTERVALS[0] + " séances, pour le refaire plus vite." : inTol ? "Réussi, dans la marge de temps (jusqu'à " + Math.round(tolMs / 60000) + " min de plus). Pas de révision." : "Réussi (80 ou plus).") : solOK(W.id) ? "Sous 80 : cet exo reviendra en révision dans 2 séances. Regarde le corrigé, puis refais-le de mémoire." : "Sous 80 : recommence, tu peux y arriver. Le corrigé s'ouvre après 2 essais."}</p>
       ${W.mode === "exo" ? `<div class="mynote${revSoon ? " hot" : ""}"><b>Ta fiche sur cet exo, avec tes mots</b><p>${revSoon ? "Écris-la maintenant, quand c'est frais : elle reviendra avec l'exo en révision." : "Optionnel : 3 lignes pour t'en souvenir dans 2 mois."}</p>${noteForm(W.id)}</div>` : ""}
       <div class="row2"><button id="mBack">Retour au site</button>${W.mode === "exo" ? '<button id="mKeep">Recommencer avec mon code</button><button id="mAgain">Recommencer à zéro</button>' : '<button id="mAgain">Recommencer</button>'}${W.mode === "exo" ? (solOK(W.id) ? '<button id="mSol">Voir le corrigé</button>' : "") : `<button ${insess || dayHere ? "" : 'class="primary"'} id="mAna">Analyse guidée</button>`}${dayHere ? '<button class="primary" id="mDay">Retour à la séance</button>' : ""}${insess ? `<button class="primary" id="mNext">${isMiniOfStep(W.id) ? "Retour à la leçon" : esc(nextLabel())}</button>` : ""}</div>`;
     m.hidden = false;

@@ -37,7 +37,7 @@ B D .
           "why": "Jointure « as-of » : toutes les versions possibles, puis row_number par commande ordonné par valid_from décroissant. L'égalité stricte rate les jours sans changement."}],
      "keys": ["on or before = <=", "most recent = le plus grand avant la date", "still appear = jointure gauche", "every order = grain commande"]},
 
-    {"id": "rd03", "title": "Bounds that are easy to get wrong", "focus": "Inclus, exclus, « more than », « at least »",
+    {"id": "rd03", "title": "Bounds that are often misread", "focus": "Inclus, exclus, « more than », « at least »",
      "text": """<p>A customer is <b>inactive</b> if their last login is more than 30 days before the report date <code>as_of</code>. A customer is <b>at risk</b> if they have at least 3 support tickets opened during the 14 days that end on <code>as_of</code> (both days included). The marketing team wants to call customers who are at risk but not inactive.</p>
 <p>A trial lasts 7 days: a trial started on March 1 at any time ends at the end of March 7. Logins during the trial are not counted as real logins.</p>
 <p>Your task is to return the customers to call, with their number of tickets in the window, sorted by tickets descending, then <code>customer_id</code>.</p>""",

@@ -963,6 +963,7 @@
     $("#showSol").hidden = mode !== "exo" || !solOK(id);
     $("#restartKeep").hidden = mode !== "exo";
     $("#stopExo").hidden = mode !== "exo";
+    $("#pauseBtn").hidden = mode !== "exo";
     $("#restart").textContent = mode === "exo" ? "Recommencer à zéro" : "Recommencer";
     showTask(0);
     renderClock();
@@ -1187,7 +1188,9 @@
   function renderClock() {
     if (!W.on) return;
     const l = left(), c = W.clock;
-    if (isOver()) { const t = Math.round(-l / 1000); $("#time").textContent = "Temps dépassé · +" + Math.floor(t / 60) + "m " + pad(t % 60) + "s"; $("#timer").classList.add("low"); return; }
+    const pb = $("#pauseBtn");
+    if (pb && !pb.hidden) { const pz = c.pausedLeft != null; pb.textContent = pz ? "▶ REPRENDRE" : "⏸ PAUSE"; pb.classList.toggle("on", pz); }
+    if (isOver()) { const t = Math.round(-l / 1000); $("#time").textContent = (c.pausedLeft != null ? "Paused · " : "") + "Temps dépassé · +" + Math.floor(t / 60) + "m " + pad(t % 60) + "s"; $("#timer").classList.add("low"); return; }
     $("#time").textContent = (c.pausedLeft != null ? "Paused · " : "") + fmtLeft(l);
     $("#timer").classList.toggle("low", l < 5 * 60000);
     $("#timer").classList.toggle("paused", c.pausedLeft != null);
@@ -1368,6 +1371,7 @@
     $("#restartKeep").onclick = () => { $("#morebox").hidden = true; restart(true, true); };
     $("#finish").onclick = () => { $("#morebox").hidden = true; finishScreen(false); };
     $("#stopExo").onclick = () => finishScreen(true);
+    $("#pauseBtn").onclick = () => { if (W.clock.mode !== "train") setMode("train"); togglePause(); };
     $("#showSol").onclick = () => { $("#morebox").hidden = true; showSolution(); };
     $("#leave").onclick = () => {
       saveAttempt();

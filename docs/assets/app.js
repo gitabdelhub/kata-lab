@@ -299,6 +299,32 @@
   const FI = () => window.KATA_FICHES || {};
   let EXAM_OF = {}, RANK = {}, QUEUE = {};
   const LORD = { sql: 0, pyspark: 1, python: 2 };
+  // File Python, par marches (7 nov : AB se sentait perdu, la file sautait des bases au niveau examen)
+  const PY_ORDER = [
+    // Marche 1 : chaînes, dict, set, comparer au précédent, trier
+    "p1m8", "bp08", "d01", "bp02", "g01", "d02", "d12", "bp01", "d04", "d03", "p1x8", "bp07", "d11", "g03",
+    // Marche 2 : grilles, fenêtres, piles, recherche binaire
+    "bp03", "bp04", "bp05", "d05", "d06", "d07", "d08", "d09", "bp06", "bp10", "d10",
+    // Marche 3 : récursion, listes chaînées, arbres, tas, glouton
+    "d17", "d15", "d16", "d18", "d13", "d14", "d19", "d20", "d25",
+    // Marche 4 : graphes, programmation dynamique, trie
+    "d21", "d22", "d23", "d24", "d26",
+    // Marche 5 : niveau du test (API, ingestion, simulations longues)
+    "e10t4", "e12t4", "e13t4", "e14t4", "e15t4", "e11t4", "bp09", "e17t4", "e16t4", "e18t4", "e08t4", "e09t4", "h17t4", "h18t4",
+  ];
+  // Exo Python (pas en examen) : on commence par écrire ses étapes en commentaires, à la main sur l'exemple
+  const PY_PLAN = (ind) => [
+    "Avant de coder (3 min), à la main sur l'exemple :",
+    "1. Ce que je fais, dit à voix haute :",
+    "2. Ce que je garde en tête (ce seront mes variables) :",
+    "3. Mes étapes, une par ligne :",
+    "   -",
+    "   -",
+  ].map((x) => ind + "# " + x).join("\n") + "\n";
+  function starterFor(t, mode) {
+    if (mode !== "exo" || t.lang !== "python" || t.project) return t.starter;
+    return t.starter.replace(/^([ \t]*)# write your code here\n/m, (m0, ind) => PY_PLAN(ind) + ind + "# write your code here\n");
+  }
   function buildOrder() {
     EXAM_OF = {};
     CAT.exams.forEach((e, i) => e.tasks.forEach((t) => { if (!EXAM_OF[t]) EXAM_OF[t] = { id: e.id, i, mini: !!e.mini }; }));
@@ -314,6 +340,11 @@
       const mix = [];
       for (let i = 0; i < Math.max(bp.length, d.length); i++) { if (d[i]) mix.push(d[i]); if (bp[i]) mix.push(bp[i]); }
       QUEUE[l] = gq.concat(rest, mix);
+      if (l === "python") {
+        // Python petit à petit : ordre fait à la main, des bases vers le niveau du test
+        const known = PY_ORDER.filter((id) => QUEUE.python.includes(id));
+        QUEUE.python = known.concat(QUEUE.python.filter((id) => !PY_ORDER.includes(id)));
+      }
       const inExam = Object.keys(CAT.tasks).filter((id) => EXAM_OF[id] && CAT.tasks[id].lang === l).sort((a, b) => EXAM_OF[a].i - EXAM_OF[b].i || a.localeCompare(b));
       QUEUE[l].concat(inExam).forEach((id, i) => (RANK[id] = i));
     });
@@ -943,7 +974,7 @@
     }
     Object.assign(W, {
       on: true, key, mode, id, tasks, title, cur: 0, side: "desc", open: {}, showDiff: false, busy: false, recorded: false,
-      drafts: keepDrafts && keepDrafts.key === key ? keepDrafts.drafts : prev ? prev.drafts : tasks.map((t) => t.starter),
+      drafts: keepDrafts && keepDrafts.key === key ? keepDrafts.drafts : prev ? prev.drafts : tasks.map((t) => starterFor(t, mode)),
       results: prev ? prev.results : {},
       clock: prev ? prev.clock : { endsAt: null, pausedLeft: null, mode: mode === "exam" ? "strict" : "train", baseMin: minutes, dur: minutes * 60000 },
       hints: {}, fr: false, maxHints: null,

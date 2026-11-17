@@ -589,3 +589,8 @@ body.resizing-y,body.resizing-y *{cursor:row-resize!important;user-select:none!i
 /* logo Kiko */
 .logobox.kiko{border:0;padding:0;overflow:hidden;border-radius:12px}
 .logobox.kiko img{width:100%;height:100%;display:block}
+
+/* UMPIRE à droite, énoncé visible */
+.asm-right{position:relative}
+.asm-right>.umpire{position:absolute;inset:0;align-items:start;overflow:auto;padding:12px}
+.asm-right>.umpire .box{max-height:none}

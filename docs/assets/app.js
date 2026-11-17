@@ -1296,7 +1296,8 @@
   }
   const phaseUmp = () => true;
   function showUmpire() {
-    const u = $("#umpire"); u.hidden = false;
+    // UMPIRE couvre seulement l'éditeur et les tests : l'énoncé reste lisible et déroulable à gauche
+    const u = $("#umpire"); const right = $(".asm-right"); if (right && u.parentNode !== right) right.appendChild(u); u.hidden = false;
     const t = W.tasks[0];
     u.innerHTML = `<div class="box"><div class="top"><h3>Avant de coder : UMPIRE, 2 min</h3>${minitimer("ump", 120)}</div>
       <p class="muted" style="margin:0">Lis l'énoncé à gauche, puis réponds en quelques mots. Ton chrono démarre quand tu cliques « Je commence ».</p>

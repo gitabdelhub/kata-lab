@@ -1468,8 +1468,14 @@
     const sub = Object.keys(W.lastSub).length > 0;
     if (!sub && W.clock.endsAt && (left() > 0 || isOver()) && !confirm("Tu n'as pas encore soumis. Regarder le corrigé maintenant ? (Conseil : soumets d'abord, même incomplet.)")) return;
     if (W.mode === "exo") {
-      P.solSeen[t.id] = Date.now();
-      if (!P.review.some((r) => r.task === t.id)) P.review.push({ task: t.id, stage: 0, due: P.sessCount + INTERVALS[0] });
+      if (RULE_SOLUTION_RETURNS_TOMORROW_ENABLED) {
+        const item = P.review.find((r) => r.task === t.id);
+        if (item) { item.stage = 0; item.due = P.sessCount + 1; }
+        else P.review.push({ task: t.id, stage: 0, due: P.sessCount + 1 });
+      } else {
+        P.solSeen[t.id] = Date.now();
+        if (!P.review.some((r) => r.task === t.id)) P.review.push({ task: t.id, stage: 0, due: P.sessCount + INTERVALS[0] });
+      }
       persist();
     }
     b.className = "box wide";

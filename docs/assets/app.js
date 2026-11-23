@@ -34,9 +34,31 @@
   const pad = (n) => String(n).padStart(2, "0");
   const today = () => { const d = new Date(); return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); };
   const frDate = (d) => (d || new Date()).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-  function markDay() { const t = today(); if (!P.days.includes(t)) { P.days.push(t); P.days = P.days.slice(-400); persist(); } }
+  function markDay() {
+    if (!Array.isArray(P.days)) return;
+    const t = today();
+    if (!P.days.includes(t)) { P.days.push(t); P.days = P.days.slice(-400); persist(); }
+  }
+  function streakSubmissionActiveMs() {
+    if (!W || typeof W !== "object" || !W.clock || typeof W.clock !== "object") return null;
+    if (W.mode === "exo") return proofIsValidState(W.ruleProof) ? proofActiveMs() : null;
+    if (W.mode !== "exam") return null;
+    const c = W.clock;
+    if (!Number.isFinite(c.dur) || c.dur < 0) return null;
+    if (c.pausedLeft != null) return 0;
+    if (Number.isFinite(c.endsAt)) return Math.max(0, c.dur - Math.max(0, c.endsAt - Date.now()));
+    return null;
+  }
+  function markQualifiedStreakSubmission(score) {
+    if (!RULE_STREAK_SUBMISSION_ENABLED) { markDay(); return; }
+    if (typeof score !== "number" || !Number.isFinite(score) || score <= 0) return;
+    const activeMs = streakSubmissionActiveMs();
+    if (activeMs == null) { markDay(); return; }
+    if (!Number.isFinite(activeMs) || activeMs < RULE_ACTIVE_MS_THRESHOLD) return;
+    markDay();
+  }
   function streak() {
-    const set = new Set(P.days); let n = 0; const d = new Date();
+    const set = new Set(Array.isArray(P.days) ? P.days : []); let n = 0; const d = new Date();
     if (!set.has(today())) d.setDate(d.getDate() - 1);
     for (;;) { const k = d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); if (!set.has(k)) break; n++; d.setDate(d.getDate() - 1); }
     return n;
@@ -1087,7 +1109,7 @@
     $("#restart").textContent = mode === "exo" ? "Recommencer à zéro" : "Recommencer";
     showTask(0);
     renderClock();
-    markDay();
+    if (!RULE_STREAK_SUBMISSION_ENABLED) markDay();
     await prepare(!!(prev && (prev.clock.endsAt || prev.clock.pausedLeft != null)));
   }
   function closeWorkspace() { W.on = false; stopClock(); clearInterval(pingT); $("#ov").hidden = true; }
@@ -1289,6 +1311,7 @@
     W.results[ti] = R;
     if (submit && !R.error) {
       W.lastSub[ti] = R.score;
+      markQualifiedStreakSubmission(R.score);
       if (W.mode === "exo") {
         recordTask(t.id, R.score);
         if (R.score < 80) recordErrors(t.tags);
@@ -1762,7 +1785,8 @@
       on("#lvSave", () => {
         const score = $$("[data-r]").filter((x) => x.checked).length;
         (P.live = P.live || []).push({ at: today(), id, score, note: ($("#lvNote").value || "").trim().slice(0, 200), min: Math.round((Date.now() - run.t0) / 60000) });
-        markDay(); persist(); save(LSL, null);
+        if (!RULE_STREAK_SUBMISSION_ENABLED) markDay();
+        persist(); save(LSL, null);
         flash = "Live enregistré. Réécoute ton audio aujourd'hui, et note une phrase que tu dirais autrement.";
         goHash("live");
       });

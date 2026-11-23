@@ -10,13 +10,22 @@
   const SHORT = { pyspark: "PySpark", sql: "SQL", python: "Python" };
   const FILE = { pyspark: "solution.py", sql: "query.sql", python: "solution.py" };
   const INTERVALS = [2, 5, 12, 30];
+  const RULE_PROOF_OF_EFFORT_ENABLED = true;
+  const RULE_SOLUTION_RETURNS_TOMORROW_ENABLED = true;
+  const RULE_NOTE_NOT_CLOSE_ENABLED = true;
+  const RULE_STREAK_SUBMISSION_ENABLED = true;
+  const RULE_STRICT_EXAM_LOCK_ENABLED = true;
+  const RULE_ACTIVE_MINUTES_THRESHOLD = 10;
+  const RULE_SUCCESS_SCORE_THRESHOLD = 80;
+  const RULE_ACTIVE_MS_THRESHOLD = RULE_ACTIVE_MINUTES_THRESHOLD * 60 * 1000;
 
   /* ============================================================ stockage */
   const LS = "kata.v1", LSA = "kata.attempt";
   const load = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (_) { return d; } };
   const save = (k, v) => { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); } catch (_) {} };
-  const P0 = () => ({ v: 1, done: {}, sessCount: 0, cur: null, cards: {}, tasks: {}, exams: {}, review: [], errors: {}, notes: {}, days: [], ump: false, dur: 70, live: [], v2: 1, solSeen: {}, day: null, dayN: 1, tnotes: {} });
+  const P0 = () => ({ v: 1, done: {}, sessCount: 0, cur: null, cards: {}, tasks: {}, exams: {}, review: [], errors: {}, notes: {}, days: [], ump: false, dur: 70, live: [], v2: 1, solSeen: {}, day: null, dayN: 1, tnotes: {}, antiRules: { startedAt: null } });
   let P = Object.assign(P0(), load(LS, {}));
+  if (!P.antiRules || typeof P.antiRules !== "object" || typeof P.antiRules.startedAt !== "number") P.antiRules = { startedAt: Date.now() };
   // v2 (6 nov 2026) : séance du jour simple, plus de parcours guidé ni d'UMPIRE imposé
   if (!P.v2) { P.v2 = 1; P.ump = false; P.cur = null; P.solSeen = P.solSeen || {}; }
   if (!P.solSeen) P.solSeen = {};
@@ -25,9 +34,31 @@
   const pad = (n) => String(n).padStart(2, "0");
   const today = () => { const d = new Date(); return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); };
   const frDate = (d) => (d || new Date()).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-  function markDay() { const t = today(); if (!P.days.includes(t)) { P.days.push(t); P.days = P.days.slice(-400); persist(); } }
+  function markDay() {
+    if (!Array.isArray(P.days)) return;
+    const t = today();
+    if (!P.days.includes(t)) { P.days.push(t); P.days = P.days.slice(-400); persist(); }
+  }
+  function streakSubmissionActiveMs() {
+    if (!W || typeof W !== "object" || !W.clock || typeof W.clock !== "object") return null;
+    if (W.mode === "exo") return proofIsValidState(W.ruleProof) ? proofActiveMs() : null;
+    if (W.mode !== "exam") return null;
+    const c = W.clock;
+    if (!Number.isFinite(c.dur) || c.dur < 0) return null;
+    if (c.pausedLeft != null) return 0;
+    if (Number.isFinite(c.endsAt)) return Math.max(0, c.dur - Math.max(0, c.endsAt - Date.now()));
+    return null;
+  }
+  function markQualifiedStreakSubmission(score) {
+    if (!RULE_STREAK_SUBMISSION_ENABLED) { markDay(); return; }
+    if (typeof score !== "number" || !Number.isFinite(score) || score <= 0) return;
+    const activeMs = streakSubmissionActiveMs();
+    if (activeMs == null) { markDay(); return; }
+    if (!Number.isFinite(activeMs) || activeMs < RULE_ACTIVE_MS_THRESHOLD) return;
+    markDay();
+  }
   function streak() {
-    const set = new Set(P.days); let n = 0; const d = new Date();
+    const set = new Set(Array.isArray(P.days) ? P.days : []); let n = 0; const d = new Date();
     if (!set.has(today())) d.setDate(d.getDate() - 1);
     for (;;) { const k = d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); if (!set.has(k)) break; n++; d.setDate(d.getDate() - 1); }
     return n;
@@ -147,6 +178,12 @@
   const NOTE_F = [["trig", "Déclencheur", "Ex. « part du groupe » dans la consigne"], ["tool", "Outil", "Ex. SUM(SUM(x)) OVER (PARTITION BY groupe)"], ["trap", "Piège", "Ex. 100.0 et pas 100 (division entière)"]];
   const myNote = (tid) => ((P.tnotes || {})[tid]) || null;
   const hasNote = (tid) => { const n = myNote(tid); return !!(n && NOTE_F.some(([k]) => (n[k] || "").trim())); };
+  const hasLegacyNote = (tid) => {
+    const n = myNote(tid);
+    if (!n || typeof n !== "object") return false;
+    if (n.antiRuleNoteV1 === 1) return false;
+    return hasNote(tid);
+  };
   function noteForm(tid) {
     const n = myNote(tid) || {};
     return NOTE_F.map(([k, lab, ph]) => `<label class="nf"><span>${lab}</span><textarea rows="2" data-note="${k}" data-tid="${tid}" placeholder="${esc(ph)}">${esc(n[k] || "")}</textarea></label>`).join("") + `<small class="nsaved">Enregistrée toute seule, dans ce navigateur.</small>`;
@@ -156,13 +193,14 @@
       P.tnotes = P.tnotes || {};
       const n = P.tnotes[ta.dataset.tid] || (P.tnotes[ta.dataset.tid] = {});
       n[ta.dataset.note] = ta.value; n.at = today(); persist();
+      if (RULE_NOTE_NOT_CLOSE_ENABLED) n.antiRuleNoteV1 = 1;
     }));
   }
   function recordTask(tid, score, inReview) {
     const t = P.tasks[tid] || (P.tasks[tid] = { best: 0, last: 0, n: 0, hist: [] });
     t.best = Math.max(t.best, score); t.last = score; t.n++; t.hist.push({ at: today(), score }); t.hist = t.hist.slice(-20);
     const item = P.review.find((r) => r.task === tid);
-    if (score < 80) {
+    if (score < RULE_SUCCESS_SCORE_THRESHOLD) {
       if (item) { item.stage = 0; item.due = P.sessCount + INTERVALS[0]; }
       else P.review.push({ task: tid, stage: 0, due: P.sessCount + INTERVALS[0] });
     } else if (item && item.due <= P.sessCount) {
@@ -209,7 +247,7 @@
     const sec = (n, t, body) => `<div class="card guide-sec"><span class="eyebrow">${n}</span><h3 style="margin:4px 0 10px">${t}</h3>${body}</div>`;
     view().innerHTML = `<section class="ws on">${band("Mode d'emploi", `<p class="lead" style="padding-bottom:28px">Kata Lab en 2 minutes : une séance par jour, et trois espaces libres à côté.</p>`)}
       <div class="wrap"><div class="sect guide">
-        ${sec("1", "Chaque jour : la séance sur l'Accueil", `<p>L'Accueil te donne 4 exos : un SQL, un PySpark, un Python et une révision. Tu ne vois ni leur titre ni leur langage avant de les ouvrir, et leur ordre change à chaque séance : pas de choix à la carte. Un exo est coché quand tu as 80/100 ou plus, ou quand tu as regardé le corrigé (il revient alors plus tard en révision). Quand tout est coché, la séance suivante apparaît, peu importe le jour. Toutes les 7 séances, la séance est un examen complet.</p><div class="btnrow"><a class="pill" href="#accueil">Ma séance</a></div>`)}
+        ${sec("1", "Chaque jour : la séance sur l'Accueil", `<p>L'Accueil te donne 4 exos : un SQL, un PySpark, un Python et une révision. Tu ne vois ni leur titre ni leur langage avant de les ouvrir, et leur ordre change à chaque séance : pas de choix à la carte. Un exo est coché uniquement avec ${RULE_SUCCESS_SCORE_THRESHOLD}/100 ou plus. Quand tout est coché, la séance suivante apparaît, peu importe le jour. Toutes les 7 séances, la séance est un examen complet.</p><div class="btnrow"><a class="pill" href="#accueil">Ma séance</a></div>`)}
         ${sec("2", "Pratiquer", `<p>Tous les exos dans une liste, dans l'ordre conseillé. Filtre par langage, thème ou statut (À faire, Réussi, À refaire), ou cherche un mot comme « Window ».</p>`)}
         ${sec("3", "Examens", `<p>${CAT.exams.filter((e) => !e.mini).length} examens au format du test : 4 tasks, 70 minutes, chaque task notée sur 100, avec PySpark, SQL et Python dans chacun. Le chrono est strict et aucun temps n'est conseillé par task : tu gères ton temps. Après l'examen, l'analyse guidée te montre le corrigé de chaque task.</p>`)}
         ${sec("4", "Fiches", `<p>Le résumé de SQL, PySpark et Python : syntaxe, exemple court, piège, et les exos liés. Dans chaque exo, un lien ouvre la bonne partie de la fiche dans un nouvel onglet.</p>`)}
@@ -366,7 +404,7 @@
   }
   function statusOf(id) {
     const t = P.tasks[id];
-    if (t && t.best >= 80) return "ok";
+    if (t && t.best >= RULE_SUCCESS_SCORE_THRESHOLD) return "ok";
     if ((t && t.n) || P.review.some((r) => r.task === id) || (P.solSeen || {})[id]) return "redo";
     return "todo";
   }
@@ -383,12 +421,85 @@
     return Object.keys(CAT.tasks).filter((id) => CAT.tasks[id].lang === lang && !EXAM_OF[id] && re.test((CAT.tasks[id].tags || []).join(" ").toLowerCase())).sort((a, b) => RANK[a] - RANK[b]).slice(0, n || 4);
   }
   const solOK = (id) => ((P.tasks[id] || {}).n || 0) >= 2;
+  function proofState(initialDrafts) {
+    return { activeMs: 0, activeSince: null, runModified: false, initialDrafts: Array.isArray(initialDrafts) ? initialDrafts : [] };
+  }
+  function proofIsValidState(p) {
+    return !!p && typeof p === "object" && Number.isFinite(p.activeMs) && p.activeMs >= 0
+      && (p.activeSince == null || Number.isFinite(p.activeSince))
+      && typeof p.runModified === "boolean" && Array.isArray(p.initialDrafts);
+  }
+  function proofAccumulate() {
+    if (!RULE_PROOF_OF_EFFORT_ENABLED || W.mode !== "exo" || !proofIsValidState(W.ruleProof)) return;
+    const now = Date.now();
+    if (Number.isFinite(W.ruleProof.activeSince)) {
+      W.ruleProof.activeMs += Math.max(0, now - W.ruleProof.activeSince);
+      W.ruleProof.activeSince = now;
+    }
+  }
+  function proofStart() {
+    if (!RULE_PROOF_OF_EFFORT_ENABLED || W.mode !== "exo" || !proofIsValidState(W.ruleProof)) return;
+    if (W.ruleProof.activeSince == null && (!W.clock || W.clock.pausedLeft == null)) W.ruleProof.activeSince = Date.now();
+  }
+  function proofPause() {
+    if (!RULE_PROOF_OF_EFFORT_ENABLED || W.mode !== "exo" || !proofIsValidState(W.ruleProof)) return;
+    proofAccumulate();
+    W.ruleProof.activeSince = null;
+  }
+  function proofActiveMs() {
+    if (!proofIsValidState(W.ruleProof)) return 0;
+    if (!Number.isFinite(W.ruleProof.activeSince)) return W.ruleProof.activeMs;
+    return W.ruleProof.activeMs + Math.max(0, Date.now() - W.ruleProof.activeSince);
+  }
+  function proofHintsConsumed(t) {
+    if (!t || !proofIsValidState(W.ruleProof)) return false;
+    const all = Array.isArray(t.hints) ? t.hints : [];
+    const lim = W.maxHints == null ? all.length : W.maxHints;
+    const available = all.slice(0, lim);
+    if (!available.length) return true;
+    const shown = W.hints && Array.isArray(W.hints[W.cur]) ? W.hints[W.cur] : [];
+    return available.every((_, i) => shown.includes(i));
+  }
+  function solutionProofAvailable(id) {
+    if (!RULE_PROOF_OF_EFFORT_ENABLED) return solOK(id);
+    if (!W.on || W.mode !== "exo" || !proofIsValidState(W.ruleProof)) return solOK(id);
+    const t = W.tasks[W.cur];
+    if (!t || t.id !== id) return solOK(id);
+    if (proofActiveMs() < RULE_ACTIVE_MS_THRESHOLD) return false;
+    if (!W.ruleProof.runModified) return false;
+    return proofHintsConsumed(t);
+  }
+  function proofMissing(id) {
+    if (!RULE_PROOF_OF_EFFORT_ENABLED || !W.on || W.mode !== "exo") return [];
+    if (!proofIsValidState(W.ruleProof)) return [];
+    const missing = [];
+    if (proofActiveMs() < RULE_ACTIVE_MS_THRESHOLD) missing.push(RULE_ACTIVE_MINUTES_THRESHOLD + " minutes de chrono actif");
+    if (!W.ruleProof.runModified) missing.push("un RUN TESTS avec du code modifié");
+    const t = W.tasks[W.cur];
+    if (t && t.id === id && !proofHintsConsumed(t)) missing.push("tous les indices disponibles");
+    return missing;
+  }
+  function updateSolutionButton(id) {
+    const b = $("#showSol");
+    const msg = $("#solutionProofMessage");
+    if (!b) return;
+    b.hidden = W.mode !== "exo";
+    if (W.mode !== "exo") return;
+    const allowed = solutionProofAvailable(id);
+    const missing = proofMissing(id);
+    const statusKey = allowed ? "ok" : missing.join("|");
+    if (W.solutionProofStatus === statusKey && b.disabled === !allowed && (!msg || msg.textContent)) return;
+    b.disabled = !allowed;
+    b.textContent = allowed ? "Voir le corrigé" : "Corrigé verrouillé";
+    b.title = allowed ? "Voir le corrigé" : "Il manque : " + missing.join(", ");
+    if (msg) msg.textContent = allowed ? "Le corrigé est dans MORE, Voir le corrigé." : "Corrigé verrouillé : il manque " + missing.join(", ") + ".";
+    W.solutionProofStatus = statusKey;
+  }
 
   /* ============================================================ v2 : séance du jour */
-  const isDoneTask = (id) => (P.tasks[id] && P.tasks[id].best >= 80) || !!(P.solSeen || {})[id];
-  // Pour la séance : un exo raté mais fini, avec au moins une ligne dans sa fiche, est terminé.
-  // Il revient plus tard en révision. (La fiche n'apparaît qu'à la fin d'un exo.)
-  const isClosedTask = (id) => isDoneTask(id) || hasNote(id);
+  const isDoneTask = (id) => (P.tasks[id] && P.tasks[id].best >= RULE_SUCCESS_SCORE_THRESHOLD) || !!(P.solSeen || {})[id];
+  // Les nouvelles fiches ne ferment plus un exo raté. Les fiches écrites avant cette règle restent reconnues.
+  const isClosedTask = (id) => isDoneTask(id) || (RULE_NOTE_NOT_CLOSE_ENABLED ? hasLegacyNote(id) : hasNote(id));
   function nextOf(lang, taken) { return QUEUE[lang].find((id) => !isClosedTask(id) && !taken.includes(id)) || null; }
   function nextExam() { return CAT.exams.find((e) => !((P.exams[e.id] || {}).hist || []).length) || null; }
   function makeDay(n) {
@@ -416,7 +527,7 @@
   }
   function dayStepDone(st) {
     if (st.kind === "exo") return isClosedTask(st.id);
-    if (st.kind === "redo") { const t = P.tasks[st.id] || {}; return ((t.n || 0) > st.n0 && t.last >= 80) || ((P.solSeen || {})[st.id] || 0) > P.day.at || (((P.ended || {})[st.id] || 0) > P.day.at && hasNote(st.id)); }
+    if (st.kind === "redo") { const t = P.tasks[st.id] || {}; return ((t.n || 0) > st.n0 && t.last >= RULE_SUCCESS_SCORE_THRESHOLD) || ((P.solSeen || {})[st.id] || 0) > P.day.at || (!RULE_NOTE_NOT_CLOSE_ENABLED && ((P.ended || {})[st.id] || 0) > P.day.at && hasNote(st.id)); }
     if (st.kind === "fiche") return !!P.day.rev.read;
     if (st.kind === "exam") return (((P.exams[st.id] || {}).hist || []).filter((h) => (h.ts || 0) >= P.day.at)).length > 0;
     return false;
@@ -482,7 +593,7 @@
         <div class="ph-track" style="margin:0"><i style="width:${Math.round((100 * done) / steps.length)}%"></i></div>
         <div class="dsteps">${steps.map(row).join("")}</div>
         ${all ? `<div class="dunlock"><span>Séance ${d.n} terminée. Bravo, une de plus.</span><button class="pill sm" id="nextDay">Voir la séance suivante</button></div>`
-          : `<p class="muted" style="margin:0;font-size:14px">${d.exam ? "L'étape est cochée quand tu termines l'examen (Finish test)." : "Un exo est coché quand tu as 80/100 ou plus. Raté ou hors du temps, il est coché aussi dès que tu écris au moins une ligne dans sa fiche (écran du résultat) ; idem si tu regardes le corrigé. Dans ces cas, il revient plus tard en révision."} La séance suivante apparaît quand tout est coché, peu importe le jour.</p>`}</div>`;
+          : `<p class="muted" style="margin:0;font-size:14px">${d.exam ? "L'étape est cochée quand tu termines l'examen (Finish test)." : "Un exo est coché uniquement à " + RULE_SUCCESS_SCORE_THRESHOLD + "/100 ou plus. Une fiche ou le corrigé aide à réviser, mais ne remplace pas la réussite."} La séance suivante apparaît quand tout est coché, peu importe le jour.</p>`}</div>`;
     }
     const nOk = Object.keys(CAT.tasks).filter((id) => statusOf(id) === "ok").length;
     view().innerHTML = `<section class="ws on"><div class="pband"><div class="wrap hero2"><h1 class="ptitle">Bonjour AB</h1><p class="lead">Ta séance du jour t'attend : 4 exos, tu découvres chacun en l'ouvrant. Le reste du site est libre, à côté.</p></div></div>
@@ -520,7 +631,7 @@
           <div class="pmore"><button class="pill sm ghost" id="pmore"></button></div>
         </div>
         <aside class="pside">
-          <div class="card"><h3>Ta progression</h3><div class="prog3">${prog}</div><p class="muted" style="font-size:13px;margin:8px 0 0">Un exo est réussi à 80/100 ou plus.</p></div>
+          <div class="card"><h3>Ta progression</h3><div class="prog3">${prog}</div><p class="muted" style="font-size:13px;margin:8px 0 0">Un exo est réussi à ${RULE_SUCCESS_SCORE_THRESHOLD}/100 ou plus.</p></div>
           <div class="card"><h3>À refaire</h3>${redo ? `<ul class="redo">${redo}</ul>` : `<p class="muted" style="margin:0;font-size:14px">Rien pour l'instant. Les exos ratés (moins de 80) arrivent ici.</p>`}</div>
           <div class="card"><h3>Bloqué sur une notion ?</h3><p class="muted" style="margin:0 0 6px;font-size:14px">Chaque exo a un lien vers la fiche qui l'explique.</p><a href="#fiches">Voir les fiches</a></div>
         </aside>
@@ -629,7 +740,7 @@
     view().innerHTML = `<section class="ws on">${band("Réflexes", `<p class="lead" style="padding-bottom:28px">Les gestes à connaître par cœur. Chaque réflexe : un exemple guidé, les pièges, un mini-exo de mémoire.</p>`, bib("apprendre"))}
       <div class="wrap"><div class="sect"><div class="grid3">${CAT.reflexes.map((r, i) => {
         const m = P.tasks[r.mini];
-        return `<div class="ex"><span class="src">Réflexe ${i + 1} · ${esc(r.lang)}</span><h3>${esc(r.title)}</h3><span class="muted">${esc(r.why)}</span>${m && m.best >= 80 ? '<span class="done-badge">✓ mini-exo réussi</span>' : ""}<a class="pill sm" href="#reflexe-${r.id}">Ouvrir</a></div>`;
+        return `<div class="ex"><span class="src">Réflexe ${i + 1} · ${esc(r.lang)}</span><h3>${esc(r.title)}</h3><span class="muted">${esc(r.why)}</span>${m && m.best >= RULE_SUCCESS_SCORE_THRESHOLD ? '<span class="done-badge">✓ mini-exo réussi</span>' : ""}<a class="pill sm" href="#reflexe-${r.id}">Ouvrir</a></div>`;
       }).join("")}</div></div></div></section>`;
   }
   function renderLesson(rid) {
@@ -677,7 +788,7 @@
     const cards = ids.filter((id) => exoFilter === "all" || CAT.tasks[id].lang === exoFilter).map((id) => {
       const t = CAT.tasks[id], pr = P.tasks[id];
       return `<div class="ex"><span class="src">${esc(t.source)} · ${SHORT[t.lang]}</span><h3>${esc(t.name)}</h3><div class="tagrow">${t.tags.slice(0, 3).map((g) => `<span class="tag">${esc(g)}</span>`).join("")}</div>
-        <span class="muted">Chrono ${t.minutes} min · ${t.tests} tests</span>${pr ? `<span class="${pr.best >= 80 ? "done-badge" : "muted"}">${pr.best >= 80 ? "✓ validé" : "Meilleure note"} · ${pr.best}/100</span>` : ""}<div class="btnrow"><a class="pill sm" href="#exo-${id}">Ouvrir</a>${pr || attemptFor("exo", id) ? `<button class="pill sm ghost" data-wipe-exo="${id}">Effacer</button>` : ""}</div></div>`;
+        <span class="muted">Chrono ${t.minutes} min · ${t.tests} tests</span>${pr ? `<span class="${pr.best >= RULE_SUCCESS_SCORE_THRESHOLD ? "done-badge" : "muted"}">${pr.best >= RULE_SUCCESS_SCORE_THRESHOLD ? "✓ validé" : "Meilleure note"} · ${pr.best}/100</span>` : ""}<div class="btnrow"><a class="pill sm" href="#exo-${id}">Ouvrir</a>${pr || attemptFor("exo", id) ? `<button class="pill sm ghost" data-wipe-exo="${id}">Effacer</button>` : ""}</div></div>`;
     }).join("");
     view().innerHTML = `<section class="ws on">${band("Exos", tabs, bib("exos"))}<div class="wrap"><div class="sect">
       <p class="sub">Choix libre. Ton parcours, lui, te donne les exos dans le bon ordre. Les tasks des examens restent dans les examens, pour qu'elles soient neuves le jour où tu les passes.</p>
@@ -758,7 +869,7 @@
           <div class="panel"><h3>Derniers examens</h3>${ex.slice(-8).reverse().map((x) => `<div class="err"><span>${esc(x.e.title.replace("Practice Assessment · ", ""))}<br><span class="muted">${esc(x.h.at)}${x.h.restarted ? " · recommencé" : ""}</span></span><span class="score-chip">${x.h.scores.join(" · ")}</span></div>`).join("")}</div></div>`;
       }
     } else if (progTab === "exos") {
-      body = taskIds.length ? `<div class="card"><table class="tbl"><tr><th>Exo</th><th>Meilleure</th><th>Dernière</th><th>Essais</th><th></th></tr>${taskIds.map((id) => { const t = P.tasks[id]; return `<tr><td>${esc(TITLE[id] || id)}</td><td class="score-chip ${t.best >= 80 ? "ok-t" : ""}">${t.best}/100</td><td class="score-chip">${t.last}/100</td><td>${t.n}</td><td><a class="pill sm ghost" href="#exo-${id}">Refaire</a></td></tr>`; }).join("")}</table></div>` : `<p class="empty">Aucun exo soumis pour l'instant.</p>`;
+      body = taskIds.length ? `<div class="card"><table class="tbl"><tr><th>Exo</th><th>Meilleure</th><th>Dernière</th><th>Essais</th><th></th></tr>${taskIds.map((id) => { const t = P.tasks[id]; return `<tr><td>${esc(TITLE[id] || id)}</td><td class="score-chip ${t.best >= RULE_SUCCESS_SCORE_THRESHOLD ? "ok-t" : ""}">${t.best}/100</td><td class="score-chip">${t.last}/100</td><td>${t.n}</td><td><a class="pill sm ghost" href="#exo-${id}">Refaire</a></td></tr>`; }).join("")}</table></div>` : `<p class="empty">Aucun exo soumis pour l'instant.</p>`;
     } else if (progTab === "errors") {
       body = errs.length ? `<div class="panel"><h3>Les thèmes où tu perds des points</h3><p class="muted">Compté à chaque soumission sous 80/100. Relis le réflexe du thème qui revient le plus.</p>${errs.map(([g, n]) => `<div class="err"><span>${esc(g)}</span><span class="chip ko">${n} fois</span></div>`).join("")}</div>` : `<p class="empty">Rien pour l'instant.</p>`;
     } else {
@@ -852,7 +963,8 @@
   function attemptFor(mode, id) { const a = load(LSA, null); return a && a.key === mode + ":" + id && !a.finished ? a : null; }
   function saveAttempt() {
     if (!W.on) return;
-    save(LSA, { key: W.key, mode: W.mode, id: W.id, drafts: W.drafts, results: W.results, clock: W.clock, recorded: W.recorded, lastSub: W.lastSub, at: Date.now() });
+    if (RULE_PROOF_OF_EFFORT_ENABLED && W.mode === "exo") proofAccumulate();
+    save(LSA, { key: W.key, mode: W.mode, id: W.id, drafts: W.drafts, results: W.results, clock: W.clock, recorded: W.recorded, lastSub: W.lastSub, ruleProof: W.ruleProof || null, at: Date.now() });
   }
   let saveT = null;
   const saveSoon = () => { clearTimeout(saveT); saveT = setTimeout(saveAttempt, 400); };
@@ -954,6 +1066,7 @@
   async function openWorkspace(mode, id, force) {
     const key = mode + ":" + id;
     if (W.on && W.key === key && !force) return;
+    if (RULE_PROOF_OF_EFFORT_ENABLED && W.mode === "exo") proofPause();
     stopClock();
     let ids, title, minutes;
     if (mode === "exam") {
@@ -972,13 +1085,27 @@
       }
       save(LSA, null);
     }
+    const starters = tasks.map((t) => starterFor(t, mode));
+    let ruleProof = prev && prev.ruleProof ? prev.ruleProof : proofState(starters);
+    if (!proofIsValidState(ruleProof)) ruleProof = proofState(starters);
+    if (prev) ruleProof.activeSince = null;
+    if (ruleProof.initialDrafts.length !== starters.length) ruleProof.initialDrafts = starters;
     Object.assign(W, {
       on: true, key, mode, id, tasks, title, cur: 0, side: "desc", open: {}, showDiff: false, busy: false, recorded: false,
-      drafts: keepDrafts && keepDrafts.key === key ? keepDrafts.drafts : prev ? prev.drafts : tasks.map((t) => starterFor(t, mode)),
+      drafts: keepDrafts && keepDrafts.key === key ? keepDrafts.drafts : prev ? prev.drafts : starters,
       results: prev ? prev.results : {},
       clock: prev ? prev.clock : { endsAt: null, pausedLeft: null, mode: mode === "exam" ? "strict" : "train", baseMin: minutes, dur: minutes * 60000 },
-      hints: {}, fr: false, maxHints: null,
+      hints: {}, fr: false, maxHints: null, ruleProof,
     });
+    if (RULE_STRICT_EXAM_LOCK_ENABLED && W.mode === "exam"
+      && W.clock && typeof W.clock === "object"
+      && Number.isFinite(W.clock.dur) && W.clock.dur >= 0) {
+      W.clock.mode = "strict";
+      if (W.clock.pausedLeft != null && Number.isFinite(W.clock.pausedLeft)) {
+        W.clock.endsAt = Date.now() + Math.max(0, W.clock.pausedLeft);
+        W.clock.pausedLeft = null;
+      }
+    }
     if (mode === "exo" && P.cur) {
       const cs = findSession(P.cur.id), st = cs && cs.steps[P.cur.step];
       if (st && st.type === "exo" && st.task === id && st.hints != null) W.maxHints = st.hints;
@@ -991,14 +1118,14 @@
     $("#modal").hidden = true; $("#morebox").hidden = true; $("#umpire").hidden = true;
     $("#diff").textContent = "VIEW DIFF";
     $$(".asm-side button").forEach((x) => x.classList.toggle("on", x.dataset.side === "desc"));
-    $("#showSol").hidden = mode !== "exo" || !solOK(id);
+    updateSolutionButton(id);
     $("#restartKeep").hidden = mode !== "exo";
     $("#stopExo").hidden = mode !== "exo";
     $("#pauseBtn").hidden = mode !== "exo";
     $("#restart").textContent = mode === "exo" ? "Recommencer à zéro" : "Recommencer";
     showTask(0);
     renderClock();
-    markDay();
+    if (!RULE_STREAK_SUBMISSION_ENABLED) markDay();
     await prepare(!!(prev && (prev.clock.endsAt || prev.clock.pausedLeft != null)));
   }
   function closeWorkspace() { W.on = false; stopClock(); clearInterval(pingT); $("#ov").hidden = true; }
@@ -1075,14 +1202,15 @@
         if (hasNote(t.id)) extra += `<details class="mynote-d"><summary>Ta fiche sur cet exo <span>(ouvre-la seulement si tu bloques)</span></summary><div class="mynote">${noteForm(t.id)}</div></details>`;
         const fs = ficheSecFor(t.id);
         if (fs) extra += `<p class="fichelink">Une notion t'échappe ? <a href="#fiche-${fs.lang}-${fs.id}" target="_blank" rel="noopener">Relis la fiche « ${esc(fs.t)} »</a> (s'ouvre dans un nouvel onglet, ton code reste ici).</p>`;
-        extra += `<p class="fichelink">${solOK(t.id) ? "Le corrigé est dans MORE, Voir le corrigé." : "Le corrigé s'ouvre après 2 essais (SUBMIT ou Terminer)."}</p>`;
+        const proofMissingText = proofMissing(t.id);
+        extra += `<p id="solutionProofMessage" class="fichelink">${solutionProofAvailable(t.id) ? "Le corrigé est dans MORE, Voir le corrigé." : (RULE_PROOF_OF_EFFORT_ENABLED ? "Corrigé verrouillé : il manque " + proofMissingText.join(", ") + "." : "Le corrigé s'ouvre après 2 essais (SUBMIT ou Terminer).")}</p>`;
         const shown = W.hints[W.cur] || [];
         shown.forEach((k) => (extra += `<div class="hinttxt"><b>Indice ${k + 1} :</b> ${esc(hs[k])}</div>`));
       }
       const howOpen = exo && P.howto !== false;
       const how = t.howto ? `<details class="howto"${howOpen ? " open" : ""}><summary>Comment faire, exactement <span>(en français : où écrire, quoi renvoyer, ce que tu dois voir)</span></summary>${t.howto}</details>` : "";
       p.innerHTML = `<h2>${W.mode === "exam" ? "Task " + (W.cur + 1) + " · " : ""}${esc(t.name)}</h2>` + how + t.desc + extra;
-      $$("[data-h]", p).forEach((b) => (b.onclick = () => { const a = W.hints[W.cur] || (W.hints[W.cur] = []); const k = +b.dataset.h; if (!a.includes(k)) a.push(k); renderPaper(); }));
+      $$("[data-h]", p).forEach((b) => (b.onclick = () => { const a = W.hints[W.cur] || (W.hints[W.cur] = []); const k = +b.dataset.h; if (!a.includes(k)) a.push(k); saveSoon(); updateSolutionButton(t.id); renderPaper(); }));
       const hw = $("details.howto", p); if (hw && exo) hw.ontoggle = () => { P.howto = hw.open; persist(); };
       const fr = $("[data-fr]", p); if (fr) fr.onclick = () => { W.fr = !W.fr; renderPaper(); };
       bindNote(p);
@@ -1096,7 +1224,7 @@
         <h4>Raccourci</h4><p><code>Ctrl + Entrée</code> lance RUN TESTS.</p>`;
     } else {
       const c = W.clock;
-      p.innerHTML = `<h2>Settings</h2><h4>Mode du chrono</h4><div class="opt"><button id="sStrict" class="${c.mode === "strict" ? "on" : ""}">Strict, comme le vrai test</button><button id="sTrain" class="${c.mode === "train" ? "on" : ""}">Entraînement, pause permise</button>${c.mode === "train" ? `<button id="sPause">${c.pausedLeft == null ? "Mettre en pause" : "Reprendre"}</button><button id="sAdd5">Ajouter 5 min</button><button id="sAdd10">Ajouter 10 min</button>` : ""}</div>${c.mode === "strict" ? `<p style="font-size:14px;color:var(--as-dim)">Passe en mode entraînement pour mettre en pause ou ajouter du temps.</p>` : ""}
+      p.innerHTML = `<h2>Settings</h2><h4>Mode du chrono</h4>${strictExamLockActive() ? `<div class="opt"><button class="on" disabled>Strict, comme le vrai test</button></div><p style="font-size:14px;color:var(--as-dim)">Examen verrouillé : pause et temps en plus indisponibles.</p>` : `<div class="opt"><button id="sStrict" class="${c.mode === "strict" ? "on" : ""}">Strict, comme le vrai test</button><button id="sTrain" class="${c.mode === "train" ? "on" : ""}">Entraînement, pause permise</button>${c.mode === "train" ? `<button id="sPause">${c.pausedLeft == null ? "Mettre en pause" : "Reprendre"}</button><button id="sAdd5">Ajouter 5 min</button><button id="sAdd10">Ajouter 10 min</button>` : ""}</div>${c.mode === "strict" ? `<p style="font-size:14px;color:var(--as-dim)">Passe en mode entraînement pour mettre en pause ou ajouter du temps.</p>` : ""}`}
         ${W.mode === "exam" && !exam(W.id).mini ? `<h4>Durée au départ</h4><div class="opt" style="grid-template-columns:repeat(3,1fr)">${[60, 70, 90].map((d) => `<button data-dur="${d}" class="${(P.dur || 70) === d ? "on" : ""}">${d} min</button>`).join("")}</div><p style="font-size:14px;color:var(--as-dim)">La durée choisie s'applique quand tu recommences.</p>` : ""}
         ${W.mode === "exo" ? `<h4>Fiche UMPIRE</h4><div class="opt"><button id="sUmp" class="${P.ump ? "on" : ""}">${P.ump ? "Affichée avant chaque exo (conseillé)" : "Masquée"}</button></div>` : ""}
         <h4>Parenthèses et guillemets</h4><div class="opt"><button id="sClose" class="${P.autoClose !== false ? "on" : ""}">${P.autoClose !== false ? "Fermés automatiquement : quand tu tapes ( , ) s'ajoute" : "Pas de fermeture automatique : tu tapes toi-même ( et )"}</button></div><p style="font-size:14px;color:var(--as-dim)">Clique pour changer. Dans les deux cas, quand ton curseur touche une parenthèse, sa jumelle s'éclaire en bleu. Une parenthèse seule s'éclaire en rouge.</p>
@@ -1176,6 +1304,10 @@
     if (W.clock.endsAt && left() <= 0 && !isOver()) return;
     const ti = W.cur, t = W.tasks[ti];
     const code = W.drafts[ti];
+    if (RULE_PROOF_OF_EFFORT_ENABLED && proofIsValidState(W.ruleProof)) {
+      const initial = W.ruleProof.initialDrafts[ti];
+      if (typeof initial === "string" && typeof code === "string" && code !== initial) W.ruleProof.runModified = true;
+    }
     const tests = submit ? t.visible.concat(hiddenOf(t)) : t.visible;
     W.busy = true;
     $("#run").disabled = true; $("#submit").disabled = true;
@@ -1195,13 +1327,15 @@
     W.results[ti] = R;
     if (submit && !R.error) {
       W.lastSub[ti] = R.score;
+      markQualifiedStreakSubmission(R.score);
       if (W.mode === "exo") {
         recordTask(t.id, R.score);
-        if (R.score < 80) recordErrors(t.tags);
-        $("#showSol").hidden = !solOK(t.id);
+        if (R.score < RULE_SUCCESS_SCORE_THRESHOLD) recordErrors(t.tags);
+        updateSolutionButton(t.id);
       }
     }
     if (W.cur === ti) { renderTests(); updScore(); }
+    if (W.mode === "exo") updateSolutionButton(t.id);
     renderTaskTabs();
     // Exo réussi à 100 : le chrono s'arrête et le résultat (note + temps) s'affiche
     if (submit && !R.error && W.mode === "exo" && R.score === 100 && !W.recorded) setTimeout(() => { if (W.on) finishScreen(true); }, 700);
@@ -1211,6 +1345,11 @@
 
   /* ---- chrono réel (heure de l'appareil) ---- */
   let tick = null;
+  function strictExamLockActive() {
+    return RULE_STRICT_EXAM_LOCK_ENABLED && W.mode === "exam"
+      && W.clock && typeof W.clock === "object"
+      && Number.isFinite(W.clock.dur) && W.clock.dur >= 0;
+  }
   const isOver = () => W.mode === "exo" && !!W.clock.over;
   const elapsed = () => { const c = W.clock; return c.dur + (c.added || 0) - left(); };
   const fmtDur = (ms) => { const t = Math.max(0, Math.round(ms / 1000)); return Math.floor(t / 60) + " min " + pad(t % 60) + " s"; };
@@ -1219,6 +1358,7 @@
   function renderClock() {
     if (!W.on) return;
     const l = left(), c = W.clock;
+    if (W.mode === "exo") updateSolutionButton(W.id);
     const pb = $("#pauseBtn");
     if (pb && !pb.hidden) { const pz = c.pausedLeft != null; pb.textContent = pz ? "▶ REPRENDRE" : "⏸ PAUSE"; pb.classList.toggle("on", pz); }
     if (isOver()) { const t = Math.round(-l / 1000); $("#time").textContent = (c.pausedLeft != null ? "Paused · " : "") + "Temps dépassé · +" + Math.floor(t / 60) + "m " + pad(t % 60) + "s"; $("#timer").classList.add("low"); return; }
@@ -1238,12 +1378,13 @@
   function startClock(fresh) {
     const c = W.clock;
     if (fresh || (!c.endsAt && c.pausedLeft == null)) { c.endsAt = Date.now() + c.dur; c.pausedLeft = null; }
+    if (W.mode === "exo") proofStart();
     clearInterval(tick); tick = setInterval(renderClock, 250); renderClock(); saveAttempt();
   }
   function stopClock() { clearInterval(tick); tick = null; }
-  function addTime(min) { const c = W.clock; if (c.mode !== "train") return; c.added = (c.added || 0) + min * 60000; if (c.pausedLeft != null) c.pausedLeft += min * 60000; else if (c.endsAt) c.endsAt += min * 60000; renderClock(); saveAttempt(); }
-  function setMode(m) { const c = W.clock; c.mode = m; if (m === "strict" && c.pausedLeft != null) { c.endsAt = Date.now() + c.pausedLeft; c.pausedLeft = null; } renderClock(); saveAttempt(); }
-  function togglePause() { const c = W.clock; if (c.mode !== "train" || !c.endsAt) return; if (c.pausedLeft == null) c.pausedLeft = c.endsAt - Date.now(); else { c.endsAt = Date.now() + c.pausedLeft; c.pausedLeft = null; } renderClock(); saveAttempt(); }
+  function addTime(min) { const c = W.clock; if (strictExamLockActive()) return; if (c.mode !== "train") return; c.added = (c.added || 0) + min * 60000; if (c.pausedLeft != null) c.pausedLeft += min * 60000; else if (c.endsAt) c.endsAt += min * 60000; renderClock(); saveAttempt(); }
+  function setMode(m) { const c = W.clock; if (strictExamLockActive()) { c.mode = "strict"; c.pausedLeft = null; renderClock(); saveAttempt(); return; } c.mode = m; if (m === "strict" && c.pausedLeft != null) { c.endsAt = Date.now() + c.pausedLeft; c.pausedLeft = null; } renderClock(); saveAttempt(); }
+  function togglePause() { const c = W.clock; if (strictExamLockActive()) return; if (c.mode !== "train" || !c.endsAt) return; if (c.pausedLeft == null) { c.pausedLeft = c.endsAt - Date.now(); proofPause(); } else { c.endsAt = Date.now() + c.pausedLeft; c.pausedLeft = null; proofStart(); } renderClock(); saveAttempt(); }
 
   /* ---- préparation de l'environnement ---- */
   let pingT = null;
@@ -1330,7 +1471,7 @@
       W.recorded = true;
       if (W.mode === "exam") {
         recordExam(W.id, scores);
-        W.tasks.forEach((t, i) => { if (scores[i] < 80) { recordTask(t.id, scores[i]); recordErrors(t.tags); } else recordTask(t.id, scores[i]); });
+        W.tasks.forEach((t, i) => { if (scores[i] < RULE_SUCCESS_SCORE_THRESHOLD) { recordTask(t.id, scores[i]); recordErrors(t.tags); } else recordTask(t.id, scores[i]); });
       } else if (W.lastSub[0] == null) {
         recordTask(W.tasks[0].id, 0);
       }
@@ -1347,14 +1488,14 @@
     const slow = W.mode === "exo" && took != null && took > baseMs + tolMs;
     const inTol = W.mode === "exo" && took != null && took > baseMs && !slow;
     if (slow) slowReview(W.id);
-    const revSoon = W.mode === "exo" && (slow || scores[0] < 80);
+    const revSoon = W.mode === "exo" && (slow || scores[0] < RULE_SUCCESS_SCORE_THRESHOLD);
     const dayHere = inDay(W.mode, W.id);
     b.className = "box";
     b.innerHTML = `<h3>${outOfTime ? "Time is up" : "Résultat"}</h3>${W.tasks.map((t, i) => `<div class="r"><span>${W.mode === "exam" ? "Task " + (i + 1) + " · " : ""}${esc(t.name)}</span><b>${scores[i]}/100</b></div>`).join("")}
       ${took != null ? `<div class="r"><span>Ton temps</span><b>${fmtDur(took)}${took > W.clock.baseMin * 60000 ? " (prévu " + W.clock.baseMin + " min)" : ""}</b></div>` : ""}
-      <p style="margin:0;color:var(--as-dim);font-size:14px">${W.mode === "exam" ? "L'analyse guidée te montre le corrigé de chaque task et t'aide à comprendre tes erreurs." : scores[0] >= 80 ? (slow ? "Réussi, mais plus de " + Math.round(tolMs / 60000) + " min au-delà du temps prévu : cet exo reviendra en révision dans " + INTERVALS[0] + " séances, pour le refaire plus vite." : inTol ? "Réussi, dans la marge de temps (jusqu'à " + Math.round(tolMs / 60000) + " min de plus). Pas de révision." : "Réussi (80 ou plus).") : solOK(W.id) ? "Sous 80 : cet exo reviendra en révision dans 2 séances. Regarde le corrigé, puis refais-le de mémoire." : "Sous 80 : recommence, tu peux y arriver. Le corrigé s'ouvre après 2 essais."}</p>
-      ${W.mode === "exo" ? `<div class="mynote${revSoon ? " hot" : ""}"><b>Ta fiche sur cet exo, avec tes mots</b><p>${revSoon ? (dayHere && scores[0] < 80 ? "Écris au moins une ligne : l'exo est alors coché dans ta séance, et il reviendra en révision avec ta fiche." : "Écris-la maintenant, quand c'est frais : elle reviendra avec l'exo en révision.") : "Optionnel : 3 lignes pour t'en souvenir dans 2 mois."}</p>${noteForm(W.id)}</div>` : ""}
-      <div class="row2"><button id="mBack">Retour au site</button>${W.mode === "exo" ? '<button id="mKeep">Recommencer avec mon code</button><button id="mAgain">Recommencer à zéro</button>' : '<button id="mAgain">Recommencer</button>'}${W.mode === "exo" ? (solOK(W.id) ? '<button id="mSol">Voir le corrigé</button>' : "") : `<button ${insess || dayHere ? "" : 'class="primary"'} id="mAna">Analyse guidée</button>`}${dayHere ? '<button class="primary" id="mDay">Retour à la séance</button>' : ""}${insess ? `<button class="primary" id="mNext">${isMiniOfStep(W.id) ? "Retour à la leçon" : esc(nextLabel())}</button>` : ""}</div>`;
+      <p style="margin:0;color:var(--as-dim);font-size:14px">${W.mode === "exam" ? "L'analyse guidée te montre le corrigé de chaque task et t'aide à comprendre tes erreurs." : scores[0] >= RULE_SUCCESS_SCORE_THRESHOLD ? (slow ? "Réussi, mais plus de " + Math.round(tolMs / 60000) + " min au-delà du temps prévu : cet exo reviendra en révision dans " + INTERVALS[0] + " séances, pour le refaire plus vite." : inTol ? "Réussi, dans la marge de temps (jusqu'à " + Math.round(tolMs / 60000) + " min de plus). Pas de révision." : "Réussi (" + RULE_SUCCESS_SCORE_THRESHOLD + " ou plus).") : solutionProofAvailable(W.id) ? "Sous " + RULE_SUCCESS_SCORE_THRESHOLD + " : cet exo reviendra en révision. Regarde le corrigé, puis refais-le de mémoire." : "Sous " + RULE_SUCCESS_SCORE_THRESHOLD + " : recommence, tu peux y arriver. Le corrigé reste verrouillé jusqu'à l'effort demandé."}</p>
+      ${W.mode === "exo" ? `<div class="mynote${revSoon ? " hot" : ""}"><b>Ta fiche sur cet exo, avec tes mots</b><p>${revSoon ? "Écris-la maintenant, quand c'est frais : elle reviendra avec l'exo en révision. Elle ne remplace pas la réussite." : "Optionnel : 3 lignes pour t'en souvenir dans 2 mois."}</p>${noteForm(W.id)}</div>` : ""}
+      <div class="row2"><button id="mBack">Retour au site</button>${W.mode === "exo" ? '<button id="mKeep">Recommencer avec mon code</button><button id="mAgain">Recommencer à zéro</button>' : '<button id="mAgain">Recommencer</button>'}${W.mode === "exo" ? (solutionProofAvailable(W.id) ? '<button id="mSol">Voir le corrigé</button>' : "") : `<button ${insess || dayHere ? "" : 'class="primary"'} id="mAna">Analyse guidée</button>`}${dayHere ? '<button class="primary" id="mDay">Retour à la séance</button>' : ""}${insess ? `<button class="primary" id="mNext">${isMiniOfStep(W.id) ? "Retour à la leçon" : esc(nextLabel())}</button>` : ""}</div>`;
     m.hidden = false;
     bindNote(b);
     $("#mBack").onclick = () => { m.hidden = true; closeWorkspace(); goHash(P.cur ? "accueil" : backHash()); };
@@ -1371,12 +1512,22 @@
     return st.type === "learn" && reflex(st.reflex).mini === tid;
   }
   function showSolution() {
+    if (RULE_PROOF_OF_EFFORT_ENABLED && W.mode === "exo" && !solutionProofAvailable(W.id)) {
+      updateSolutionButton(W.id);
+      return;
+    }
     const t = W.tasks[W.cur], m = $("#modal"), b = $("#mbox");
     const sub = Object.keys(W.lastSub).length > 0;
     if (!sub && W.clock.endsAt && (left() > 0 || isOver()) && !confirm("Tu n'as pas encore soumis. Regarder le corrigé maintenant ? (Conseil : soumets d'abord, même incomplet.)")) return;
     if (W.mode === "exo") {
-      P.solSeen[t.id] = Date.now();
-      if (!P.review.some((r) => r.task === t.id)) P.review.push({ task: t.id, stage: 0, due: P.sessCount + INTERVALS[0] });
+      if (RULE_SOLUTION_RETURNS_TOMORROW_ENABLED) {
+        const item = P.review.find((r) => r.task === t.id);
+        if (item) { item.stage = 0; item.due = P.sessCount + 1; }
+        else P.review.push({ task: t.id, stage: 0, due: P.sessCount + 1 });
+      } else {
+        P.solSeen[t.id] = Date.now();
+        if (!P.review.some((r) => r.task === t.id)) P.review.push({ task: t.id, stage: 0, due: P.sessCount + INTERVALS[0] });
+      }
       persist();
     }
     b.className = "box wide";
@@ -1498,7 +1649,7 @@
   }
   /* ============================================================ parcours DSA */
   function dsaP(id) { return (CAT.dsa || []).find((d) => d.id === id); }
-  function dsaDone(d) { return d.exos.filter((t) => P.tasks[t] && P.tasks[t].best >= 80).length; }
+  function dsaDone(d) { return d.exos.filter((t) => P.tasks[t] && P.tasks[t].best >= RULE_SUCCESS_SCORE_THRESHOLD).length; }
   function dsaCardsOn(d) { return d.cards.every((_, j) => P.cards[d.id + "-" + j]); }
   function renderDsaList() {
     const L = CAT.dsa || [];
@@ -1657,7 +1808,8 @@
       on("#lvSave", () => {
         const score = $$("[data-r]").filter((x) => x.checked).length;
         (P.live = P.live || []).push({ at: today(), id, score, note: ($("#lvNote").value || "").trim().slice(0, 200), min: Math.round((Date.now() - run.t0) / 60000) });
-        markDay(); persist(); save(LSL, null);
+        if (!RULE_STREAK_SUBMISSION_ENABLED) markDay();
+        persist(); save(LSL, null);
         flash = "Live enregistré. Réécoute ton audio aujourd'hui, et note une phrase que tu dirais autrement.";
         goHash("live");
       });

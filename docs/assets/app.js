@@ -1088,6 +1088,7 @@
     const starters = tasks.map((t) => starterFor(t, mode));
     let ruleProof = prev && prev.ruleProof ? prev.ruleProof : proofState(starters);
     if (!proofIsValidState(ruleProof)) ruleProof = proofState(starters);
+    if (prev) ruleProof.activeSince = null;
     if (ruleProof.initialDrafts.length !== starters.length) ruleProof.initialDrafts = starters;
     Object.assign(W, {
       on: true, key, mode, id, tasks, title, cur: 0, side: "desc", open: {}, showDiff: false, busy: false, recorded: false,

@@ -156,6 +156,12 @@
   const NOTE_F = [["trig", "Déclencheur", "Ex. « part du groupe » dans la consigne"], ["tool", "Outil", "Ex. SUM(SUM(x)) OVER (PARTITION BY groupe)"], ["trap", "Piège", "Ex. 100.0 et pas 100 (division entière)"]];
   const myNote = (tid) => ((P.tnotes || {})[tid]) || null;
   const hasNote = (tid) => { const n = myNote(tid); return !!(n && NOTE_F.some(([k]) => (n[k] || "").trim())); };
+  const hasLegacyNote = (tid) => {
+    const n = myNote(tid);
+    if (!n || typeof n !== "object") return false;
+    if (n.antiRuleNoteV1 === 1) return false;
+    return hasNote(tid);
+  };
   function noteForm(tid) {
     const n = myNote(tid) || {};
     return NOTE_F.map(([k, lab, ph]) => `<label class="nf"><span>${lab}</span><textarea rows="2" data-note="${k}" data-tid="${tid}" placeholder="${esc(ph)}">${esc(n[k] || "")}</textarea></label>`).join("") + `<small class="nsaved">Enregistrée toute seule, dans ce navigateur.</small>`;
@@ -165,6 +171,7 @@
       P.tnotes = P.tnotes || {};
       const n = P.tnotes[ta.dataset.tid] || (P.tnotes[ta.dataset.tid] = {});
       n[ta.dataset.note] = ta.value; n.at = today(); persist();
+      if (RULE_NOTE_NOT_CLOSE_ENABLED) n.antiRuleNoteV1 = 1;
     }));
   }
   function recordTask(tid, score, inReview) {
@@ -464,9 +471,8 @@
 
   /* ============================================================ v2 : séance du jour */
   const isDoneTask = (id) => (P.tasks[id] && P.tasks[id].best >= 80) || !!(P.solSeen || {})[id];
-  // Pour la séance : un exo raté mais fini, avec au moins une ligne dans sa fiche, est terminé.
-  // Il revient plus tard en révision. (La fiche n'apparaît qu'à la fin d'un exo.)
-  const isClosedTask = (id) => isDoneTask(id) || hasNote(id);
+  // Les nouvelles fiches ne ferment plus un exo raté. Les fiches écrites avant cette règle restent reconnues.
+  const isClosedTask = (id) => isDoneTask(id) || (RULE_NOTE_NOT_CLOSE_ENABLED ? hasLegacyNote(id) : hasNote(id));
   function nextOf(lang, taken) { return QUEUE[lang].find((id) => !isClosedTask(id) && !taken.includes(id)) || null; }
   function nextExam() { return CAT.exams.find((e) => !((P.exams[e.id] || {}).hist || []).length) || null; }
   function makeDay(n) {
@@ -494,7 +500,7 @@
   }
   function dayStepDone(st) {
     if (st.kind === "exo") return isClosedTask(st.id);
-    if (st.kind === "redo") { const t = P.tasks[st.id] || {}; return ((t.n || 0) > st.n0 && t.last >= 80) || ((P.solSeen || {})[st.id] || 0) > P.day.at || (((P.ended || {})[st.id] || 0) > P.day.at && hasNote(st.id)); }
+    if (st.kind === "redo") { const t = P.tasks[st.id] || {}; return ((t.n || 0) > st.n0 && t.last >= 80) || ((P.solSeen || {})[st.id] || 0) > P.day.at || (!RULE_NOTE_NOT_CLOSE_ENABLED && ((P.ended || {})[st.id] || 0) > P.day.at && hasNote(st.id)); }
     if (st.kind === "fiche") return !!P.day.rev.read;
     if (st.kind === "exam") return (((P.exams[st.id] || {}).hist || []).filter((h) => (h.ts || 0) >= P.day.at)).length > 0;
     return false;

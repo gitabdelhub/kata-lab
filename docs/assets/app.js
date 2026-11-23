@@ -481,14 +481,19 @@
   }
   function updateSolutionButton(id) {
     const b = $("#showSol");
+    const msg = $("#solutionProofMessage");
     if (!b) return;
     b.hidden = W.mode !== "exo";
     if (W.mode !== "exo") return;
     const allowed = solutionProofAvailable(id);
-    b.disabled = !allowed;
     const missing = proofMissing(id);
+    const statusKey = allowed ? "ok" : missing.join("|");
+    if (W.solutionProofStatus === statusKey && b.disabled === !allowed && (!msg || msg.textContent)) return;
+    b.disabled = !allowed;
     b.textContent = allowed ? "Voir le corrigé" : "Corrigé verrouillé";
     b.title = allowed ? "Voir le corrigé" : "Il manque : " + missing.join(", ");
+    if (msg) msg.textContent = allowed ? "Le corrigé est dans MORE, Voir le corrigé." : "Corrigé verrouillé : il manque " + missing.join(", ") + ".";
+    W.solutionProofStatus = statusKey;
   }
 
   /* ============================================================ v2 : séance du jour */
@@ -1197,7 +1202,7 @@
         const fs = ficheSecFor(t.id);
         if (fs) extra += `<p class="fichelink">Une notion t'échappe ? <a href="#fiche-${fs.lang}-${fs.id}" target="_blank" rel="noopener">Relis la fiche « ${esc(fs.t)} »</a> (s'ouvre dans un nouvel onglet, ton code reste ici).</p>`;
         const proofMissingText = proofMissing(t.id);
-        extra += `<p class="fichelink">${solutionProofAvailable(t.id) ? "Le corrigé est dans MORE, Voir le corrigé." : (RULE_PROOF_OF_EFFORT_ENABLED ? "Corrigé verrouillé : il manque " + proofMissingText.join(", ") + "." : "Le corrigé s'ouvre après 2 essais (SUBMIT ou Terminer).")}</p>`;
+        extra += `<p id="solutionProofMessage" class="fichelink">${solutionProofAvailable(t.id) ? "Le corrigé est dans MORE, Voir le corrigé." : (RULE_PROOF_OF_EFFORT_ENABLED ? "Corrigé verrouillé : il manque " + proofMissingText.join(", ") + "." : "Le corrigé s'ouvre après 2 essais (SUBMIT ou Terminer).")}</p>`;
         const shown = W.hints[W.cur] || [];
         shown.forEach((k) => (extra += `<div class="hinttxt"><b>Indice ${k + 1} :</b> ${esc(hs[k])}</div>`));
       }
@@ -1329,6 +1334,7 @@
       }
     }
     if (W.cur === ti) { renderTests(); updScore(); }
+    if (W.mode === "exo") updateSolutionButton(t.id);
     renderTaskTabs();
     // Exo réussi à 100 : le chrono s'arrête et le résultat (note + temps) s'affiche
     if (submit && !R.error && W.mode === "exo" && R.score === 100 && !W.recorded) setTimeout(() => { if (W.on) finishScreen(true); }, 700);
@@ -1351,6 +1357,7 @@
   function renderClock() {
     if (!W.on) return;
     const l = left(), c = W.clock;
+    if (W.mode === "exo") updateSolutionButton(W.id);
     const pb = $("#pauseBtn");
     if (pb && !pb.hidden) { const pz = c.pausedLeft != null; pb.textContent = pz ? "▶ REPRENDRE" : "⏸ PAUSE"; pb.classList.toggle("on", pz); }
     if (isOver()) { const t = Math.round(-l / 1000); $("#time").textContent = (c.pausedLeft != null ? "Paused · " : "") + "Temps dépassé · +" + Math.floor(t / 60) + "m " + pad(t % 60) + "s"; $("#timer").classList.add("low"); return; }

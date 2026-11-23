@@ -588,7 +588,7 @@
         <div class="ph-track" style="margin:0"><i style="width:${Math.round((100 * done) / steps.length)}%"></i></div>
         <div class="dsteps">${steps.map(row).join("")}</div>
         ${all ? `<div class="dunlock"><span>Séance ${d.n} terminée. Bravo, une de plus.</span><button class="pill sm" id="nextDay">Voir la séance suivante</button></div>`
-          : `<p class="muted" style="margin:0;font-size:14px">${d.exam ? "L'étape est cochée quand tu termines l'examen (Finish test)." : "Un exo est coché uniquement à ${RULE_SUCCESS_SCORE_THRESHOLD}/100 ou plus. Une fiche ou le corrigé aide à réviser, mais ne remplace pas la réussite."} La séance suivante apparaît quand tout est coché, peu importe le jour.</p>`}</div>`;
+          : `<p class="muted" style="margin:0;font-size:14px">${d.exam ? "L'étape est cochée quand tu termines l'examen (Finish test)." : "Un exo est coché uniquement à " + RULE_SUCCESS_SCORE_THRESHOLD + "/100 ou plus. Une fiche ou le corrigé aide à réviser, mais ne remplace pas la réussite."} La séance suivante apparaît quand tout est coché, peu importe le jour.</p>`}</div>`;
     }
     const nOk = Object.keys(CAT.tasks).filter((id) => statusOf(id) === "ok").length;
     view().innerHTML = `<section class="ws on"><div class="pband"><div class="wrap hero2"><h1 class="ptitle">Bonjour AB</h1><p class="lead">Ta séance du jour t'attend : 4 exos, tu découvres chacun en l'ouvrant. Le reste du site est libre, à côté.</p></div></div>

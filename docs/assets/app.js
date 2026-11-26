@@ -405,8 +405,11 @@
   function statusOf(id) {
     const t = P.tasks[id];
     if (t && t.best >= RULE_SUCCESS_SCORE_THRESHOLD) return "ok";
-    if ((t && t.n) || P.review.some((r) => r.task === id) || (P.solSeen || {})[id]) return "redo";
+    if ((t && t.n) || reviewItemOf(id) || (P.solSeen || {})[id]) return "redo";
     return "todo";
+  }
+  function reviewItemOf(id) {
+    return Array.isArray(P.review) ? P.review.find((r) => r && r.task === id) || null : null;
   }
   const ST_LAB = { ok: "Réussi", redo: "À refaire", todo: "À faire" };
   function ficheSecFor(id) {
@@ -618,7 +621,15 @@
       const all = ids.filter((id) => CAT.tasks[id].lang === l), ok = all.filter((id) => statusOf(id) === "ok").length;
       return `<div class="prl"><span><b>${SHORT[l]}</b><span>${ok} / ${all.length}</span></span><div class="ph-track"><i style="width:${Math.max(2, Math.round((100 * ok) / all.length))}%"></i></div></div>`;
     }).join("");
-    const redo = P.review.filter((r) => CAT.tasks[r.task]).slice(0, 6).map((r) => `<li><a href="#exo-${r.task}">${esc(CAT.tasks[r.task].name)}</a> · ${SHORT[CAT.tasks[r.task].lang]}</li>`).join("");
+    const reviewItems = (Array.isArray(P.review) ? P.review : [])
+      .filter((r) => r && CAT.tasks[r.task])
+      .slice()
+      .sort((a, b) => (Number.isFinite(a.due) ? a.due : 0) - (Number.isFinite(b.due) ? b.due : 0));
+    const redo = reviewItems.map((r) => {
+      const remaining = Number.isFinite(r.due) && Number.isFinite(P.sessCount) ? Math.max(0, r.due - P.sessCount) : null;
+      const timing = remaining == null ? "" : remaining === 0 ? " · à revoir maintenant" : " · dans " + remaining + " séance" + (remaining > 1 ? "s" : "");
+      return `<li><a href="#exo-${r.task}">${esc(CAT.tasks[r.task].name)}</a> · ${SHORT[CAT.tasks[r.task].lang]}${timing}</li>`;
+    }).join("");
     view().innerHTML = `<section class="ws on">${band("Pratiquer", `<p class="lead" style="margin:-4px 0 22px">Les exos sont rangés dans l'ordre conseillé : commence en haut de ton langage et descends. Clique sur une ligne pour ouvrir l'exo.</p>` + tabs)}
       <div class="wrap"><div class="sect prat">
         <div style="min-width:0">
@@ -632,7 +643,7 @@
         </div>
         <aside class="pside">
           <div class="card"><h3>Ta progression</h3><div class="prog3">${prog}</div><p class="muted" style="font-size:13px;margin:8px 0 0">Un exo est réussi à ${RULE_SUCCESS_SCORE_THRESHOLD}/100 ou plus.</p></div>
-          <div class="card"><h3>À refaire</h3>${redo ? `<ul class="redo">${redo}</ul>` : `<p class="muted" style="margin:0;font-size:14px">Rien pour l'instant. Les exos ratés (moins de 80) arrivent ici.</p>`}</div>
+          <div class="card"><h3>À refaire</h3>${redo ? `<ul class="redo">${redo}</ul>` : `<p class="muted" style="margin:0;font-size:14px">Aucun exercice n'est actuellement programmé en révision.</p>`}</div>
           <div class="card"><h3>Bloqué sur une notion ?</h3><p class="muted" style="margin:0 0 6px;font-size:14px">Chaque exo a un lien vers la fiche qui l'explique.</p><a href="#fiches">Voir les fiches</a></div>
         </aside>
       </div></div></section>`;
@@ -640,12 +651,13 @@
       const q = PF.q.trim().toLowerCase();
       let r = ids.filter((id) => {
         const t = CAT.tasks[id];
-        return (PF.lang === "all" || t.lang === PF.lang) && (!PF.theme || themeOf(id) === PF.theme) && (!PF.st || statusOf(id) === PF.st) && (!q || (t.name + " " + (t.tags || []).join(" ")).toLowerCase().includes(q));
+        const statusMatches = !PF.st || statusOf(id) === PF.st || (PF.st === "redo" && reviewItemOf(id));
+        return (PF.lang === "all" || t.lang === PF.lang) && (!PF.theme || themeOf(id) === PF.theme) && statusMatches && (!q || (t.name + " " + (t.tags || []).join(" ")).toLowerCase().includes(q));
       }).sort((a, b) => RANK[a] - RANK[b] || LORD[CAT.tasks[a].lang] - LORD[CAT.tasks[b].lang]);
       const total = r.length; r = r.slice(0, PF.shown);
       $("#prows").innerHTML = r.map((id, i) => {
-        const t = CAT.tasks[id], s = statusOf(id), ex = EXAM_OF[id], best = (P.tasks[id] || {}).best;
-        return `<tr data-id="${id}" tabindex="0"><td class="num">${i + 1}</td><td class="ttl"><a href="#exo-${id}">${esc(t.name)}</a><small>${esc((t.tags || []).slice(0, 3).join(" · "))}${ex ? " · aussi dans l'examen " + (ex.mini ? "mini" : "#" + pad(CAT.exams.filter((x) => !x.mini).findIndex((x) => x.id === ex.id) + 1)) : ""}</small></td><td><span class="lg ${t.lang}">${SHORT[t.lang]}</span></td><td>${esc(themeOf(id))}</td><td class="num">${t.minutes} min</td><td><span class="st ${s}">${ST_LAB[s]}${best != null && s !== "todo" ? " · " + best : ""}</span></td></tr>`;
+        const t = CAT.tasks[id], s = statusOf(id), ex = EXAM_OF[id], best = (P.tasks[id] || {}).best, queuedForReview = !!reviewItemOf(id);
+        return `<tr data-id="${id}" tabindex="0"><td class="num">${i + 1}</td><td class="ttl"><a href="#exo-${id}">${esc(t.name)}</a><small>${esc((t.tags || []).slice(0, 3).join(" · "))}${ex ? " · aussi dans l'examen " + (ex.mini ? "mini" : "#" + pad(CAT.exams.filter((x) => !x.mini).findIndex((x) => x.id === ex.id) + 1)) : ""}</small></td><td><span class="lg ${t.lang}">${SHORT[t.lang]}</span></td><td>${esc(themeOf(id))}</td><td class="num">${t.minutes} min</td><td><span class="st ${s}">${ST_LAB[s]}${best != null && s !== "todo" ? " · " + best : ""}</span>${queuedForReview ? '<span class="st redo" style="margin-left:6px">À revoir</span>' : ""}</td></tr>`;
       }).join("") || `<tr><td colspan="6" class="muted">Aucun exo ne correspond à ces filtres.</td></tr>`;
       $$("#prows tr[data-id]").forEach((tr) => { tr.onclick = (e) => { if (e.target.tagName !== "A") goHash("exo-" + tr.dataset.id); }; tr.onkeydown = (e) => { if (e.key === "Enter") goHash("exo-" + tr.dataset.id); }; });
       const mb = $("#pmore"); mb.hidden = total <= PF.shown; mb.textContent = `Afficher plus (${total - PF.shown} restants)`;

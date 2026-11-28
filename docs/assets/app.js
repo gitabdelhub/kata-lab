@@ -15,15 +15,18 @@
   const RULE_NOTE_NOT_CLOSE_ENABLED = true;
   const RULE_STREAK_SUBMISSION_ENABLED = true;
   const RULE_STRICT_EXAM_LOCK_ENABLED = true;
+  const RULE_WEEKLY_EXAM_RECALL_ENABLED = true;
   const RULE_ACTIVE_MINUTES_THRESHOLD = 10;
   const RULE_SUCCESS_SCORE_THRESHOLD = 80;
+  const RULE_EXAM_RECALL_SCORE_THRESHOLD = 80;
+  const RULE_EXAM_RECALL_DAY = 0;
   const RULE_ACTIVE_MS_THRESHOLD = RULE_ACTIVE_MINUTES_THRESHOLD * 60 * 1000;
 
   /* ============================================================ stockage */
   const LS = "kata.v1", LSA = "kata.attempt";
   const load = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (_) { return d; } };
   const save = (k, v) => { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); } catch (_) {} };
-  const P0 = () => ({ v: 1, done: {}, sessCount: 0, cur: null, cards: {}, tasks: {}, exams: {}, review: [], errors: {}, notes: {}, days: [], ump: false, dur: 70, live: [], v2: 1, solSeen: {}, day: null, dayN: 1, tnotes: {}, antiRules: { startedAt: null } });
+  const P0 = () => ({ v: 1, done: {}, sessCount: 0, cur: null, cards: {}, tasks: {}, exams: {}, review: [], errors: {}, notes: {}, days: [], ump: false, dur: 70, live: [], v2: 1, solSeen: {}, day: null, dayN: 1, tnotes: {}, antiRules: { startedAt: null }, examRecall: { week: null, active: null } });
   let P = Object.assign(P0(), load(LS, {}));
   if (!P.antiRules || typeof P.antiRules !== "object" || typeof P.antiRules.startedAt !== "number") P.antiRules = { startedAt: Date.now() };
   // v2 (6 nov 2026) : séance du jour simple, plus de parcours guidé ni d'UMPIRE imposé
@@ -505,6 +508,43 @@
   const isClosedTask = (id) => isDoneTask(id) || (RULE_NOTE_NOT_CLOSE_ENABLED ? hasLegacyNote(id) : hasNote(id));
   function nextOf(lang, taken) { return QUEUE[lang].find((id) => !isClosedTask(id) && !taken.includes(id)) || null; }
   function nextExam() { return CAT.exams.find((e) => !((P.exams[e.id] || {}).hist || []).length) || null; }
+  function examRecallWeekKey(date) {
+    const sunday = new Date(date.getFullYear(), date.getMonth(), date.getDate() - ((date.getDay() - RULE_EXAM_RECALL_DAY + 7) % 7));
+    return sunday.getFullYear() + "-" + pad(sunday.getMonth() + 1) + "-" + pad(sunday.getDate());
+  }
+  function validExamRecallState() {
+    const state = P.examRecall;
+    return state && typeof state === "object" && !Array.isArray(state)
+      && (state.week === null || (typeof state.week === "string" && /^\d{4}-\d{2}-\d{2}$/.test(state.week)))
+      && (state.active === null || (typeof state.active === "string" && !!exam(state.active)))
+      ? state : null;
+  }
+  function weakExamForRecall() {
+    const candidates = CAT.exams.map((e, index) => {
+      const hist = (P.exams[e.id] || {}).hist;
+      const latest = Array.isArray(hist) ? hist[hist.length - 1] : null;
+      const scores = latest && latest.scores;
+      if (!Array.isArray(scores) || scores.length !== e.tasks.length
+        || scores.some((score) => typeof score !== "number" || !Number.isFinite(score) || score < 0 || score > 100)
+        || scores.every((score) => score >= RULE_EXAM_RECALL_SCORE_THRESHOLD)) return null;
+      return { exam: e, index, average: scores.reduce((sum, score) => sum + score, 0) / scores.length };
+    }).filter(Boolean);
+    candidates.sort((a, b) => a.average - b.average || a.index - b.index);
+    return candidates.length ? candidates[0].exam : null;
+  }
+  function scheduledExamRecall() {
+    if (!RULE_WEEKLY_EXAM_RECALL_ENABLED) return null;
+    const state = validExamRecallState();
+    if (!state) return null;
+    if (state.active) return exam(state.active);
+    const week = examRecallWeekKey(new Date());
+    if (state.week === week) return null;
+    const candidate = weakExamForRecall();
+    state.week = week;
+    state.active = candidate ? candidate.id : null;
+    persist();
+    return candidate;
+  }
   function makeDay(n) {
     const at = Date.now();
     const e = nextExam();
@@ -559,16 +599,18 @@
   }
   function inDay(mode, id) {
     const d = P.day; if (!d) return false;
-    if (mode === "exam") return d.exam === id;
+    if (mode === "exam") return d.exam === id || !!(W.reviewExam && W.id === id);
     return d.items.some((i) => i.id === id) || !!(d.rev && d.rev.id === id);
   }
   const backHash = () => (inDay(W.mode, W.id) ? "accueil" : W.mode === "exo" ? "pratiquer" : "examens");
 
   function renderHome() {
     const d = ensureDay();
+    const recall = scheduledExamRecall();
+    const recallRow = recall ? `<div class="dstep"><span class="ck">↻</span><div class="t"><b>Examen à refaire</b><small>Facultatif · rappel du dimanche · ${esc(recall.title.replace("Practice Assessment · ", ""))} · à refaire jusqu'à ${RULE_EXAM_RECALL_SCORE_THRESHOLD}/100 sur chaque task dans une même tentative</small></div><a class="pill sm" href="#exam-review-${recall.id}">${attemptFor("exam", recall.id) ? "Reprendre" : "Refaire"}</a></div>` : "";
     let card;
     if (d.end) {
-      card = `<div class="day"><div class="dayhead"><div><span class="eyebrow">Séance ${d.n}</span><h2>Tu as fini tous les exos et tous les examens.</h2></div></div><p class="muted" style="margin:0">Pour rester prêt : refais un examen par semaine et les exos marqués « À refaire » dans Pratiquer.</p><div class="btnrow"><a class="pill sm" href="#examens">Examens</a><a class="pill sm ghost" href="#pratiquer">Pratiquer</a></div></div>`;
+      card = `<div class="day"><div class="dayhead"><div><span class="eyebrow">Séance ${d.n}</span><h2>Tu as fini tous les exos et tous les examens.</h2></div></div><p class="muted" style="margin:0">Pour rester prêt : refais un examen par semaine et les exos marqués « À refaire » dans Pratiquer.</p>${recallRow ? `<div class="dsteps">${recallRow}</div>` : ""}<div class="btnrow"><a class="pill sm" href="#examens">Examens</a><a class="pill sm ghost" href="#pratiquer">Pratiquer</a></div></div>`;
     } else {
       const steps = daySteps();
       const done = steps.filter(dayStepDone).length;
@@ -594,7 +636,7 @@
       const all = done === steps.length;
       card = `<div class="day"><div class="dayhead"><div><span class="eyebrow">Séance du jour · séance ${d.n}</span><h2>${d.exam ? "Jour d'examen" : steps[0].kind === "fiche" ? "Lis le rappel, puis " + (steps.length - 1) + " exos dans l'ordre que tu veux" : steps.length + " exos, dans l'ordre que tu veux"}</h2></div><span class="muted">${done} / ${steps.length} fait${done > 1 ? "s" : ""}</span></div>
         <div class="ph-track" style="margin:0"><i style="width:${Math.round((100 * done) / steps.length)}%"></i></div>
-        <div class="dsteps">${steps.map(row).join("")}</div>
+        <div class="dsteps">${steps.map(row).join("")}${recallRow}</div>
         ${all ? `<div class="dunlock"><span>Séance ${d.n} terminée. Bravo, une de plus.</span><button class="pill sm" id="nextDay">Voir la séance suivante</button></div>`
           : `<p class="muted" style="margin:0;font-size:14px">${d.exam ? "L'étape est cochée quand tu termines l'examen (Finish test)." : "Un exo est coché uniquement à " + RULE_SUCCESS_SCORE_THRESHOLD + "/100 ou plus. Une fiche ou le corrigé aide à réviser, mais ne remplace pas la réussite."} La séance suivante apparaît quand tout est coché, peu importe le jour.</p>`}</div>`;
     }
@@ -976,7 +1018,7 @@
   function saveAttempt() {
     if (!W.on) return;
     if (RULE_PROOF_OF_EFFORT_ENABLED && W.mode === "exo") proofAccumulate();
-    save(LSA, { key: W.key, mode: W.mode, id: W.id, drafts: W.drafts, results: W.results, clock: W.clock, recorded: W.recorded, lastSub: W.lastSub, ruleProof: W.ruleProof || null, at: Date.now() });
+    save(LSA, { key: W.key, mode: W.mode, id: W.id, drafts: W.drafts, results: W.results, clock: W.clock, recorded: W.recorded, lastSub: W.lastSub, ruleProof: W.ruleProof || null, reviewExam: !!W.reviewExam, at: Date.now() });
   }
   let saveT = null;
   const saveSoon = () => { clearTimeout(saveT); saveT = setTimeout(saveAttempt, 400); };
@@ -1075,9 +1117,12 @@
   }
 
   let keepDrafts = null;
-  async function openWorkspace(mode, id, force) {
+  async function openWorkspace(mode, id, force, reviewExam) {
     const key = mode + ":" + id;
-    if (W.on && W.key === key && !force) return;
+    if (W.on && W.key === key && !force) {
+      if (mode === "exam" && reviewExam && !W.reviewExam) { W.reviewExam = true; saveAttempt(); }
+      return;
+    }
     if (RULE_PROOF_OF_EFFORT_ENABLED && W.mode === "exo") proofPause();
     stopClock();
     let ids, title, minutes;
@@ -1090,6 +1135,7 @@
     }
     const tasks = await Promise.all(ids.map(getTask));
     const prev = force ? null : attemptFor(mode, id);
+    reviewExam = mode === "exam" && (!!reviewExam || !!(prev && prev.reviewExam));
     if (force) {
       const old = load(LSA, null);
       if (old && old.key === key && mode === "exam" && !old.recorded && old.lastSub && Object.keys(old.lastSub).length) {
@@ -1107,7 +1153,7 @@
       drafts: keepDrafts && keepDrafts.key === key ? keepDrafts.drafts : prev ? prev.drafts : starters,
       results: prev ? prev.results : {},
       clock: prev ? prev.clock : { endsAt: null, pausedLeft: null, mode: mode === "exam" ? "strict" : "train", baseMin: minutes, dur: minutes * 60000 },
-      hints: {}, fr: false, maxHints: null, ruleProof,
+      hints: {}, fr: false, maxHints: null, ruleProof, reviewExam,
     });
     if (RULE_STRICT_EXAM_LOCK_ENABLED && W.mode === "exam"
       && W.clock && typeof W.clock === "object"
@@ -1467,6 +1513,13 @@
     const e = P.exams[eid] || (P.exams[eid] = { hist: [] });
     e.hist.push({ at: today(), ts: Date.now(), scores, strict: W.clock && W.clock.mode === "strict", min: W.clock && W.clock.baseMin, restarted: !!restarted, mini: !!exam(eid).mini });
     e.hist = e.hist.slice(-30);
+    const recall = validExamRecallState();
+    if (RULE_WEEKLY_EXAM_RECALL_ENABLED && recall && recall.active === eid
+      && scores.length === exam(eid).tasks.length
+      && scores.every((score) => typeof score === "number" && Number.isFinite(score) && score >= RULE_EXAM_RECALL_SCORE_THRESHOLD)) {
+      recall.active = null;
+      recall.week = examRecallWeekKey(new Date());
+    }
     persist();
   }
   function finishScreen(timeUp) {
@@ -1550,9 +1603,9 @@
     if (!noConfirm && !confirm("Recommencer depuis le début ? Ton code actuel sera remis à zéro. Tes notes passées restent dans ta Progression.")) return;
     keepDrafts = keep ? { key: W.key, drafts: W.drafts.slice() } : null;
     if (W.mode === "exam" && !W.recorded && Object.keys(W.lastSub).length) { recordExam(W.id, W.tasks.map((_, i) => taskScore(i)), true); W.recorded = true; }
-    const mode = W.mode, id = W.id;
+    const mode = W.mode, id = W.id, reviewExam = W.reviewExam;
     save(LSA, null); W.on = false;
-    openWorkspace(mode, id, true);
+    openWorkspace(mode, id, true, reviewExam);
   }
 
   /* ---- boutons fixes de l'espace d'examen ---- */
@@ -1833,16 +1886,17 @@
     clearTimers();
     let h = (location.hash || "#accueil").slice(1);
     let m;
-    const asm = /^(exam|exo)-/.test(h);
+    const asm = /^(exam|exam-review|exo)-/.test(h);
     $("#v-examen").classList.toggle("on", asm);
     document.body.classList.toggle("in-asm", asm);
-    const nv = /^(exos|pratiquer)/.test(h) ? "pratiquer" : /^(examens|analyse-)/.test(h) ? "examens" : /^(fiche|apprendre|reflexe-|dsa|lire|live|progression|guide)/.test(h) ? "fiches" : h === "connexion" ? "connexion" : "accueil";
+    const nv = /^(exos|pratiquer)/.test(h) ? "pratiquer" : /^(examens|analyse-|exam-review-)/.test(h) ? "examens" : /^(fiche|apprendre|reflexe-|dsa|lire|live|progression|guide)/.test(h) ? "fiches" : h === "connexion" ? "connexion" : "accueil";
     $$("[data-nav]").forEach((a) => a.classList.toggle("on", a.dataset.nav === nv));
     $("#streakN").textContent = streak() + (streak() > 1 ? " jours" : " jour");
     renderSessbar(asm);
     renderAlerts();
     if (!asm && W.on) closeWorkspace();
     if (!asm) window.scrollTo(0, 0);
+    if ((m = h.match(/^exam-review-(\w+)$/))) return openWorkspace("exam", m[1], false, true);
     if ((m = h.match(/^exam-(\w+)$/))) return openWorkspace("exam", m[1]);
     if ((m = h.match(/^exo-(\w+)$/))) return openWorkspace("exo", m[1]);
     if ((m = h.match(/^reflexe-(\w+)$/))) return renderLesson(m[1]);
